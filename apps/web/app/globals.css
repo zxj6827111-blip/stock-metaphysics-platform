@@ -1,0 +1,326 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   股票玄学多模型研究平台 · Design Tokens
+   --------------------------------------------------------------------------
+   取值来源：doc/ui-reference/*.png（Visual Source of Truth，1672×941）
+   通过像素采样提取，保持「深色研究终端 + 东方术数识别元素」的视觉基调。
+
+   与 doc/architecture/uiux_spec_v1.md 的差异（已在 docs/ui-implementation.md 记录）：
+     * 规范文档给出 Canvas #0B0F14 等偏中性灰的色板；
+     * 实际参考图是**偏蓝的深色**（#09141F 系）并带金色主色。
+     * 按用户指令「PNG 为视觉真值」，此处落地参考图取色，
+       但保留规范文档的 Token 命名与语义。
+     * 涨跌色遵循 A 股惯例 **红涨绿跌**（参考图中 600519 +1.24% 为红色、
+       000001 -0.39% 为绿色），而非规范文档的「正青绿 / 负朱红」。
+   ========================================================================== */
+
+@theme {
+  /* --- 画布与表面 --- */
+  --color-canvas: #09141f;
+  --color-surface-1: #0d1a25;
+  --color-surface-2: #101f2b;
+  --color-surface-3: #162835;
+  --color-surface-4: #1b3140;
+  --color-border: #1e3444;
+  --color-border-strong: #2a4457;
+
+  /* --- 文本 --- */
+  --color-ink: #e8edf2;
+  --color-ink-sub: #9faebc;
+  --color-ink-muted: #6f7d8a;
+  --color-ink-faint: #55636f;
+
+  /* --- 品牌 / 主强调（金） --- */
+  --color-gold: #d4b87a;
+  --color-gold-strong: #ecd79f;
+  --color-gold-dim: #9a8551;
+  --color-gold-ghost: rgba(212, 184, 122, 0.14);
+
+  /* --- 语义色 --- */
+  --color-up: #e8585a;         /* 上涨 / 正向（A 股红涨） */
+  --color-up-dim: #8c3234;
+  --color-up-bg: rgba(232, 88, 90, 0.12);
+  --color-down: #4fd39b;       /* 下跌 / 负向（A 股绿跌） */
+  --color-down-dim: #2c7a5c;
+  --color-down-bg: rgba(79, 211, 155, 0.12);
+  --color-flat: #7c8fa3;       /* 中性 */
+  --color-flat-bg: rgba(124, 143, 163, 0.12);
+  --color-warn: #e0a458;
+  --color-warn-bg: rgba(224, 164, 88, 0.12);
+  --color-info: #6b8fd4;
+  --color-info-bg: rgba(107, 143, 212, 0.12);
+  --color-conflict: #b07cd6;
+  --color-conflict-bg: rgba(176, 124, 214, 0.12);
+
+  /* --- 五行（仅作视觉标识，不做吉凶染色） --- */
+  --color-wood: #4fae6d;
+  --color-fire: #e0605c;
+  --color-earth: #c9a961;
+  --color-metal: #b9c4cc;
+  --color-water: #5b8fd4;
+
+  /* --- 字体 --- */
+  --font-sans: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Hiragino Sans GB",
+    system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Courier New", monospace;
+  --font-serif-cn: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+
+  /* --- 尺寸 --- */
+  --spacing-sidebar: 232px;
+  --spacing-topbar: 64px;
+  --radius-card: 10px;
+  --radius-chip: 4px;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+* {
+  border-color: var(--color-border);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body::before {
+  /* 参考图中的星图/山水底纹：用极低透明度的径向渐变模拟，不使用任何位图 */
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(1100px 520px at 78% -6%, rgba(212, 184, 122, 0.09), transparent 62%),
+    radial-gradient(760px 420px at 12% 108%, rgba(79, 130, 170, 0.09), transparent 60%);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold-dim);
+}
+
+/* ==========================================================================
+   Component primitives —— 这些类被多个组件复用，禁止在页面里散落硬编码样式
+   ========================================================================== */
+
+@layer components {
+  .smp-card {
+    @apply relative rounded-[10px] border;
+    background: linear-gradient(180deg, var(--color-surface-2) 0%, var(--color-surface-1) 100%);
+    border-color: var(--color-border);
+  }
+
+  .smp-card--quiet {
+    background: var(--color-surface-1);
+  }
+
+  .smp-card-header {
+    @apply flex items-center gap-2 px-4 py-2.5;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .smp-card-title {
+    @apply flex items-center gap-2 text-[13px] font-medium;
+    color: var(--color-ink);
+  }
+
+  .smp-card-title-icon {
+    color: var(--color-gold);
+  }
+
+  .smp-section-title {
+    @apply text-[15px] font-semibold tracking-wide;
+    color: var(--color-ink);
+  }
+
+  .smp-gold {
+    color: var(--color-gold);
+  }
+
+  .smp-chip {
+    @apply inline-flex items-center gap-1 rounded-[4px] border px-1.5 py-[1px] text-[11px] leading-[16px];
+  }
+
+  .smp-chip--up {
+    color: var(--color-up);
+    border-color: var(--color-up-dim);
+    background: var(--color-up-bg);
+  }
+  .smp-chip--down {
+    color: var(--color-down);
+    border-color: var(--color-down-dim);
+    background: var(--color-down-bg);
+  }
+  .smp-chip--flat {
+    color: var(--color-flat);
+    border-color: var(--color-border-strong);
+    background: var(--color-flat-bg);
+  }
+  .smp-chip--warn {
+    color: var(--color-warn);
+    border-color: rgba(224, 164, 88, 0.4);
+    background: var(--color-warn-bg);
+  }
+  .smp-chip--info {
+    color: var(--color-info);
+    border-color: rgba(107, 143, 212, 0.4);
+    background: var(--color-info-bg);
+  }
+  .smp-chip--conflict {
+    color: var(--color-conflict);
+    border-color: rgba(176, 124, 214, 0.4);
+    background: var(--color-conflict-bg);
+  }
+  .smp-chip--gold {
+    color: var(--color-gold);
+    border-color: var(--color-gold-dim);
+    background: var(--color-gold-ghost);
+  }
+
+  .smp-btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-[6px] border px-3 py-[7px]
+      text-[12px] transition-colors;
+    border-color: var(--color-border-strong);
+    color: var(--color-ink-sub);
+    background: var(--color-surface-2);
+  }
+  .smp-btn:hover {
+    color: var(--color-ink);
+    border-color: var(--color-gold-dim);
+  }
+
+  .smp-btn--primary {
+    color: #241c0c;
+    background: linear-gradient(180deg, var(--color-gold-strong), var(--color-gold));
+    border-color: var(--color-gold-dim);
+    font-weight: 600;
+  }
+  .smp-btn--primary:hover {
+    color: #16110a;
+    filter: brightness(1.06);
+  }
+
+  .smp-nav-item {
+    @apply relative flex items-center gap-2.5 px-4 py-[12px] text-[13.5px] transition-colors;
+    color: var(--color-ink-sub);
+    border-left: 2px solid transparent;
+  }
+  .smp-nav-item:hover {
+    color: var(--color-ink);
+    background: rgba(255, 255, 255, 0.022);
+  }
+  .smp-nav-item--active {
+    color: var(--color-ink);
+    background: linear-gradient(90deg, rgba(212, 184, 122, 0.14), transparent 82%);
+    border-left-color: var(--color-gold);
+  }
+  .smp-nav-item--active .smp-nav-icon {
+    color: var(--color-gold);
+  }
+  .smp-nav-item--disabled {
+    color: var(--color-ink-faint);
+    cursor: not-allowed;
+  }
+
+  .smp-metric-label {
+    @apply text-[11px];
+    color: var(--color-ink-muted);
+  }
+
+  .smp-metric-value {
+    @apply font-mono text-[13px] tabular-nums;
+    color: var(--color-ink);
+  }
+
+  .smp-table {
+    @apply w-full border-collapse text-[12px];
+  }
+  .smp-table th {
+    @apply px-3 py-2 text-left text-[11px] font-medium;
+    color: var(--color-ink-muted);
+    border-bottom: 1px solid var(--color-border);
+    font-weight: 500;
+  }
+  .smp-table td {
+    @apply px-3 py-2;
+    color: var(--color-ink-sub);
+    border-bottom: 1px solid rgba(30, 52, 68, 0.5);
+  }
+  .smp-table tbody tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--color-ink);
+  }
+
+  .smp-scroll {
+    scrollbar-width: thin;
+  }
+
+  .smp-divider {
+    height: 1px;
+    background: var(--color-border);
+  }
+
+  .smp-num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .smp-disclaimer {
+    @apply rounded-[6px] border px-3 py-2 text-[11px] leading-[17px];
+    color: var(--color-ink-muted);
+    border-color: var(--color-border);
+    background: rgba(0, 0, 0, 0.16);
+  }
+}
+
+/* 骨架屏（加载状态） */
+.smp-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-2) 0%,
+    var(--color-surface-3) 50%,
+    var(--color-surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: smp-shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes smp-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .smp-skeleton {
+    animation: none;
+  }
+}

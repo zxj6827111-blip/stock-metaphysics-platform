@@ -1,0 +1,56 @@
+# 股票玄学多模型研究平台 · Phase 1
+#
+#   docker compose up          启动 api + web
+#   docker compose run --rm api python -m pytest -q
+#
+# 说明：Phase 1 只需要 api 与 web 两个服务；
+# 不需要 Redis / Kafka / Kubernetes（architecture §68）。
+# services/ziwei-service 在 Phase 2 加入。
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: smp-api
+    ports:
+      - "8000:8000"
+    environment:
+      SMP_DATABASE_URL: sqlite:////app/data/smp.sqlite3
+      SMP_DATA_DIR: /app/data
+      SMP_TIMEZONE: Asia/Shanghai
+      SMP_MARKET_PROVIDER: ${SMP_MARKET_PROVIDER:-akshare}
+      SMP_ALLOW_SYNTHETIC_MARKET_FALLBACK: "true"
+      SMP_CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
+      PYTHONUTF8: "1"
+    volumes:
+      # 持久化 SQLite / Parquet / 研究数据
+      - smp-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/v1/system/health')"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+      start_period: 25s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: smp-web
+    ports:
+      - "3000:3000"
+    environment:
+      # 浏览器侧通过 Next 的 rewrites 代理到 api 容器
+      SMP_API_BASE: http://api:8000
+      NEXT_PUBLIC_SMP_API_BASE: /api/backend
+      NODE_ENV: production
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  smp-data:
+    driver: local

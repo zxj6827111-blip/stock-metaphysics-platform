@@ -1,0 +1,109 @@
+"""统一 Schema 导出。"""
+
+from src.core.schemas.analysis import (
+    AnalysisRun,
+    BaziAnalysisResponse,
+    ConflictSnapshot,
+    ConsensusSnapshot,
+    DataQualityReport,
+    EngineDisplayCard,
+    MetaphysicsOpinion,
+    ReasonItem,
+    StockSearchItem,
+    StockSearchResponse,
+)
+from src.core.schemas.bazi import (
+    BaziChart,
+    BaziEngineResult,
+    DayMasterAnalysis,
+    HiddenStem,
+    PatternAnalysis,
+    PatternCandidate,
+    Pillar,
+    RelationHit,
+    TemporalPillar,
+    WuxingStrength,
+    YongShenAnalysis,
+)
+from src.core.schemas.calendar import (
+    CalendarSnapshot,
+    GanZhi,
+    HuangliDay,
+    HuangliSnapshot,
+    JieQiInfo,
+    LunarDate,
+    SolarDate,
+)
+from src.core.schemas.common import (
+    CONSENSUS_CN_LABEL,
+    EXCHANGE_CN_NAME,
+    Assumption,
+    Availability,
+    BirthBasis,
+    DataQuality,
+    DataQualityGrade,
+    Direction,
+    EngineId,
+    Exchange,
+    MarketDataSource,
+    SMBaseModel,
+    SourceRef,
+    VariantMode,
+    VersionStamp,
+    Warning_,
+)
+from src.core.schemas.factor import (
+    FactorCategory,
+    FactorDefinition,
+    FactorObservation,
+    FactorSet,
+)
+from src.core.schemas.knowledge import (
+    ClassicalBook,
+    ClassicalEntry,
+    EvidenceBundle,
+    EvidenceItem,
+    EvidenceQuery,
+    EvidenceStance,
+    KnowledgeDomain,
+    LicenseStatus,
+)
+from src.core.schemas.market import (
+    Bar,
+    BarSeries,
+    EventStudyRequest,
+    EventStudyResult,
+    HorizonStats,
+    LabelSet,
+    NegativeControlKind,
+    NegativeControlReport,
+    NegativeControlResult,
+)
+from src.core.schemas.stock import (
+    BirthProfileCreateRequest,
+    BirthProfileEvidence,
+    ExchangeSession,
+    StockBirthProfile,
+    StockMaster,
+)
+
+__all__ = [
+    "AnalysisRun", "BaziAnalysisResponse", "ConflictSnapshot", "ConsensusSnapshot",
+    "DataQualityReport", "EngineDisplayCard", "MetaphysicsOpinion", "ReasonItem",
+    "StockSearchItem", "StockSearchResponse",
+    "BaziChart", "BaziEngineResult", "DayMasterAnalysis", "HiddenStem",
+    "PatternAnalysis", "PatternCandidate", "Pillar", "RelationHit", "TemporalPillar",
+    "WuxingStrength", "YongShenAnalysis",
+    "CalendarSnapshot", "GanZhi", "HuangliDay", "HuangliSnapshot", "JieQiInfo",
+    "LunarDate", "SolarDate",
+    "Assumption", "Availability", "BirthBasis", "CONSENSUS_CN_LABEL", "DataQuality",
+    "DataQualityGrade", "Direction", "EngineId", "EXCHANGE_CN_NAME", "Exchange",
+    "MarketDataSource", "SMBaseModel", "SourceRef", "VariantMode", "VersionStamp", "Warning_",
+    "FactorCategory", "FactorDefinition", "FactorObservation", "FactorSet",
+    "ClassicalBook", "ClassicalEntry", "EvidenceBundle", "EvidenceItem", "EvidenceQuery",
+    "EvidenceStance", "KnowledgeDomain", "LicenseStatus",
+    "Bar", "BarSeries", "EventStudyRequest", "EventStudyResult", "HorizonStats", "LabelSet",
+    "NegativeControlKind", "NegativeControlReport", "NegativeControlResult",
+    "BirthProfileCreateRequest", "BirthProfileEvidence", "ExchangeSession",
+    "StockBirthProfile", "StockMaster",
+]

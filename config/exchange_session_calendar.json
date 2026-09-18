@@ -1,0 +1,73 @@
+{
+  "_comment": "交易所交易时段配置 —— 『股票出生时间』中『正式开盘时刻』的唯一来源。严禁在业务代码中硬编码 09:30。",
+  "_version": "v1",
+  "_source": "公开交易规则整理（上交所/深交所/北交所交易时间），Phase 1 只取正式连续竞价开盘时刻",
+  "sessions": [
+    {
+      "exchange": "SSE",
+      "board": "DEFAULT",
+      "session_name": "continuous_trading",
+      "open_time": "09:30:00",
+      "close_time": "15:00:00",
+      "timezone": "Asia/Shanghai",
+      "effective_from": null,
+      "effective_to": null,
+      "note": "上海证券交易所主板：集合竞价 09:15-09:25，正式连续竞价 09:30 开始。出生时刻取 09:30。"
+    },
+    {
+      "exchange": "SSE",
+      "board": "科创板",
+      "session_name": "continuous_trading",
+      "open_time": "09:30:00",
+      "close_time": "15:00:00",
+      "timezone": "Asia/Shanghai",
+      "effective_from": "2019-07-22",
+      "effective_to": null,
+      "note": "科创板 2019-07-22 开市，交易时段与主板一致。"
+    },
+    {
+      "exchange": "SZSE",
+      "board": "DEFAULT",
+      "session_name": "continuous_trading",
+      "open_time": "09:30:00",
+      "close_time": "15:00:00",
+      "timezone": "Asia/Shanghai",
+      "effective_from": null,
+      "effective_to": null,
+      "note": "深圳证券交易所主板：集合竞价 09:15-09:25，正式连续竞价 09:30 开始。出生时刻取 09:30。"
+    },
+    {
+      "exchange": "SZSE",
+      "board": "创业板",
+      "session_name": "continuous_trading",
+      "open_time": "09:30:00",
+      "close_time": "15:00:00",
+      "timezone": "Asia/Shanghai",
+      "effective_from": "2009-10-30",
+      "effective_to": null,
+      "note": "创业板 2009-10-30 开市，交易时段与主板一致。"
+    },
+    {
+      "exchange": "BSE",
+      "board": "DEFAULT",
+      "session_name": "continuous_trading",
+      "open_time": "09:30:00",
+      "close_time": "15:00:00",
+      "timezone": "Asia/Shanghai",
+      "effective_from": "2021-11-15",
+      "effective_to": null,
+      "note": "北京证券交易所 2021-11-15 开市，交易时段与沪深一致。"
+    },
+    {
+      "exchange": "UNKNOWN",
+      "board": "DEFAULT",
+      "session_name": "continuous_trading",
+      "open_time": "09:30:00",
+      "close_time": "15:00:00",
+      "timezone": "Asia/Shanghai",
+      "effective_from": null,
+      "effective_to": null,
+      "note": "兜底配置：交易所未知时使用 A 股通用时段，并在 birth_profile.data_quality 中降级标记。"
+    }
+  ]
+}

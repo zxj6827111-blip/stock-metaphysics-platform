@@ -1,0 +1,542 @@
+{
+  "_meta": {
+    "dataset": "bazi-classical-seed",
+    "version": "kb-1.0.0",
+    "domain": "bazi",
+    "purpose": "Phase 1 古籍知识中心种子语料。用于 KnowledgeProvider / BM25 检索 / 支持与反证。",
+    "license_policy": "只收录清代及以前刊行的公版原文。现代整理本、白话翻译、注释本一律不收录。",
+    "textual_criticism_warning": "本语料由项目组从公版古籍录入，Phase 1 未逐字对照权威刊本校勘。条目中的 original_text 仅供参考研究使用，正式发布前必须完成校勘（见 docs/methodology.md）。",
+    "modern_note_policy": "modern_note 为本项目自撰的现代说明，不是古籍原文，也不引用任何未授权的现代整理本。"
+  },
+  "books": [
+    {
+      "book_id": "ditiansui",
+      "title": "滴天髓",
+      "author": "旧题京图撰、刘基注（明代）",
+      "dynasty": "明",
+      "domain": "bazi",
+      "school": "子平",
+      "edition": "公版通行本（清代刊本系统）",
+      "provenance": "明清以来广泛流传的命理经典，原文属公有领域。",
+      "license_status": "public_domain",
+      "authority_weight": 1.4,
+      "note": "以论气势、衰旺、寒暖、体用著称，是扶抑法与调候法的重要依据。"
+    },
+    {
+      "book_id": "yuanhaiziping",
+      "title": "渊海子平",
+      "author": "旧题徐大升编（宋代），明代杨淙校订",
+      "dynasty": "宋/明",
+      "domain": "bazi",
+      "school": "子平",
+      "edition": "公版通行本",
+      "provenance": "子平术集成性典籍，十神、格局、神煞诸论多出于此系统。",
+      "license_status": "public_domain",
+      "authority_weight": 1.3,
+      "note": "十神名称（正财、偏财、伤官、七杀等）与基本取格法的来源之一。"
+    },
+    {
+      "book_id": "sanmingtonghui",
+      "title": "三命通会",
+      "author": "万民英（明代）",
+      "dynasty": "明",
+      "domain": "bazi",
+      "school": "子平",
+      "edition": "公版通行本（四库全书系统）",
+      "provenance": "明代命理集大成之作，体系完备。",
+      "license_status": "public_domain",
+      "authority_weight": 1.3,
+      "note": "对十神、格局、纳音、神煞均有系统论述。"
+    },
+    {
+      "book_id": "zipingzhenquan",
+      "title": "子平真诠",
+      "author": "沈孝瞻（清代）",
+      "dynasty": "清",
+      "domain": "bazi",
+      "school": "子平",
+      "edition": "公版通行本",
+      "provenance": "清代论格局最精之作，专主月令取用。",
+      "license_status": "public_domain",
+      "authority_weight": 1.5,
+      "note": "格局取法的核心依据。"
+    },
+    {
+      "book_id": "qiongtongbaojian",
+      "title": "穷通宝鉴",
+      "author": "旧题余春台辑（清代）",
+      "dynasty": "清",
+      "domain": "bazi",
+      "school": "子平",
+      "edition": "公版通行本（拦江网系统）",
+      "provenance": "又名《栏江网》，专论十干在十二月令的取用与调候。",
+      "license_status": "public_domain",
+      "authority_weight": 1.4,
+      "note": "调候法的主要依据。"
+    },
+    {
+      "book_id": "shenfengtongkao",
+      "title": "神峰通考",
+      "author": "张楠（明代）",
+      "dynasty": "明",
+      "domain": "bazi",
+      "school": "子平",
+      "edition": "公版通行本",
+      "provenance": "明代命理著作，以『病药说』著名。",
+      "license_status": "public_domain",
+      "authority_weight": 1.2,
+      "note": "提出『有病方为贵，无伤不是奇』，对旺衰与用神有独立主张。"
+    },
+    {
+      "book_id": "mingliyueyan",
+      "title": "命理约言",
+      "author": "陈素庵（清代）",
+      "dynasty": "清",
+      "domain": "bazi",
+      "school": "子平",
+      "edition": "公版通行本",
+      "provenance": "清代命理著作，主张去神煞、专论五行生克。",
+      "license_status": "public_domain",
+      "authority_weight": 1.3,
+      "note": "对神煞与格局的关系持批判立场，可作为反证来源。"
+    }
+  ],
+  "entries": [
+    {
+      "entry_id": "DTS-0001",
+      "book_id": "ditiansui",
+      "chapter": "天道",
+      "topic": ["寒暖", "调候", "五行"],
+      "original_text": "天道有寒暖，发育万物，人道得之，不可过也。",
+      "modern_note": "天道的寒暖决定万物的生长，人的命局也如此，寒暖不可过度偏枯。这是调候法的总纲：冬生喜暖、夏生喜润。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_NATAL_017"]
+    },
+    {
+      "entry_id": "DTS-0002",
+      "book_id": "ditiansui",
+      "chapter": "地道",
+      "topic": ["燥湿", "调候"],
+      "original_text": "地道有燥湿，生成品汇，人道得之，不可偏也。",
+      "modern_note": "与『天道』一节并列，讲燥湿平衡。命局过燥需水润，过湿需火暖。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_NATAL_017"]
+    },
+    {
+      "entry_id": "DTS-0003",
+      "book_id": "ditiansui",
+      "chapter": "人道",
+      "topic": ["中和", "用神"],
+      "original_text": "人道有损益，裁制品汇，人道得之，不可过也。",
+      "modern_note": "强调『损有余、补不足』的中和思想，是扶抑取用神的理论基础。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_NATAL_001", "B_NATAL_010"]
+    },
+    {
+      "entry_id": "DTS-0004",
+      "book_id": "ditiansui",
+      "chapter": "衰旺",
+      "topic": ["旺衰", "用神", "扶抑"],
+      "original_text": "能知衰旺之真机，其于三命之奥，思过半矣。",
+      "modern_note": "判断日主旺衰是命理分析的核心难点，也是本系统 B_NATAL_001 因子的经典依据。",
+      "stance_hint": "supporting",
+      "applies_to": ["B_NATAL_001"]
+    },
+    {
+      "entry_id": "DTS-0005",
+      "book_id": "ditiansui",
+      "chapter": "衰旺",
+      "topic": ["旺衰", "扶抑", "用神"],
+      "original_text": "旺则宜泄宜伤，衰则喜帮喜助，子平之理也。",
+      "modern_note": "身旺宜用食伤泄、官杀克；身衰宜用印绶生、比劫帮。这正是本系统扶抑法的实现依据。",
+      "stance_hint": "supporting",
+      "applies_to": ["B_NATAL_001", "B_NATAL_010"]
+    },
+    {
+      "entry_id": "DTS-0006",
+      "book_id": "ditiansui",
+      "chapter": "衰旺",
+      "topic": ["得令", "月令", "旺衰"],
+      "original_text": "月令乃提纲之府，譬之宅也，人元为用事之神，宅之定向也。",
+      "modern_note": "月令是全局的提纲，藏干是实际用事之神。本系统 B_NATAL_004 与格局判定都以月令为第一依据。",
+      "stance_hint": "supporting",
+      "applies_to": ["B_NATAL_004", "B_NATAL_009"]
+    },
+    {
+      "entry_id": "DTS-0007",
+      "book_id": "ditiansui",
+      "chapter": "何知章",
+      "topic": ["财星", "富"],
+      "original_text": "何知其人富，财气通门户。",
+      "modern_note": "传统以『财气通门户』论富，即财星得地、有源有护。**注意：这是命理概念，不是股票价格与收益的预测规则。**",
+      "stance_hint": "supporting",
+      "applies_to": ["B_NATAL_002", "B_NATAL_003", "B_NATAL_014"]
+    },
+    {
+      "entry_id": "DTS-0008",
+      "book_id": "ditiansui",
+      "chapter": "何知章",
+      "topic": ["官杀", "贵"],
+      "original_text": "何知其人贵，官星有理会。",
+      "modern_note": "传统以官星得用论贵。本项目 B_NATAL_006 仅统计官杀结构，不赋予价格方向。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_NATAL_006"]
+    },
+    {
+      "entry_id": "DTS-0009",
+      "book_id": "ditiansui",
+      "chapter": "财论",
+      "topic": ["财星", "身财", "反证"],
+      "original_text": "财多身弱，正谓富屋贫人。",
+      "modern_note": "**反证条目**：财星并非越多越好。日主衰弱而财星过旺，传统反而认为『富屋贫人』。这直接反驳『财星多 = 股价上涨』的简单映射。",
+      "stance_hint": "counter",
+      "applies_to": ["B_NATAL_002", "B_NATAL_016"]
+    },
+    {
+      "entry_id": "DTS-0010",
+      "book_id": "ditiansui",
+      "chapter": "财论",
+      "topic": ["财星", "比劫", "反证"],
+      "original_text": "财旺身强，白手成家；财旺身弱，多为他人作嫁。",
+      "modern_note": "**反证条目**：财星的作用依赖日主强弱这一前提条件。脱离旺衰单看财星数量没有意义。",
+      "stance_hint": "counter",
+      "applies_to": ["B_NATAL_002", "B_NATAL_016"]
+    },
+    {
+      "entry_id": "DTS-0011",
+      "book_id": "ditiansui",
+      "chapter": "体用",
+      "topic": ["用神", "体用"],
+      "original_text": "道有体用，不可以一端论也；要在扶之抑之得其宜。",
+      "modern_note": "体用不可执一端，关键在扶抑得当。说明用神判定本身带有流派与主观性，本系统因此输出 confidence 并允许 unavailable。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_NATAL_010"]
+    },
+    {
+      "entry_id": "DTS-0012",
+      "book_id": "ditiansui",
+      "chapter": "顺逆",
+      "topic": ["顺逆", "格局"],
+      "original_text": "顺逆之机，不可不知也。",
+      "modern_note": "强调顺逆之别。本系统在股票无性别问题上采用 variant_mode 显式标注，而非默认某一种顺逆。",
+      "stance_hint": "neutral",
+      "applies_to": []
+    },
+
+    {
+      "entry_id": "YHZP-0001",
+      "book_id": "yuanhaiziping",
+      "chapter": "论财",
+      "topic": ["财星"],
+      "original_text": "财为养命之源，不可无也。",
+      "modern_note": "传统认为财星是养命之源。这只是命理表述，不能直接翻译成『股价会涨』。",
+      "stance_hint": "supporting",
+      "applies_to": ["B_NATAL_002", "B_NATAL_014"]
+    },
+    {
+      "entry_id": "YHZP-0002",
+      "book_id": "yuanhaiziping",
+      "chapter": "论财",
+      "topic": ["财星", "反证", "身弱"],
+      "original_text": "财多身弱，反为不美。",
+      "modern_note": "**反证条目**：财多而身弱，传统视为不美。再次说明单一『财星数量』指标的方向并不确定。",
+      "stance_hint": "counter",
+      "applies_to": ["B_NATAL_002", "B_NATAL_016"]
+    },
+    {
+      "entry_id": "YHZP-0003",
+      "book_id": "yuanhaiziping",
+      "chapter": "论伤官",
+      "topic": ["伤官", "官杀", "反证"],
+      "original_text": "伤官见官，为祸百端。",
+      "modern_note": "**反证条目**：食伤与官杀并非无条件相生相成。传统认为伤官遇正官结构冲突。提示因子之间可能存在交互效应，需在回测中检验。",
+      "stance_hint": "counter",
+      "applies_to": ["B_NATAL_005", "B_NATAL_006"]
+    },
+    {
+      "entry_id": "YHZP-0004",
+      "book_id": "yuanhaiziping",
+      "chapter": "论食神",
+      "topic": ["食神", "财星"],
+      "original_text": "食神生财，富贵自天排。",
+      "modern_note": "传统对『食神生财』的高度评价。**本项目明确指出：该结构只是研究变量，必须经历史统计检验，不得直接解读为上涨。**",
+      "stance_hint": "supporting",
+      "applies_to": ["B_NATAL_005", "B_MONTH_004"]
+    },
+    {
+      "entry_id": "YHZP-0005",
+      "book_id": "yuanhaiziping",
+      "chapter": "论七杀",
+      "topic": ["七杀", "食神"],
+      "original_text": "食神制杀，英雄独压万人。",
+      "modern_note": "食神制杀是传统推崇的结构之一。本项目 B_NATAL_005 / B_NATAL_006 分别统计，交互项留待 Phase 2 研究。",
+      "stance_hint": "supporting",
+      "applies_to": ["B_NATAL_005", "B_NATAL_006"]
+    },
+    {
+      "entry_id": "YHZP-0006",
+      "book_id": "yuanhaiziping",
+      "chapter": "论比劫",
+      "topic": ["比劫", "财星", "反证"],
+      "original_text": "比劫重重，财源难聚。",
+      "modern_note": "**反证条目**：比劫多则分夺财星，与传统『财星多则富』的直觉相反。说明因子方向需要区分条件。",
+      "stance_hint": "counter",
+      "applies_to": ["B_NATAL_008", "B_NATAL_016"]
+    },
+    {
+      "entry_id": "YHZP-0007",
+      "book_id": "yuanhaiziping",
+      "chapter": "论刑冲",
+      "topic": ["冲", "刑", "合"],
+      "original_text": "冲者动也，合者静也。",
+      "modern_note": "传统对合冲性质的基本界定：冲主变动，合主稳定。本系统 B_NATAL_013 采用该框架，但不预设变动等于下跌。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_NATAL_013", "B_MONTH_008"]
+    },
+    {
+      "entry_id": "YHZP-0008",
+      "book_id": "yuanhaiziping",
+      "chapter": "论三合",
+      "topic": ["三合", "反证"],
+      "original_text": "三合成局，力量最专。",
+      "modern_note": "传统认为三合局力量集中。**但集中不等于方向向上**，本系统明确规定『三合 ≠ 股票上涨』。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_MONTH_006", "B_YEAR_010"]
+    },
+    {
+      "entry_id": "YHZP-0009",
+      "book_id": "yuanhaiziping",
+      "chapter": "论印",
+      "topic": ["印星"],
+      "original_text": "印绶生身，最为吉兆。",
+      "modern_note": "传统视印星生身为吉。本项目 B_NATAL_007 只统计结构，方向由回测决定。",
+      "stance_hint": "supporting",
+      "applies_to": ["B_NATAL_007"]
+    },
+    {
+      "entry_id": "YHZP-0010",
+      "book_id": "yuanhaiziping",
+      "chapter": "论大运",
+      "topic": ["大运", "顺逆"],
+      "original_text": "大运者，地之转也，随年月而迁。",
+      "modern_note": "大运随年月迁移。传统大运顺逆需要性别，股票无性别 → 本系统 variant_mode=not_applicable，大运不进入 Phase 1 因子。",
+      "stance_hint": "neutral",
+      "applies_to": []
+    },
+
+    {
+      "entry_id": "SMTY-0001",
+      "book_id": "sanmingtonghui",
+      "chapter": "论十干",
+      "topic": ["十神", "财星"],
+      "original_text": "夫财者，为我所克之物也。",
+      "modern_note": "十神中『财』的定义就是日主所克之五行，是一套符号关系，与现实的金钱财富不是同一概念。这是本项目反复强调语境的直接依据。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_NATAL_002", "B_NATAL_014"]
+    },
+    {
+      "entry_id": "SMTY-0002",
+      "book_id": "sanmingtonghui",
+      "chapter": "论五行生克",
+      "topic": ["五行", "生克"],
+      "original_text": "五行相生相克，循环无端。",
+      "modern_note": "五行生克是命理的基本运算规则，本系统在 rules.py 中以确定性代码实现。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_NATAL_011", "B_NATAL_012"]
+    },
+    {
+      "entry_id": "SMTY-0003",
+      "book_id": "sanmingtonghui",
+      "chapter": "论纳音",
+      "topic": ["纳音"],
+      "original_text": "纳音者，取五音十二律相生之义。",
+      "modern_note": "纳音由干支组合按六十甲子表确定，是确定性查表，无流派争议。本系统 H_DAY_010 使用之。",
+      "stance_hint": "neutral",
+      "applies_to": ["H_DAY_010"]
+    },
+    {
+      "entry_id": "SMTY-0004",
+      "book_id": "sanmingtonghui",
+      "chapter": "论疾病",
+      "topic": ["五行偏枯", "反证"],
+      "original_text": "五行偏枯，疾病之由也。",
+      "modern_note": "**反证条目**：五行不均衡在传统中用于论疾病而非论财。提示不同结论领域的映射不可互相套用，本项目 B_NATAL_012 只作结构变量。",
+      "stance_hint": "counter",
+      "applies_to": ["B_NATAL_012"]
+    },
+    {
+      "entry_id": "SMTY-0005",
+      "book_id": "sanmingtonghui",
+      "chapter": "论贵贱",
+      "topic": ["格局"],
+      "original_text": "格局既成，贵贱可辨。",
+      "modern_note": "传统以格局论贵贱。本项目把格局编码为分类特征 B_NATAL_009，不做方向映射。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_NATAL_009"]
+    },
+
+    {
+      "entry_id": "ZPZQ-0001",
+      "book_id": "zipingzhenquan",
+      "chapter": "论用神",
+      "topic": ["月令", "用神", "格局"],
+      "original_text": "八字用神，专求月令。",
+      "modern_note": "子平真诠的核心主张：用神从月令求取。本系统 B_NATAL_004 / B_NATAL_009 严格以此为第一依据。",
+      "stance_hint": "supporting",
+      "applies_to": ["B_NATAL_004", "B_NATAL_009", "B_NATAL_010"]
+    },
+    {
+      "entry_id": "ZPZQ-0002",
+      "book_id": "zipingzhenquan",
+      "chapter": "论用神成败救应",
+      "topic": ["格局", "成败"],
+      "original_text": "格局有成败，成败有救应。",
+      "modern_note": "格局有成有败，需要救应。说明单一格局标签不足以决定吉凶，本系统因此输出 confidence 与候选列表。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_NATAL_009"]
+    },
+    {
+      "entry_id": "ZPZQ-0003",
+      "book_id": "zipingzhenquan",
+      "chapter": "论用神变化",
+      "topic": ["用神", "变化", "反证"],
+      "original_text": "用神既主月令矣，然月令所藏不一，而用神遂有变化。",
+      "modern_note": "**反证条目**：月令藏干不止一个，用神会随透干情况变化。这直接说明『格局唯一』是过度简化，本系统允许多候选并降低置信度。",
+      "stance_hint": "counter",
+      "applies_to": ["B_NATAL_009", "B_NATAL_010"]
+    },
+    {
+      "entry_id": "ZPZQ-0004",
+      "book_id": "zipingzhenquan",
+      "chapter": "论十干十二支",
+      "topic": ["干支"],
+      "original_text": "天干地支，相配成六十甲子。",
+      "modern_note": "干支配合成六十甲子，是确定性历法规则，本系统由 CalendarEngine 提供，禁止 LLM 计算。",
+      "stance_hint": "neutral",
+      "applies_to": []
+    },
+    {
+      "entry_id": "ZPZQ-0005",
+      "book_id": "zipingzhenquan",
+      "chapter": "论财",
+      "topic": ["财星", "反证"],
+      "original_text": "财格之贵，在于身强而任财。",
+      "modern_note": "**反证条目**：财格的成立前提是『身强能任财』。若身弱，财反而成为负担。这是本系统 B_NATAL_016（身财对比）的经典依据。",
+      "stance_hint": "counter",
+      "applies_to": ["B_NATAL_016", "B_NATAL_002"]
+    },
+
+    {
+      "entry_id": "QTBJ-0001",
+      "book_id": "qiongtongbaojian",
+      "chapter": "论木",
+      "topic": ["调候", "木", "冬"],
+      "original_text": "冬月之木，水旺木漂，宜用火以调候。",
+      "modern_note": "调候法的具体用例：冬生之木水旺，需火暖局。本系统 B_NATAL_017 的寒暖判定参考此类论述。",
+      "stance_hint": "supporting",
+      "applies_to": ["B_NATAL_017"]
+    },
+    {
+      "entry_id": "QTBJ-0002",
+      "book_id": "qiongtongbaojian",
+      "chapter": "论火",
+      "topic": ["调候", "火", "夏"],
+      "original_text": "夏月之火，火炎土燥，宜用水以润之。",
+      "modern_note": "夏生火旺土燥，需水润泽。与冬木喜火对称，构成调候法的一对基本规则。",
+      "stance_hint": "supporting",
+      "applies_to": ["B_NATAL_017"]
+    },
+    {
+      "entry_id": "QTBJ-0003",
+      "book_id": "qiongtongbaojian",
+      "chapter": "论土",
+      "topic": ["调候", "土"],
+      "original_text": "四季之土，土重宜疏，木以疏之，金水以润之。",
+      "modern_note": "辰戌丑未月土重，需木疏土、金水润泽。本系统 B_NATAL_017 对四季土月采用该口径。",
+      "stance_hint": "supporting",
+      "applies_to": ["B_NATAL_017"]
+    },
+    {
+      "entry_id": "QTBJ-0004",
+      "book_id": "qiongtongbaojian",
+      "chapter": "论十干",
+      "topic": ["调候", "反证"],
+      "original_text": "调候为急，扶抑次之。",
+      "modern_note": "**反证条目**：部分流派主张调候优先于扶抑，与本系统『扶抑为主、调候为辅』的默认实现相反。本系统如实保留该分歧，并把调候单独做成因子 B_NATAL_017 以便回测比较。",
+      "stance_hint": "counter",
+      "applies_to": ["B_NATAL_010", "B_NATAL_017"]
+    },
+
+    {
+      "entry_id": "SFTK-0001",
+      "book_id": "shenfengtongkao",
+      "chapter": "病药说",
+      "topic": ["病药", "用神"],
+      "original_text": "有病方为贵，无伤不是奇。",
+      "modern_note": "神峰通考的『病药说』：命局有病（偏枯）而后有药（用神），方成好局。这与『中和即好』的观点存在张力，是本系统保留流派分歧的依据之一。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_NATAL_001", "B_NATAL_012"]
+    },
+    {
+      "entry_id": "SFTK-0002",
+      "book_id": "shenfengtongkao",
+      "chapter": "论财",
+      "topic": ["财星", "反证", "身弱"],
+      "original_text": "财多身弱，富屋贫人，虽有多财，反不能享。",
+      "modern_note": "**反证条目**：与滴天髓同调，强调身弱不胜财。三条独立古籍都指向同一结论，因此『财星数量多 = 利好』在传统命理内部也并非共识。",
+      "stance_hint": "counter",
+      "applies_to": ["B_NATAL_002", "B_NATAL_016"]
+    },
+    {
+      "entry_id": "SFTK-0003",
+      "book_id": "shenfengtongkao",
+      "chapter": "论比劫",
+      "topic": ["比劫", "财星", "反证"],
+      "original_text": "比劫夺财，财散人离。",
+      "modern_note": "**反证条目**：比劫夺财，说明同一命局中财星与比劫存在对抗关系。这支持在因子层面建模交互项，而不是单看财星计数。",
+      "stance_hint": "counter",
+      "applies_to": ["B_NATAL_008", "B_NATAL_002"]
+    },
+
+    {
+      "entry_id": "MLYY-0001",
+      "book_id": "mingliyueyan",
+      "chapter": "论神煞",
+      "topic": ["神煞", "反证"],
+      "original_text": "神煞之说，多不可信，学者当以五行生克为正。",
+      "modern_note": "**重要反证条目**：清代陈素庵明确批评神煞体系，主张专论五行生克。这为本系统把『黄道/黑道』『建除十二值』等黄历字段只作为**低置信度研究因子**（confidence ≤ 0.55）提供了古籍内部的依据。",
+      "stance_hint": "counter",
+      "applies_to": ["H_DAY_006", "H_DAY_007", "H_DAY_008", "H_DAY_011"]
+    },
+    {
+      "entry_id": "MLYY-0002",
+      "book_id": "mingliyueyan",
+      "chapter": "论格局",
+      "topic": ["格局", "反证"],
+      "original_text": "格局之名，古人所立，不必拘泥。",
+      "modern_note": "**反证条目**：对格局名称本身持保留态度，提示格局分类的边界具有主观性。本系统据此对格局因子 B_NATAL_009 保持中性与较低置信度。",
+      "stance_hint": "counter",
+      "applies_to": ["B_NATAL_009"]
+    },
+    {
+      "entry_id": "MLYY-0003",
+      "book_id": "mingliyueyan",
+      "chapter": "论用神",
+      "topic": ["用神", "反证"],
+      "original_text": "用神者，一局之枢纽，取之贵乎精当，不必多立名目。",
+      "modern_note": "强调用神取法要精当，反对名目繁多。支持本系统用神只取一个主用神并显式标注置信度。",
+      "stance_hint": "neutral",
+      "applies_to": ["B_NATAL_010"]
+    },
+    {
+      "entry_id": "MLYY-0004",
+      "book_id": "mingliyueyan",
+      "chapter": "论大运",
+      "topic": ["大运", "顺逆"],
+      "original_text": "大运之顺逆，视年干阴阳与男女而异。",
+      "modern_note": "明确记录大运顺逆依赖『男女』。**这正是股票没有性别时无法唯一确定大运的直接证据**，是本项目 variant_mode 设计（ADR-0003）的古籍依据。",
+      "stance_hint": "neutral",
+      "applies_to": []
+    }
+  ]
+}

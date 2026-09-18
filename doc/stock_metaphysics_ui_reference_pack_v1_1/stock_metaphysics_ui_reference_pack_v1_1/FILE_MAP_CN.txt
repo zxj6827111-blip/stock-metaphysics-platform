@@ -1,0 +1,13 @@
+﻿UI PAGE FILE MAP
+
+00_overview.png = 全套缩略总览
+01_home.png = 首页
+02_integrated_analysis.png = 综合研判
+03_bazi_detail.png = 八字详情
+04_ziwei_detail.png = 紫微斗数详情
+05_backtest_validation.png = 历史验证
+06_factor_dictionary.png = 因子字典
+07_model_conflict_center.png = 模型分歧中心
+08_huangli_detail.png = 黄历 / 日课详情
+09_classics_evidence_search.png = 古籍证据检索
+10_time_window.png = 时间窗口
