@@ -110,18 +110,22 @@ class CalendarEngine(MetaphysicsEngine[CalendarSnapshot]):
         # --- 干支 ---
         # 年柱/月柱按节气换柱（getYearInGanZhiExact / getMonthInGanZhiExact 对应
         # 立春换年、节气换月，八字标准口径）
-        year_gz = GanZhi.from_text(
-            _safe(lunar.getYearInGanZhiExact, "甲子"), nayin=_safe(lunar.getYearNaYin)
-        )
-        month_gz = GanZhi.from_text(
-            _safe(lunar.getMonthInGanZhiExact, "甲子"), nayin=_safe(lunar.getMonthNaYin)
-        )
-        day_gz = GanZhi.from_text(
-            _safe(lunar.getDayInGanZhiExact, "甲子"), nayin=_safe(lunar.getDayNaYin)
-        )
-        hour_gz = GanZhi.from_text(
-            _safe(eight_char.getTime, "甲子"), nayin=_safe(lunar.getTimeNaYin)
-        )
+        #
+        # 纳音（Phase 1.1 口径修正）：
+        # lunar-python 的 getYearNaYin()/getMonthNaYin() 与 Exact 版干支口径
+        # 不一致（立春/节气当日会出现"柱是甲辰、纳音是癸卯的金箔金"这种内部矛盾）。
+        # 纳音是六十甲子的纯函数，由本项目常量表供给，保证柱与纳音永不冲突。
+        # 见 docs/calculation-differences-phase1.md。
+        from src.core.constants import nayin_of
+
+        year_text = _safe(lunar.getYearInGanZhiExact, "甲子")
+        month_text = _safe(lunar.getMonthInGanZhiExact, "甲子")
+        day_text = _safe(lunar.getDayInGanZhiExact, "甲子")
+        hour_text = _safe(eight_char.getTime, "甲子")
+        year_gz = GanZhi.from_text(year_text, nayin=nayin_of(year_text))
+        month_gz = GanZhi.from_text(month_text, nayin=nayin_of(month_text))
+        day_gz = GanZhi.from_text(day_text, nayin=nayin_of(day_text))
+        hour_gz = GanZhi.from_text(hour_text, nayin=nayin_of(hour_text))
 
         # --- 节气 ---
         jieqi = self._build_jieqi(lunar, when)

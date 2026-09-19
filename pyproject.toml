@@ -40,6 +40,7 @@ dev = [
     "pytest==9.1.1",
     "pytest-asyncio==1.4.0",
     "pytest-cov==7.1.0",
+    "ruff==0.14.13",
 ]
 
 [project.scripts]
@@ -63,6 +64,9 @@ markers = [
     "golden: golden case regression tests",
     "slow: slow tests (network / large computation)",
     "network: requires network access",
+    "integration: API / 端到端集成测试",
+    "acceptance: 验收专项测试",
+    "ziwei_live: 需要本机可运行 services/ziwei-service（node + iztro）",
 ]
 
 [tool.ruff]
@@ -71,4 +75,11 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
-ignore = ["E501", "B008"]
+ignore = [
+    "E501", # 行宽由人工控制
+    "B008", # FastAPI 依赖注入惯用法需要函数调用当默认值
+    # UP042: `class X(str, Enum)` 是本项目刻意的 JSON 友好枚举模式
+    # （使枚举值在 Pydantic/JSON 序列化中表现为字符串）；这是 FastAPI 生态的官方惯例，
+    # 不是"可替代的写法"。
+    "UP042",
+]

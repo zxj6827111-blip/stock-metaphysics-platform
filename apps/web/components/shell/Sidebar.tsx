@@ -43,14 +43,14 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { key: "home", label: "首页", href: "/", icon: IconHome },
       { key: "overview", label: "综合研判", href: "/stock/600519/overview", icon: IconChart },
-      { key: "timeline", label: "时间窗口", href: "/stock/600519/timeline", icon: IconCalendar, disabled: true, badge: "P2" },
+      { key: "timeline", label: "时间窗口", href: "/stock/600519/timeline", icon: IconCalendar },
     ],
   },
   {
     group: "术数分析",
     items: [
       { key: "bazi", label: "八字", href: "/stock/600519/bazi", icon: IconTaiji },
-      { key: "ziwei", label: "紫微斗数", href: "/stock/600519/ziwei", icon: IconStar4, disabled: true, badge: "P2" },
+      { key: "ziwei", label: "紫微斗数", href: "/stock/600519/ziwei", icon: IconStar4 },
       { key: "huangli", label: "黄历 / 日课", href: "/stock/600519/huangli", icon: IconDiamond },
     ],
   },

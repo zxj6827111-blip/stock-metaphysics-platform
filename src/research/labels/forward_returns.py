@@ -73,8 +73,14 @@ def compute_labels(
     if base_close is None:
         raise InsufficientForwardData(f"{stock_series.stock_code} {trade_date} 收盘价缺失")
 
-    labels = LabelSet(stock_code=stock_series.stock_code, as_of=as_of, trade_date=trade_date,
-                      benchmark_code=benchmark_code)
+    labels = LabelSet(
+        stock_code=stock_series.stock_code, as_of=as_of, trade_date=trade_date,
+        benchmark_code=benchmark_code,
+        data_is_degraded=bool(stock_series.is_degraded) or bool(
+            benchmark_series and benchmark_series.is_degraded
+        ),
+        data_source=str(getattr(stock_series.source_ref, "source", "") or ""),
+    )
 
     standard = set(settings.label_horizons)
 
@@ -102,15 +108,21 @@ def compute_labels(
             labels.max_drawdown_20d = round(min(lows) / base_close - 1.0, 6)
 
     # --- 基准与超额 ---
-    if benchmark_series is not None:
-        b_idx = _index_of(benchmark_series, trade_date)
-        if b_idx is not None and b_idx + 20 < len(benchmark_series.bars):
-            b0 = benchmark_series.bars[b_idx].close
-            b1 = benchmark_series.bars[b_idx + 20].close
-            if b0 and b1:
-                bench_ret = b1 / b0 - 1.0
-                labels.bench_ret_20d = round(bench_ret, 6)
-                if labels.ret_20d is not None:
+    # 审计修正：超额收益必须与股票相同的**日历区间**对齐，而不是与基准自身的
+    # 第 20 根 bar 对齐。否则股票长期停牌时，个股窗口实际跨越远超 20 个自然日，
+    # 而基准只走了 20 个交易日，两者口径错配。
+    if benchmark_series is not None and labels.ret_20d is not None:
+        stock_end_idx = base_idx + 20
+        if stock_end_idx < len(bars):
+            stock_end_date = bars[stock_end_idx].trade_date
+            b_start = _index_of(benchmark_series, trade_date)
+            b_end = _index_of(benchmark_series, stock_end_date)
+            if b_start is not None and b_end is not None:
+                b0 = benchmark_series.bars[b_start].close
+                b1 = benchmark_series.bars[b_end].close
+                if b0 and b1:
+                    bench_ret = b1 / b0 - 1.0
+                    labels.bench_ret_20d = round(bench_ret, 6)
                     labels.excess_return_20d = round(labels.ret_20d - bench_ret, 6)
 
     # --- 多重"上涨"定义 ---

@@ -153,7 +153,6 @@ def create_birth_profile(
     is_trading_day = None
     if stock.listing_date is not None:
         try:
-            from src.core.config import settings
 
             history = market.get_daily_bars(
                 code, stock.listing_date, stock.listing_date.replace(year=stock.listing_date.year + 1)

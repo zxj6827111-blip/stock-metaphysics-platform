@@ -1,5 +1,17 @@
 # HANDOFF_PHASE1 · 股票玄学多模型研究平台
 
+> **Phase 1.1 已合并（2026-09-19）**：本文档主体保持 Phase 1 交付原貌，
+> 但以下内容已被 Phase 1.1 更新取代，**详阅 [`docs/PHASE1_ACCEPTANCE_REPORT.md`](PHASE1_ACCEPTANCE_REPORT.md) 再做判断**：
+>
+> | Phase 1 原文 | Phase 1.1 现状 |
+> |---|---|
+> | §12.2「节假日上市会错误对齐」（无交易日历表） | **已修**：`src/core/stock/trading_calendar.py` + 实测日历（由指数真实 K 线推导） |
+> | §12.2「/analysis/{id}/backtest 每次重算全库标签」 | **已修**：`forward_label` 表落库 + 幂等 upsert |
+> | §13「需 fork bazi-pro」 | **已裁决**：不接入（ADR-0008，许可证不可核实）；自研内核为 Canonical |
+> | 合成数据语义仅日志警告 | **已加固**：`research_status` 状态机 + UI 显著横幅 |
+
+
+
 > **给第二个 AI 会话（Phase 2）的完整交接文档。**
 >
 > Phase 2 的任务是「Multi-Engine Productization」：

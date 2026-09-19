@@ -27,8 +27,8 @@ class Settings(BaseSettings):
 
     # --- 基础 ---
     app_name: str = "股票玄学多模型研究平台"
-    app_version: str = "0.1.0"
-    phase: str = "phase1"
+    app_version: str = "0.2.0"
+    phase: str = "phase2"
     debug: bool = False
     timezone: str = "Asia/Shanghai"
 
@@ -44,13 +44,26 @@ class Settings(BaseSettings):
     calendar_engine_version: str = "lunar-python-1.4.8"
     huangli_engine_version: str = "huangli-engine-1.0.0"
     bazi_engine_version: str = "smx-bazi-native-1.0.0"
-    factor_rule_version: str = "v1"
-    knowledge_version: str = "kb-1.0.0"
+    # Phase 2：紫微斗数（iztro 2.6.1 经 services/ziwei-service adapter 接入）
+    ziwei_engine_version: str = "iztro-2.6.1+smx-1.0.0"
+    # v1.1: 修正 B_YEAR_005/007/008 的关系类型接线错误（原：005≡010 三合重复、刑冲错位、害未计算）
+    factor_rule_version: str = "v1.1"
+    # Phase 2 紫微因子使用独立 rule_version：与八字因子的修复节奏解耦
+    ziwei_factor_rule_version: str = "zv1"
+    # 紫微股票的宫位→金融含义映射不是传统定论，必须版本化并可回测
+    ziwei_stock_mapping_version: str = "ziwei_stock_mapping_v1"
+    knowledge_version: str = "kb-1.1.0"
     config_version: str = "cfg-2026.09"
     market_data_version: str = "akshare-1.18.96"
 
+    # --- 紫微服务 ---
+    #: 常驻 HTTP 服务地址；留空则使用 node 子进程通道（见 src/engines/ziwei/transport.py）
+    ziwei_service_url: str = ""
+    #: 紫微排盘时使用的闰月口径（iztro fixLeap）。显式固定，避免随库默认值漂移。
+    ziwei_fix_leap: bool = True
+
     # --- 行情 ---
-    market_provider: str = "akshare"          # akshare | synthetic
+    market_provider: str = "akshare"          # akshare | synthetic | offline（离线真实导入）
     market_cache_ttl_seconds: int = 12 * 3600
     market_retry_attempts: int = 3
     market_retry_backoff_seconds: float = 1.5

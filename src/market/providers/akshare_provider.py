@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import pandas as pd
 
@@ -472,9 +472,15 @@ def _to_float(value: str | None) -> float | None:
 def get_market_provider(*, offline: bool = False) -> MarketDataProvider:
     """工厂：按配置返回行情提供者。
 
-    ``SMP_MARKET_PROVIDER=synthetic`` 或显式 ``offline=True`` 时返回
-    确定性合成数据源（用于测试与无网络开发环境）。
+    * ``SMP_MARKET_PROVIDER=synthetic`` 或显式 ``offline=True``：
+      确定性合成数据源（仅用于联调/演示，研究结论禁止使用）。
+    * ``SMP_MARKET_PROVIDER=offline``：离线真实导入源（data/import/），
+      AKShare 网络不可用时完成真实数据研究的正式通道（P0-2 验收路径）。
     """
     if offline or settings.market_provider == "synthetic":
         return SyntheticMarketProvider()
+    if settings.market_provider == "offline":
+        from src.market.providers.offline import OfflineMarketDataProvider
+
+        return OfflineMarketDataProvider()
     return AkshareMarketProvider()

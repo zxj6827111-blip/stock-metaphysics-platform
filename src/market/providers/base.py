@@ -53,5 +53,5 @@ class MarketDataProvider(ABC):
     ) -> BarSeries:
         """获取基准指数日线（默认沪深300）。"""
 
-    def close(self) -> None:
+    def close(self) -> None:  # noqa: B027  # 刻意空方法：有资源的子类自行覆盖
         """释放资源。默认无操作。"""

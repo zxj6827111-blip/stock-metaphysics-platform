@@ -98,6 +98,8 @@ class Direction(int, Enum):
 class MarketDataSource(str, Enum):
     AKSHARE = "akshare"
     CACHE = "cache"
+    #: 离线真实数据导入（data/import/，来自真实交易所历史的冻结快照）
+    OFFLINE_IMPORT = "offline_import"
     SYNTHETIC_DEMO = "synthetic_demo"
     UNAVAILABLE = "unavailable"
 

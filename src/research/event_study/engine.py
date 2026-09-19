@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -82,6 +82,125 @@ def compute_horizon_stats(df: pd.DataFrame, horizon: int) -> HorizonStats:
     return stats
 
 
+def apply_request_filters(obs: pd.DataFrame, request: EventStudyRequest) -> pd.DataFrame:
+    """应用请求中的**非激活**过滤（因子/股票/日期/方向/分数）。"""
+    out = obs
+    if request.factor_ids:
+        out = out[out["factor_id"].isin(request.factor_ids)]
+    if request.stock_codes:
+        out = out[out["stock_code"].isin(request.stock_codes)]
+    if request.date_from is not None:
+        out = out[pd.to_datetime(out["trade_date"]).dt.date >= request.date_from]
+    if request.date_to is not None:
+        out = out[pd.to_datetime(out["trade_date"]).dt.date <= request.date_to]
+    if request.direction_filter is not None:
+        out = out[out["direction"] == request.direction_filter]
+    if request.min_rule_score is not None:
+        out = out[pd.to_numeric(out["rule_score"], errors="coerce") >= request.min_rule_score]
+    return out
+
+
+def apply_activation(obs: pd.DataFrame, activation: str) -> pd.DataFrame:
+    """应用激活语义。
+
+    关键纪律：如果"命中"只表示"这个因子被计算过"，那么真实组与对照组的事件
+    集合将完全相同，负对照毫无意义。默认 ``nonzero`` 要求该结构实际成立
+    （normalized_value 非 0，即方向判定不为「闲神/中性」）。
+    """
+    act = (activation or "nonzero").lower()
+    if act == "any":
+        return obs
+    if "normalized_value" in obs.columns and obs["normalized_value"].notna().any():
+        nv = pd.to_numeric(obs["normalized_value"], errors="coerce").fillna(0.0)
+        if act == "nonzero":
+            return obs[nv != 0.0]
+        if act == "positive":
+            return obs[nv > 0.0]
+        if act == "negative":
+            return obs[nv < 0.0]
+        return obs
+    if "direction" in obs.columns:
+        if act == "nonzero":
+            return obs[obs["direction"] != 0]
+        if act == "positive":
+            return obs[obs["direction"] == 1]
+        if act == "negative":
+            return obs[obs["direction"] == -1]
+    return obs
+
+
+def extract_event_keys(obs: pd.DataFrame, request: EventStudyRequest) -> set[tuple[str, object]]:
+    """提取事件键集合 ``{(stock_code, trade_date)}``。
+
+    与 ``evaluate_event_study`` 使用完全相同的过滤 + 激活 + 组合逻辑，
+    供负对照独立性诊断（Jaccard）与 event-set 区分度测试复用。
+    """
+    filtered = apply_activation(apply_request_filters(obs, request), request.activation)
+    if filtered.empty:
+        return set()
+    if request.logic == "all" and len(request.factor_ids) > 1:
+        grouped = filtered.groupby(["stock_code", "trade_date"])["factor_id"].nunique()
+        hit = grouped[grouped >= len(request.factor_ids)].reset_index()[["stock_code", "trade_date"]]
+    else:
+        hit = filtered[["stock_code", "trade_date"]].drop_duplicates()
+    return {(str(r.stock_code), r.trade_date) for r in hit.itertuples()}
+
+
+def compute_activation_stats(
+    obs: pd.DataFrame, request: EventStudyRequest
+) -> tuple[dict[str, dict], list[Warning_]]:
+    """每个目标因子的激活率统计（在应用 activation 过滤之前统计）。
+
+    * ``activation_rate > 0.95``：几乎所有观测都命中 ——
+      事件研究对该因子没有区分度，效果接近"无条件样本"。
+    * ``activation_rate < 0.005``：几乎从不命中 —— 事件极端稀疏。
+    """
+    if (request.activation or "nonzero").lower() == "any":
+        return {}, []
+    base = apply_request_filters(obs, request)
+    if base.empty or "normalized_value" not in base.columns:
+        return {}, []
+    stats: dict[str, dict] = {}
+    warnings: list[Warning_] = []
+    factor_ids = request.factor_ids or sorted(base["factor_id"].unique().tolist())
+    for fid in factor_ids:
+        sub = base[base["factor_id"] == fid]
+        total = int(len(sub))
+        if total == 0:
+            continue
+        nv = pd.to_numeric(sub["normalized_value"], errors="coerce")
+        valid = nv.notna()
+        activated = int(((nv.fillna(0.0) != 0.0) & valid).sum())
+        rate = activated / total
+        stats[fid] = {
+            "total": total,
+            "activated": activated,
+            "null_count": int((~valid).sum()),
+            "activation_rate": round(rate, 6),
+        }
+        if rate > 0.95:
+            warnings.append(Warning_(
+                code="LOW_DISCRIMINATION_FACTOR",
+                message=(
+                    f"因子 {fid} 的 activation_rate={rate:.3f} > 0.95：几乎所有观测都被激活，"
+                    "事件研究对该因子等价于『无条件样本』，结果不具备因子区分度含义。"
+                ),
+                severity="warning",
+                context={"factor_id": fid, "activation_rate": round(rate, 6)},
+            ))
+        elif rate < 0.005 and total >= 100:
+            warnings.append(Warning_(
+                code="LOW_DISCRIMINATION_FACTOR",
+                message=(
+                    f"因子 {fid} 的 activation_rate={rate:.4f} < 0.005：事件极端稀疏，"
+                    "统计功效极低。"
+                ),
+                severity="warning",
+                context={"factor_id": fid, "activation_rate": round(rate, 6)},
+            ))
+    return stats, warnings
+
+
 def evaluate_event_study(
     observations: pd.DataFrame,
     labels: pd.DataFrame,
@@ -108,41 +227,12 @@ def evaluate_event_study(
             warnings=[Warning_(code="ES_NO_OBSERVATION", message="因子观测为空", severity="warning")],
         )
 
-    obs = observations.copy()
-    if request.factor_ids:
-        obs = obs[obs["factor_id"].isin(request.factor_ids)]
-    if request.stock_codes:
-        obs = obs[obs["stock_code"].isin(request.stock_codes)]
-    if request.date_from is not None:
-        obs = obs[pd.to_datetime(obs["trade_date"]).dt.date >= request.date_from]
-    if request.date_to is not None:
-        obs = obs[pd.to_datetime(obs["trade_date"]).dt.date <= request.date_to]
-    if request.direction_filter is not None:
-        obs = obs[obs["direction"] == request.direction_filter]
-    if request.min_rule_score is not None:
-        obs = obs[pd.to_numeric(obs["rule_score"], errors="coerce") >= request.min_rule_score]
+    # 激活率统计在过滤器之前计算（针对完整观测面板）
+    activation_stats, act_warnings = compute_activation_stats(observations, request)
+    warnings.extend(act_warnings)
 
-    # --- 事件激活条件 ---
-    # 关键：如果"命中"只表示"这个因子被计算过"，那么真实组与对照组的事件集合
-    # 将完全相同，负对照就毫无意义。因此默认要求该结构实际成立
-    # （normalized_value 非 0，即方向判定不为「闲神/中性」）。
+    obs = apply_activation(apply_request_filters(observations.copy(), request), request.activation)
     activation = (request.activation or "nonzero").lower()
-    if activation != "any":
-        if "normalized_value" in obs.columns and obs["normalized_value"].notna().any():
-            nv = pd.to_numeric(obs["normalized_value"], errors="coerce").fillna(0.0)
-            if activation == "nonzero":
-                obs = obs[nv != 0.0]
-            elif activation == "positive":
-                obs = obs[nv > 0.0]
-            elif activation == "negative":
-                obs = obs[nv < 0.0]
-        elif "direction" in obs.columns:
-            if activation == "nonzero":
-                obs = obs[obs["direction"] != 0]
-            elif activation == "positive":
-                obs = obs[obs["direction"] == 1]
-            elif activation == "negative":
-                obs = obs[obs["direction"] == -1]
 
     if obs.empty:
         return EventStudyResult(
@@ -165,7 +255,16 @@ def evaluate_event_study(
     else:
         hit = obs[["stock_code", "trade_date"]].drop_duplicates()
 
+    labels = labels.copy()
+    # 类型边界归一：统一到 ISO 日期字符串。labels 可能来自 DB 行（date 对象）
+    # 或测试内联帧（datetime64）；观测行可能带 ISO 字符串或 date 对象。
+    # pandas merge 对 datetime64-vs-object 严格不容错；字符串 join 永无此问题。
+    hit = hit.copy()
+    hit["trade_date"] = pd.to_datetime(hit["trade_date"]).dt.strftime("%Y-%m-%d")
+    labels["trade_date"] = pd.to_datetime(labels["trade_date"]).dt.strftime("%Y-%m-%d")
     merged = hit.merge(labels, on=["stock_code", "trade_date"], how="inner")
+    if not merged.empty:
+        merged["trade_date"] = pd.to_datetime(merged["trade_date"]).dt.date
     if merged.empty:
         return EventStudyResult(
             experiment_id=experiment_id, factor_ids=request.factor_ids, logic=request.logic,
@@ -197,10 +296,11 @@ def evaluate_event_study(
         methodology=(
             f"variant={variant}；事件 = 因子命中（logic={request.logic}, activation={activation}）；"
             "持有期收益按事件日收盘至第 N 个交易日收盘计算；"
-            "超额收益相对基准指数；样本要求事件日之后有完整的 N 个交易日数据，"
-            "否则该样本被剔除（不用 0 填充）。"
+            "超额收益相对基准指数（按相同日历区间对齐，处理停牌）；"
+            "样本要求事件日之后有完整的 N 个交易日数据，否则该样本被剔除（不用 0 填充）。"
         ),
         warnings=warnings,
+        activation_stats=activation_stats or None,
     )
 
 

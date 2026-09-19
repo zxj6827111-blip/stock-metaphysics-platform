@@ -15,8 +15,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from src.core.schemas.market import Bar, BarSeries
 from src.core.schemas.common import MarketDataSource, SourceRef, Warning_
+from src.core.schemas.market import Bar, BarSeries
 
 # 第三方中文列名 → 标准字段
 CN_COLUMN_MAP: dict[str, str] = {

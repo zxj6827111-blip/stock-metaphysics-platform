@@ -51,6 +51,9 @@ def parse_as_of(as_of: str | None) -> datetime:
     """解析 ``as_of`` 参数；缺省为当前时间。
 
     支持 ``YYYY-MM-DD`` / ``YYYY-MM-DDTHH:MM:SS`` / 带时区的 ISO 字符串。
+
+    注意（验收修正）：as_of 解析失败是**客户端输入错误**（4xx），
+    绝不能返回 502（502 暗示上游行情服务故障，会误导调用方重试与排障）。
     """
     if not as_of:
         return datetime.now().replace(microsecond=0)
@@ -58,9 +61,11 @@ def parse_as_of(as_of: str | None) -> datetime:
     try:
         dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError:
-        from src.market.normalization.errors import MarketDataError
+        from apps.api.errors import InvalidRequestError
 
-        raise MarketDataError(f"无法解析 as_of 参数: {as_of!r}", retryable=False) from None
+        raise InvalidRequestError(
+            f"无法解析 as_of 参数: {as_of!r}（需要 ISO8601，如 2024-11-15T14:32:00）"
+        ) from None
     # 统一成 naive 本地时间（Asia/Shanghai）
     if dt.tzinfo is not None:
         from zoneinfo import ZoneInfo

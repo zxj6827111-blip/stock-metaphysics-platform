@@ -24,13 +24,13 @@ import pandas as pd
 
 from src.core.config import settings
 from src.core.schemas.common import Warning_
+from src.core.schemas.factor import FactorObservation
 from src.core.schemas.market import (
     EventStudyRequest,
     NegativeControlKind,
     NegativeControlReport,
 )
 from src.core.schemas.stock import StockBirthProfile
-from src.core.schemas.factor import FactorObservation
 from src.research.backtest.provider import BacktestProvider, LocalBacktestProvider
 
 BirthTransform = Callable[[datetime, np.random.Generator], datetime]

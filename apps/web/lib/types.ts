@@ -206,6 +206,9 @@ export interface OverviewPageData {
   distribution: DistributionBin[];
   backtestConclusion: string;
   dataQuality: DataQualityView;
+  /** Phase 1.1：研究状态机，NO_REAL_DATA 时必须显著横幅告警 */
+  researchStatus?: string | null;
+  researchStatusReasons?: string[];
 }
 
 export interface HomePageData {

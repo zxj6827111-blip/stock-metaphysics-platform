@@ -1,0 +1,186 @@
+{
+  "_meta": {
+    "dataset": "ziwei-classical-seed",
+    "version": "kb-1.1.0",
+    "domain": "ziwei",
+    "purpose": "Phase 2E 紫微斗数古籍证据种子语料。用于 KnowledgeProvider / BM25 检索 / 支持与反证。",
+    "license_policy": "只收录清代及以前刊行的公版原文。现代整理本、白话翻译、注释本一律不收录。",
+    "textual_criticism_warning": "本语料由项目组从公版紫微古籍录入，Phase 2 **未逐字对照权威刊本校勘**。条目中的 original_text 为常见传本文字，仅供研究流程演示与检索使用；正式发布前必须完成校勘。任何引用不得声称已校勘。",
+    "modern_note_policy": "modern_note 为本项目自撰的现代说明，不是古籍原文，也不引用任何未授权的现代整理本。",
+    "verification_warning": "紫微古籍传本差异大（同一赋文在不同刊本间用字、句读常有出入）。本语料每条 entry 的 verification_status 均为 unverified_offline，表示录入时未联网核对刊本。生产环境使用前必须逐条校勘。",
+    "mapping_warning": "『财帛宫对应资金/价格』『官禄宫对应公司经营』等映射**不是传统紫微的规定**，是本项目的研究假设（ziwei_stock_mapping_v1）。语料中的 modern_note 已按此原则撰写，不得被改写成传统定论。"
+  },
+  "books": [
+    {
+      "book_id": "ziwei-quanshu",
+      "title": "紫微斗数全书",
+      "author": "旧题陈抟（宋）",
+      "dynasty": "宋（传）／明刊",
+      "domain": "ziwei",
+      "school": "南派",
+      "edition": "明刊本（公版）",
+      "provenance": "中国古代术数典籍，现存最早系统刊本可追溯至明代。原文属公有领域。本条目由项目组录入，未逐字校勘。",
+      "license_status": "public_domain",
+      "authority_weight": 1.0,
+      "note": "紫微斗数最主要的经典文本。传本众多，用字与句读存在差异。"
+    },
+    {
+      "book_id": "ziwei-bone-sui-fu",
+      "title": "紫微斗数骨髓赋",
+      "author": "旧题陈抟（宋）",
+      "dynasty": "宋（传）／明刊",
+      "domain": "ziwei",
+      "school": "南派",
+      "edition": "明刊本（公版）",
+      "provenance": "《紫微斗数全书》所收赋文，属公有领域。本条目由项目组录入，未逐字校勘。",
+      "license_status": "public_domain",
+      "authority_weight": 0.95,
+      "note": "以韵文概述紫微安星与格局判断的纲要性文本。"
+    },
+    {
+      "book_id": "ziwei-fa-wei-lun",
+      "title": "斗数发微论",
+      "author": "旧题陈抟（宋）",
+      "dynasty": "宋（传）／明刊",
+      "domain": "ziwei",
+      "school": "南派",
+      "edition": "明刊本（公版）",
+      "provenance": "《紫微斗数全书》所收论说，属公有领域。本条目由项目组录入，未逐字校勘。",
+      "license_status": "public_domain",
+      "authority_weight": 0.9,
+      "note": "论述紫微斗数方法论与流派差异的文本。"
+    }
+  ],
+  "entries": [
+    {
+      "entry_id": "ZWQS-0001",
+      "book_id": "ziwei-quanshu",
+      "chapter": "安命身例",
+      "topic": ["命宫", "身宫", "起例"],
+      "original_text": "命宫者，一身之枢机；身宫者，一生之归宿。",
+      "modern_note": "本项目自撰：命宫在传统紫微中被视为盘面结构的中枢，身宫则被用来描述后天的侧重。二者都是**结构位置**，不是吉凶判断本身。股票研究里它们被当作结构变量，不构成对股价的任何判断。",
+      "stance_hint": "neutral",
+      "applies_to": ["Z_LIFE_001", "Z_LIFE_006"]
+    },
+    {
+      "entry_id": "ZWQS-0002",
+      "book_id": "ziwei-quanshu",
+      "chapter": "定五行局",
+      "topic": ["五行局", "起运", "大限"],
+      "original_text": "五行局定，则大限之期可推。",
+      "modern_note": "本项目自撰：五行局决定起运岁数（水二、木三、金四、土五、火六），是推大限的前提。它是一个**结构参数**，本身不含吉凶方向。",
+      "stance_hint": "neutral",
+      "applies_to": ["Z_LIFE_007", "Z_DECADE_001"]
+    },
+    {
+      "entry_id": "ZWQS-0003",
+      "book_id": "ziwei-bone-sui-fu",
+      "chapter": "骨髓赋",
+      "topic": ["紫微", "命宫", "庙旺"],
+      "original_text": "紫微居午，无杀凑，位至公卿。",
+      "modern_note": "本项目自撰：这是传统对『紫微在午宫且不见煞曜』格局的评价。本项目把它拆成可检验的结构变量（主星庙旺 + 煞曜计数），**不采用其结论**。原文的传统判断属命理叙述，不是对证券价格的判断。",
+      "stance_hint": "supporting",
+      "applies_to": ["Z_LIFE_001", "Z_LIFE_004", "Z_LIFE_005"]
+    },
+    {
+      "entry_id": "ZWQS-0004",
+      "book_id": "ziwei-bone-sui-fu",
+      "chapter": "骨髓赋",
+      "topic": ["天府", "天相", "财帛", "衣禄"],
+      "original_text": "天府天相，乃为衣禄之神。",
+      "modern_note": "本项目自撰：传统把天府、天相视为与衣食财禄相关的星曜。**本项目不据此判断股票涨跌**；这条只用于说明『财帛宫主星』这一因子在古籍中的对应说法。把财帛宫等同于股价是本项目的研究假设（ziwei_stock_mapping_v1），不是传统定论。",
+      "stance_hint": "supporting",
+      "applies_to": ["Z_FIN_001", "Z_FIN_002"]
+    },
+    {
+      "entry_id": "ZWQS-0005",
+      "book_id": "ziwei-bone-sui-fu",
+      "chapter": "骨髓赋",
+      "topic": ["七杀", "廉贞", "财帛"],
+      "original_text": "七杀廉贞同位，反为积富之人。",
+      "modern_note": "本项目自撰：传统认为七杀与廉贞同宫并非必然凶，反有积财之说。这一条被本项目当作**反证来源**：它说明传统对同组星曜的解释并不一致，不能简单地把某颗星归为单向利好或利空。",
+      "stance_hint": "counter",
+      "applies_to": ["Z_FIN_001", "Z_FIN_003"]
+    },
+    {
+      "entry_id": "ZWQS-0006",
+      "book_id": "ziwei-bone-sui-fu",
+      "chapter": "骨髓赋",
+      "topic": ["四化", "化禄", "化忌"],
+      "original_text": "禄权科忌，四化之机。",
+      "modern_note": "本项目自撰：四化（化禄、化权、化科、化忌）是紫微判断变化的核心机制。本项目把它们拆成『四化落宫位阶』这一类可检验变量，并明确：化禄落财帛宫**不等于**股价上涨。",
+      "stance_hint": "neutral",
+      "applies_to": ["Z_MUTAGEN_001", "Z_MUTAGEN_004", "Z_FIN_004"]
+    },
+    {
+      "entry_id": "ZWQS-0007",
+      "book_id": "ziwei-bone-sui-fu",
+      "chapter": "骨髓赋",
+      "topic": ["迁迁移", "迁移", "三方四正"],
+      "original_text": "命迁相对，内外相因。",
+      "modern_note": "本项目自撰：命宫与迁移宫互为对宫（相差六位），传统以此说明『自身』与『外部环境』的对应关系。本项目用三方四正的索引结构表达这一点，并把迁移宫作为『外部市场环境』的**研究映射**（非传统定论）。",
+      "stance_hint": "neutral",
+      "applies_to": ["Z_TRINE_001", "Z_MOVE_001"]
+    },
+    {
+      "entry_id": "ZWQS-0008",
+      "book_id": "ziwei-bone-sui-fu",
+      "chapter": "骨髓赋",
+      "topic": ["煞星", "擎羊", "陀罗", "火铃"],
+      "original_text": "羊陀火铃，为煞曜之属。",
+      "modern_note": "本项目自撰：擎羊、陀罗、火星、铃星（连同地空、地劫）被传统归为煞曜。本项目把煞曜**计数**作为结构变量，其方向（负向）是传统规则的映射，不是预期收益率。",
+      "stance_hint": "supporting",
+      "applies_to": ["Z_LIFE_004", "Z_TRINE_003"]
+    },
+    {
+      "entry_id": "ZWQS-0009",
+      "book_id": "ziwei-bone-sui-fu",
+      "chapter": "骨髓赋",
+      "topic": ["辅弼", "昌曲", "魁钺", "吉星"],
+      "original_text": "左辅右弼，文昌文曲，天魁天钺，皆助曜也。",
+      "modern_note": "本项目自撰：六吉星被传统视为助曜。本项目把它们**计数**为结构变量；计数多寡本身不构成方向判断，方向来自传统规则的映射，且必须经历史检验。",
+      "stance_hint": "supporting",
+      "applies_to": ["Z_LIFE_003", "Z_TRINE_002"]
+    },
+    {
+      "entry_id": "ZWQS-0010",
+      "book_id": "ziwei-fa-wei-lun",
+      "chapter": "发微论",
+      "topic": ["庙旺", "落陷", "星曜"],
+      "original_text": "星有庙旺陷，宫有强弱分。",
+      "modern_note": "本项目自撰：庙旺等级是紫微对星曜力量的分档。本项目把庙旺等级映射为数值（庙 1.0 → 陷 -0.2）并求和，这一映射是**工程近似**，写入 assumptions，不是传统定量规定。",
+      "stance_hint": "neutral",
+      "applies_to": ["Z_LIFE_001", "Z_FIN_001", "Z_CAREER_001"]
+    },
+    {
+      "entry_id": "ZWQS-0011",
+      "book_id": "ziwei-fa-wei-lun",
+      "chapter": "发微论",
+      "topic": ["大限", "小限", "顺逆"],
+      "original_text": "大限有顺逆，随阴阳男女而分。",
+      "modern_note": "本项目自撰：这条明确指出传统运限顺逆依赖『阴阳 + 男女』。**股票没有真实性别**，因此本项目把这一自由度显式化为方向 variant（顺行／逆行），而不是默认男命或女命（见 ADR-0010）。该条文正是这一决策的文本依据。",
+      "stance_hint": "neutral",
+      "applies_to": ["Z_DECADE_001", "Z_AGE_001"]
+    },
+    {
+      "entry_id": "ZWQS-0012",
+      "book_id": "ziwei-fa-wei-lun",
+      "chapter": "发微论",
+      "topic": ["流年", "太岁", "流曜"],
+      "original_text": "流年太岁，逐岁而迁。",
+      "modern_note": "本项目自撰：流年按年推移，落在原盘某一宫上，并带来该年的流曜与四化。本项目把流年命宫位置、流曜、四化分别拆成结构变量与方向变量，且全部由确定性代码计算。",
+      "stance_hint": "neutral",
+      "applies_to": ["Z_YEAR_001", "Z_YEAR_002", "Z_YEAR_004"]
+    },
+    {
+      "entry_id": "ZWQS-0013",
+      "book_id": "ziwei-fa-wei-lun",
+      "chapter": "发微论",
+      "topic": ["流派", "差异", "反证"],
+      "original_text": "斗数之学，传本不同，取义亦异。",
+      "modern_note": "本项目自撰：这条说明紫微的传本与流派之间存在差异。本项目据此把古籍证据**强制分为支持与反证两类**，避免『先有结论后找古籍』。检索时同时返回 counter_evidence。",
+      "stance_hint": "counter",
+      "applies_to": []
+    }
+  ]
+}

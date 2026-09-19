@@ -10,9 +10,11 @@ from sqlalchemy.orm import Session
 
 from apps.api.deps import db_session, get_knowledge, get_market
 from src.core.config import settings
+from src.core.schemas.common import Availability
 from src.engines.bazi.bazi_engine import BaziEngine
 from src.engines.calendar.calendar_engine import CalendarEngine
 from src.engines.huangli.huangli_engine import HuangliEngine
+from src.engines.ziwei.ziwei_engine import ZiweiEngine
 from src.factors.registry.definitions import ALL_DEFINITIONS
 
 router = APIRouter(prefix="/api/v1/system", tags=["system"])
@@ -31,10 +33,16 @@ def health() -> dict:
 
 @router.get("/engines", summary="引擎状态")
 def engines(market=Depends(get_market)) -> dict:
-    """列出所有术数引擎的可用性与版本。Phase 1 紫微/六爻/奇门不可用。"""
+    """列出所有术数引擎的可用性与版本。
+
+    Phase 2 起紫微已实现；其 ``available`` 反映**紫微排盘服务的真实可达性**
+    （HTTP 常驻服务或本机 node 子进程）。服务不可用时如实返回 ``false`` 并给出原因，
+    **不允许用 0 分或空盘面冒充可用**。
+    """
     calendar = CalendarEngine()
     huangli = HuangliEngine()
     bazi = BaziEngine()
+    ziwei = ZiweiEngine()
 
     def _entry(engine, available: bool, reason: str = "") -> dict:
         meta = engine.metadata
@@ -56,12 +64,14 @@ def engines(market=Depends(get_market)) -> dict:
             _entry(calendar, True),
             _entry(huangli, True),
             _entry(bazi, True),
-            {
-                "engine_id": "ziwei", "display_name": "紫微斗数引擎", "available": False,
-                "engine_version": "", "config_version": "", "third_party": "SylarLong/iztro（计划）",
-                "third_party_commit": "", "notes": "",
-                "unavailable_reason": "Phase 2 实现。当前不返回任何紫微结果，也不以 0 分参与聚合。",
-            },
+            _entry(
+                ziwei,
+                ziwei.availability == Availability.OK,
+                "" if ziwei.availability == Availability.OK else (
+                    f"{ziwei.unavailable_reason()}。紫微相关字段返回 unavailable，"
+                    "其余引擎不受影响，也不会以 0 分参与任何聚合。"
+                ),
+            ),
             {
                 "engine_id": "liuyao", "display_name": "六爻引擎", "available": False,
                 "engine_version": "", "config_version": "", "third_party": "",

@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
-
 from src.core.schemas.common import Direction, EngineId
 from src.factors.registry.compute import classify_wuxing, compute_factor_set
 from src.factors.registry.definitions import (
@@ -32,9 +30,23 @@ class TestRegistry:
         assert len(ids) == len(set(ids))
 
     def test_ids_follow_naming_convention(self):
-        prefixes = ("B_NATAL_", "B_YEAR_", "B_MONTH_", "B_DAY_", "H_DAY_", "H_MONTH_")
+        """每个因子必须落在**已登记的命名空间**里。
+
+        Phase 2 变化：新增紫微命名空间 ``Z_*``（ADR-0009/0010）。
+        ``PHASE1_PREFIXES`` 保持不变，用于保证 Phase 1 因子的 ID 语义不被改动；
+        新增命名空间必须显式登记在这里，防止出现"随手起的 ID"。
+        """
+        phase1_prefixes = ("B_NATAL_", "B_YEAR_", "B_MONTH_", "B_DAY_", "H_DAY_", "H_MONTH_")
+        phase2_prefixes = (
+            "Z_LIFE_", "Z_FIN_", "Z_CAREER_", "Z_MOVE_", "Z_MUTAGEN_",
+            "Z_TRINE_", "Z_YEAR_", "Z_MONTH_", "Z_DAY_", "Z_DECADE_", "Z_AGE_",
+        )
         for d in ALL_DEFINITIONS:
-            assert d.factor_id.startswith(prefixes), d.factor_id
+            assert d.factor_id.startswith(phase1_prefixes + phase2_prefixes), d.factor_id
+            if d.factor_id.startswith("Z_"):
+                assert str(d.engine) == "ziwei", d.factor_id
+            else:
+                assert str(d.engine) in ("bazi", "huangli"), d.factor_id
 
     def test_every_factor_has_definition_and_version(self):
         for d in ALL_DEFINITIONS:
@@ -67,9 +79,20 @@ class TestRegistry:
 
 class TestFactorComputation:
     def test_all_definitions_produce_observations(self, factor_set):
+        """不传紫微盘时，**八字 + 黄历**因子必须全部产出观测。
+
+        Phase 2 变化：``Z_*`` 因子需要一张 ``ZiweiChart`` 才会计算
+        （见 ``compute_factor_set(..., ziwei_chart=...)``），
+        因此这里的"全部"限定为 Phase 1 命名空间。
+        紫微因子的完整性由 `tests/factors/test_ziwei_factors.py` 覆盖。
+        """
         produced = {o.factor_id for o in factor_set.observations}
-        missing = set(DEFINITION_INDEX) - produced
+        expected = {fid for fid in DEFINITION_INDEX if not fid.startswith("Z_")}
+        missing = expected - produced
         assert not missing, f"以下因子未产出观测：{sorted(missing)}"
+        assert not {o.factor_id for o in factor_set.observations if o.factor_id.startswith("Z_")}, (
+            "未提供紫微盘时不应产出任何 Z_* 因子"
+        )
 
     def test_observations_have_required_fields(self, factor_set):
         for o in factor_set.observations:

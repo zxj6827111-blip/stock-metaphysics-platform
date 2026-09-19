@@ -1,4 +1,4 @@
-"""ORM 模型 —— Phase 1 的 14 张核心表。
+"""ORM 模型 —— 业务表（Phase 1.1：17 张）。
 
 表清单（对应 architecture §47 / two_session_plan §15）：
 
@@ -20,6 +20,12 @@
 
     backtest_experiment          研究实验
     backtest_result              研究结果
+
+    forward_label                未来收益标签（Phase 1.1 新增：标签持久化，
+                                 避免 /backtest 每次全量重算；标签带数据来源
+                                 与降级标记，合成行情产生的标签据此被研究
+                                 状态机拦截）
+    analysis_run                 分析运行索引
 """
 
 from __future__ import annotations
@@ -49,6 +55,18 @@ class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.now, onupdate=datetime.now, server_default=func.now()
+    )
+
+
+class UpdatedAtMixin:
+    """为早期只带领域时间戳的表补 ``updated_at``（Phase 1.1 schema 审计要求）。
+
+    不设 server_default：SQLite 的 ALTER TABLE ADD COLUMN 不接受
+    ``CURRENT_TIMESTAMP`` 这类非常量默认值；新行由 ORM ``default`` 自动填充。
+    """
+
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime, default=datetime.now, onupdate=datetime.now, nullable=True
     )
 
 
@@ -147,7 +165,7 @@ class StockBirthProfileRow(TimestampMixin, Base):
 # ---------------------------------------------------------------------------
 
 
-class MarketBarDailyRow(Base):
+class MarketBarDailyRow(UpdatedAtMixin, Base):
     __tablename__ = "market_bar_daily"
     __table_args__ = (
         UniqueConstraint("stock_code", "trade_date", "adjust", name="uq_bar_daily"),
@@ -172,7 +190,7 @@ class MarketBarDailyRow(Base):
     ingested_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
-class MarketFetchLogRow(Base):
+class MarketFetchLogRow(UpdatedAtMixin, Base):
     """行情抓取日志：用于缓存 TTL 与故障诊断。"""
 
     __tablename__ = "market_fetch_log"
@@ -191,7 +209,7 @@ class MarketFetchLogRow(Base):
 # ---------------------------------------------------------------------------
 
 
-class EngineVersionRow(Base):
+class EngineVersionRow(UpdatedAtMixin, Base):
     __tablename__ = "engine_version"
     __table_args__ = (UniqueConstraint("engine_id", "engine_version", name="uq_engine_version"),)
 
@@ -206,7 +224,7 @@ class EngineVersionRow(Base):
     registered_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
-class EngineRunRow(Base):
+class EngineRunRow(UpdatedAtMixin, Base):
     __tablename__ = "engine_run"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -223,7 +241,7 @@ class EngineRunRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
-class ChartArtifactRow(Base):
+class ChartArtifactRow(UpdatedAtMixin, Base):
     """原始术数盘面（一等数据）。未来引擎升级后必须可重新审计。"""
 
     __tablename__ = "chart_artifact"
@@ -273,7 +291,7 @@ class FactorDefinitionRow(TimestampMixin, Base):
     tags_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
 
-class FactorObservationRow(Base):
+class FactorObservationRow(UpdatedAtMixin, Base):
     __tablename__ = "factor_observation"
     __table_args__ = (
         UniqueConstraint("stock_code", "as_of", "factor_id", "rule_version", name="uq_factor_obs"),
@@ -311,7 +329,7 @@ class FactorObservationRow(Base):
 # ---------------------------------------------------------------------------
 
 
-class ClassicalBookRow(Base):
+class ClassicalBookRow(UpdatedAtMixin, Base):
     __tablename__ = "classical_book"
 
     book_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -331,7 +349,7 @@ class ClassicalBookRow(Base):
     )
 
 
-class ClassicalEntryRow(Base):
+class ClassicalEntryRow(UpdatedAtMixin, Base):
     __tablename__ = "classical_entry"
     __table_args__ = (Index("ix_classical_entry_domain_school", "domain", "school"),)
 
@@ -358,7 +376,7 @@ class ClassicalEntryRow(Base):
     book_ref: Mapped[ClassicalBookRow] = relationship(back_populates="entries")
 
 
-class EvidenceLinkRow(Base):
+class EvidenceLinkRow(UpdatedAtMixin, Base):
     """证据关联：把因子/规则/分析结果与古籍条目连起来。"""
 
     __tablename__ = "evidence_link"
@@ -381,7 +399,7 @@ class EvidenceLinkRow(Base):
 # ---------------------------------------------------------------------------
 
 
-class BacktestExperimentRow(Base):
+class BacktestExperimentRow(UpdatedAtMixin, Base):
     __tablename__ = "backtest_experiment"
 
     experiment_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -401,7 +419,7 @@ class BacktestExperimentRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
-class BacktestResultRow(Base):
+class BacktestResultRow(UpdatedAtMixin, Base):
     __tablename__ = "backtest_result"
     __table_args__ = (
         Index("ix_backtest_result_exp", "experiment_id", "horizon"),
@@ -426,7 +444,52 @@ class BacktestResultRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
-class AnalysisRunRow(Base):
+class ForwardLabelRow(TimestampMixin, Base):
+    """未来收益标签的持久化（auditability + 性能）。
+
+    唯一键 ``(stock_code, as_of, benchmark_code, label_source)``：
+    同一快照来源重复导入幂等；不同来源/快照并存，研究时可显式选择。
+    """
+
+    __tablename__ = "forward_label"
+    __table_args__ = (
+        UniqueConstraint("stock_code", "as_of", "benchmark_code", "label_source",
+                         name="uq_forward_label"),
+        Index("ix_forward_label_stock", "stock_code", "as_of"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    stock_code: Mapped[str] = mapped_column(String(16), index=True)
+    as_of: Mapped[date] = mapped_column(Date, index=True)
+    trade_date: Mapped[date] = mapped_column(Date, index=True)
+
+    ret_1d: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ret_5d: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ret_10d: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ret_20d: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ret_60d: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_return_20d: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_drawdown_20d: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bench_ret_20d: Mapped[float | None] = mapped_column(Float, nullable=True)
+    excess_return_20d: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    absolute_up_20d: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    excess_up_20d: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    strong_up_20d: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    drawdown_controlled_up_20d: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+    benchmark_code: Mapped[str] = mapped_column(String(16), default="000300")
+    horizon_available_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    extra_returns_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    #: 标签来源（akshare / offline_import / synthetic_demo …），与 is_degraded 一起
+    #: 供研究状态机判定"这是不是能产出研究证据的数据"。
+    label_source: Mapped[str] = mapped_column(String(48), default="")
+    is_degraded: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    data_snapshot: Mapped[str] = mapped_column(String(64), default="")
+
+
+class AnalysisRunRow(UpdatedAtMixin, Base):
     """一次分析运行的索引（供 API ``GET /analysis/{id}`` 查询）。"""
 
     __tablename__ = "analysis_run"
@@ -451,5 +514,5 @@ __all__ = [
     "EngineVersionRow", "EngineRunRow", "ChartArtifactRow",
     "FactorDefinitionRow", "FactorObservationRow",
     "ClassicalBookRow", "ClassicalEntryRow", "EvidenceLinkRow",
-    "BacktestExperimentRow", "BacktestResultRow", "AnalysisRunRow",
+    "BacktestExperimentRow", "BacktestResultRow", "ForwardLabelRow", "AnalysisRunRow",
 ]

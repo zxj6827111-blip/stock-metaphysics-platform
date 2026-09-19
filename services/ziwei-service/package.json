@@ -1,0 +1,20 @@
+{
+  "name": "smp-ziwei-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "股票玄学多模型研究平台 · 紫微斗数排盘服务（iztro adapter）",
+  "type": "module",
+  "main": "dist/cli.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "serve": "node dist/server.js",
+    "smoke": "node dist/cli.js --smoke"
+  },
+  "dependencies": {
+    "iztro": "2.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.9.0"
+  }
+}

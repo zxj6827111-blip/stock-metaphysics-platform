@@ -122,10 +122,25 @@ class TestRetrieval:
             assert item.stance == EvidenceStance.COUNTER
 
     def test_domain_filter_blocks_other_domains(self, provider):
-        """domain=ziwei 时不得返回八字典籍。"""
-        bundle = provider.search(EvidenceQuery(query="财帛宫", domain=KnowledgeDomain.ZIWEI, top_k=5))
-        assert bundle.total_candidates == 0
-        assert not bundle.supporting_evidence
+        """域过滤必须生效：``domain=ziwei`` 不得返回八字典籍，反之亦然。
+
+        Phase 2 变化：紫微语料已接入（kb-1.1.0），因此 ``domain=ziwei``
+        现在**有**结果 —— 但结果的来源书必须是紫微典籍，不能混入八字条目。
+        """
+        ziwei = provider.search(EvidenceQuery(query="财帛宫", domain=KnowledgeDomain.ZIWEI, top_k=5))
+        ziwei_books = {i.book for i in ziwei.supporting_evidence + ziwei.counter_evidence}
+        assert ziwei_books, "紫微域应有结果（kb-1.1.0 已收录紫微语料）"
+        assert not (ziwei_books & {"滴天髓", "渊海子平", "三命通会", "子平真诠",
+                                   "穷通宝鉴", "神峰通考", "命理约言"}), (
+            f"domain=ziwei 的检索结果混入了八字典籍：{ziwei_books}"
+        )
+
+        # 反向：八字域不得返回紫微条目
+        bazi = provider.search(EvidenceQuery(query="财星", domain=KnowledgeDomain.BAZI, top_k=5))
+        bazi_books = {i.book for i in bazi.supporting_evidence + bazi.counter_evidence}
+        assert not any("紫微" in b for b in bazi_books), (
+            f"domain=bazi 的检索结果混入了紫微典籍：{bazi_books}"
+        )
 
     def test_book_filter(self, provider):
         bundle = provider.search(

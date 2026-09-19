@@ -314,7 +314,9 @@ class TestGoldenStability:
         assert settings.calendar_engine_version == "lunar-python-1.4.8"
         assert settings.bazi_engine_version == "smx-bazi-native-1.0.0"
         assert settings.birth_profile_version == "v1"
-        assert settings.factor_rule_version == "v1"
+        # v1.1 是有意提升：修复 B_YEAR_005/007/008 的流年关系接线错误
+        # （005≡010 三合重复、刑冲错位、害未计算）。全过程见 docs/calculation-differences-phase1.md
+        assert settings.factor_rule_version == "v1.1"
 
 
 class TestGoldenStockBirthProfiles:

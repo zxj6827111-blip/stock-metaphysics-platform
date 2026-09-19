@@ -19,8 +19,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from src.market.normalization.errors import MarketDataError
 from src.core.stock.birth_profile import BirthProfileError
+from src.market.normalization.errors import MarketDataError
 
 logger = logging.getLogger("smp.api")
 

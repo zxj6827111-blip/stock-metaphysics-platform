@@ -1,0 +1,103 @@
+{
+ "note": "真实 iztro 输出快照（经 ZiweiEngine 映射为本项目 ZiweiChart）。重新抓取前请阅读 scripts/capture_ziwei_fixtures.py 的警告。",
+ "iztro_version": "iztro 2.6.1 (MIT) via services/ziwei-service (Node.js subprocess/HTTP)",
+ "engine_version": "iztro-2.6.1+smx-1.0.0",
+ "cases": [
+  {
+   "name": "600519-listing-forward",
+   "description": "贵州茅台上市时刻（2001-08-27 巳时，辛巳年）顺行",
+   "solar_date": "2001-08-27",
+   "time_index": 5,
+   "variant_mode": "variant_forward",
+   "as_of": "2024-11-15",
+   "as_of_time_index": 7,
+   "engine_version": "iztro-2.6.1+smx-1.0.0",
+   "soul_palace_index": 1,
+   "five_elements_class": "木三局"
+  },
+  {
+   "name": "600519-listing-reverse",
+   "description": "贵州茅台上市时刻 逆行（与上例仅方向不同）",
+   "solar_date": "2001-08-27",
+   "time_index": 5,
+   "variant_mode": "variant_reverse",
+   "as_of": "2024-11-15",
+   "as_of_time_index": 7,
+   "engine_version": "iztro-2.6.1+smx-1.0.0",
+   "soul_palace_index": 1,
+   "five_elements_class": "木三局"
+  },
+  {
+   "name": "000001-listing-forward",
+   "description": "平安银行上市时刻（1991-04-03 巳时，辛未年）顺行",
+   "solar_date": "1991-04-03",
+   "time_index": 5,
+   "variant_mode": "variant_forward",
+   "as_of": "2024-11-15",
+   "as_of_time_index": 7,
+   "engine_version": "iztro-2.6.1+smx-1.0.0",
+   "soul_palace_index": 8,
+   "five_elements_class": "木三局"
+  },
+  {
+   "name": "300750-listing-forward",
+   "description": "宁德时代上市时刻（2018-06-11 巳时，戊戌年）顺行",
+   "solar_date": "2018-06-11",
+   "time_index": 5,
+   "variant_mode": "variant_forward",
+   "as_of": "2024-11-15",
+   "as_of_time_index": 7,
+   "engine_version": "iztro-2.6.1+smx-1.0.0",
+   "soul_palace_index": 10,
+   "five_elements_class": "金四局"
+  },
+  {
+   "name": "2024-lichun-zishi",
+   "description": "2024 立春当日早子时（甲辰年）顺行",
+   "solar_date": "2024-02-04",
+   "time_index": 0,
+   "variant_mode": "variant_forward",
+   "as_of": "2024-11-15",
+   "as_of_time_index": 7,
+   "engine_version": "iztro-2.6.1+smx-1.0.0",
+   "soul_palace_index": 11,
+   "five_elements_class": "金四局"
+  },
+  {
+   "name": "1999-late-zishi",
+   "description": "1999-12-31 晚子时（跨年、timeIndex=12）逆行",
+   "solar_date": "1999-12-31",
+   "time_index": 12,
+   "variant_mode": "variant_reverse",
+   "as_of": "2024-11-15",
+   "as_of_time_index": 7,
+   "engine_version": "iztro-2.6.1+smx-1.0.0",
+   "soul_palace_index": 10,
+   "five_elements_class": "水二局"
+  },
+  {
+   "name": "2016-choushi",
+   "description": "2016-03-15 丑时（丙申年）顺行",
+   "solar_date": "2016-03-15",
+   "time_index": 1,
+   "variant_mode": "variant_forward",
+   "as_of": "2024-11-15",
+   "as_of_time_index": 7,
+   "engine_version": "iztro-2.6.1+smx-1.0.0",
+   "soul_palace_index": 0,
+   "five_elements_class": "木三局"
+  },
+  {
+   "name": "2020-haishi",
+   "description": "2020-07-22 亥时（庚子年，科创板时期）顺行",
+   "solar_date": "2020-07-22",
+   "time_index": 11,
+   "variant_mode": "variant_forward",
+   "as_of": "2024-11-15",
+   "as_of_time_index": 7,
+   "engine_version": "iztro-2.6.1+smx-1.0.0",
+   "soul_palace_index": 6,
+   "five_elements_class": "水二局"
+  }
+ ]
+}

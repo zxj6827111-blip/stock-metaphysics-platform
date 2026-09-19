@@ -82,6 +82,9 @@ class LabelSet(SMBaseModel):
     horizon_available: dict[str, bool] = Field(default_factory=dict)
     #: 非标准持有期（不在 1/5/10/20/60 内）的收益，避免动态 setattr 静默丢失
     extra_returns: dict[str, float] = Field(default_factory=dict)
+    #: 标签所依据的行情是否为降级/合成（Phase 1.1：合成数据不得产出"研究证据"）
+    data_is_degraded: bool = False
+    data_source: str = ""
     computed_at: datetime = Field(default_factory=datetime.now)
 
 
@@ -125,7 +128,15 @@ class HorizonStats(SMBaseModel):
 
 
 class EventStudyResult(SMBaseModel):
-    """事件研究输出（architecture §16）。"""
+    """事件研究输出（architecture §16）。
+
+    Phase 1.1 新增（后向兼容的可选字段）：
+
+    * ``research_status`` / ``research_status_reasons`` —— 研究结论状态机
+      （``src/research/status.py``）。合成/降级数据时恒为 ``NO_REAL_DATA``。
+    * ``activation_stats`` —— 每个目标因子的激活率统计
+      （``activation_rate > 0.95`` 或 ``< 0.005`` 会触发 LOW_DISCRIMINATION_FACTOR 警告）。
+    """
 
     experiment_id: str = ""
     factor_ids: list[str] = Field(default_factory=list)
@@ -138,6 +149,20 @@ class EventStudyResult(SMBaseModel):
     benchmark_code: str = "000300"
     methodology: str = ""
     warnings: list[Warning_] = Field(default_factory=list)
+    research_status: str | None = Field(
+        default=None,
+        description="研究状态机输出：NOT_RUN/NO_REAL_DATA/INSUFFICIENT_SAMPLE/INVALID_CONTROL/"
+                    "NO_SIGNAL/INCONCLUSIVE/WEAK_EVIDENCE/SUPPORTED_IN_SAMPLE。",
+    )
+    research_status_reasons: list[str] = Field(default_factory=list)
+    data_source: dict | None = Field(
+        default=None,
+        description="面板行情来源汇总：{provider, degraded_codes, is_real, snapshot}。",
+    )
+    activation_stats: dict[str, dict] | None = Field(
+        default=None,
+        description="每个目标因子的激活统计：total/activated/activation_rate。",
+    )
     computed_at: datetime = Field(default_factory=datetime.now)
 
 
@@ -166,8 +191,18 @@ class NegativeControlResult(SMBaseModel):
     control_mean_return_20d: float | None = None
     real_up_rate_20d: float | None = None
     control_up_rate_20d: float | None = None
+    real_mean_excess_return_20d: float | None = None
+    control_mean_excess_return_20d: float | None = None
     delta_mean_return_20d: float | None = None
     delta_up_rate_20d: float | None = None
+    # --- 事件集合独立性诊断（Phase 1.1） ---
+    event_count: int | None = Field(default=None, description="对照组事件数（激活后）")
+    real_event_count: int | None = Field(default=None, description="真实组事件数（激活后）")
+    overlap_with_real: int | None = Field(default=None, description="与真实事件集合的交集大小")
+    jaccard_with_real: float | None = Field(
+        default=None,
+        description="与真实事件集合的 Jaccard 相似度；> 0.9 触发 NEGATIVE_CONTROL_NOT_INDEPENDENT",
+    )
     verdict: str = Field(
         default="inconclusive",
         description="outperform / tie / underperform / inconclusive",

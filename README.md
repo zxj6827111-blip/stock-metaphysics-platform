@@ -1,6 +1,6 @@
 # 股票玄学多模型研究平台
 
-> **Phase 1 · Foundation & BaZi Research Loop**
+> **Phase 2 · Multi-Engine Productization**
 >
 > 一个真实可运行的 **传统术数多模型 × 古籍知识库 × 股票历史行情 × 统计回测验证** 研究系统。
 
@@ -31,9 +31,12 @@
 
 * 因子分数是**传统规则强度**，不是预期收益率，也不是上涨概率；
 * **财星 ≠ 股票上涨**，**食神生财 ≠ 股票一定上涨**，**三合 ≠ 股票上涨**；
-* 系统内置四类**负对照**（随机出生日 / 出生日 ±7 天 / 随机因子），
-  如果真实因子并不优于随机，系统会**如实输出**，不会美化；
-* 紫微斗数在 Phase 1 **明确不实现**，接口返回 `unavailable`，**不会用 0 分冒充**。
+* 系统内置四类**负对照**（随机出生日 / 出生日 ±7 天 / 随机因子）+ 共振研究的
+  随机模型方向对照，如果真实因子并不优于随机，系统会**如实输出**，不会美化；
+* **Phase 2 已接入紫微斗数**（iztro，经 Node 服务 + Adapter）；
+  排盘服务不可用时返回 `available: false, score: null`，**不会用 0 分冒充**；
+* **共识 ≠ 历史有效**：系统完全可能输出「三模型方向一致 + 历史无信号」，
+  且这在实际样本上是常见结果。
 
 ---
 
@@ -512,16 +515,29 @@ A：**不是。** 它是传统规则强度的加权聚合（0–100），与收�
 | 文档 | 内容 |
 |---|---|
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | 系统架构、分层、数据流、契约 |
-| [`AGENTS.md`](AGENTS.md) | 给 AI 编程助手的强制规则（Phase 2 必读） |
+| [`AGENTS.md`](AGENTS.md) | 给 AI 编程助手的强制规则 |
 | [`THIRD_PARTY.md`](THIRD_PARTY.md) | 第三方依赖、版本锁定、许可证、Adapter 边界 |
-| [`docs/IMPLEMENTATION_PLAN_PHASE1.md`](docs/IMPLEMENTATION_PLAN_PHASE1.md) | Phase 1 计划、风险、验收点 |
+| [`docs/HANDOFF_FINAL.md`](docs/HANDOFF_FINAL.md) | **接手必读**：契约、命令、踩过的坑 |
+| [`docs/PHASE2_ACCEPTANCE_REPORT.md`](docs/PHASE2_ACCEPTANCE_REPORT.md) | Phase 2 验收结论 |
+| [`docs/PHASE1_ACCEPTANCE_REPORT.md`](docs/PHASE1_ACCEPTANCE_REPORT.md) | Phase 1.1 验收结论 |
+| [`docs/HANDOFF_PHASE1.md`](docs/HANDOFF_PHASE1.md) | Phase 1 历史交接（部分内容已被 Phase 2 取代） |
+| [`docs/IMPLEMENTATION_PLAN_PHASE2.md`](docs/IMPLEMENTATION_PLAN_PHASE2.md) | Phase 2 实施计划与执行状态 |
+| [`docs/ziwei-engine.md`](docs/ziwei-engine.md) | 紫微引擎架构与口径 |
+| [`docs/ziwei-factor-dictionary.md`](docs/ziwei-factor-dictionary.md) | 49 个紫微因子（自动生成） |
+| [`docs/consensus-methodology.md`](docs/consensus-methodology.md) | 共识方法论（禁止平均） |
+| [`docs/conflict-methodology.md`](docs/conflict-methodology.md) | 分歧方法论（四层冲突） |
+| [`docs/time-window-methodology.md`](docs/time-window-methodology.md) | 时间窗口方法论（交易日聚合） |
+| [`docs/evidence-bundle.md`](docs/evidence-bundle.md) | 证据包（AI 解释层唯一数据源） |
+| [`docs/narrator-safety.md`](docs/narrator-safety.md) | AI 解释层安全规范与幻觉守卫 |
+| [`docs/model-limitations.md`](docs/model-limitations.md) | **引用输出前必读**的限制清单 |
+| [`docs/calculation-differences-phase2-ziwei.md`](docs/calculation-differences-phase2-ziwei.md) | 紫微口径差异 D1–D7 |
+| [`docs/ui-implementation-phase2.md`](docs/ui-implementation-phase2.md) | UI 实现与刻意偏差 |
 | [`docs/database.md`](docs/database.md) | 数据库表结构与字段说明 |
 | [`docs/api.md`](docs/api.md) | API 参考与错误码 |
-| [`docs/factor_dictionary.md`](docs/factor_dictionary.md) | 65 个因子的完整定义 |
+| [`docs/factor_dictionary.md`](docs/factor_dictionary.md) | 65 个 Phase 1 因子 |
+| [`docs/factor_quality_report.md`](docs/factor_quality_report.md) | 因子质量审计（含紫微附录） |
 | [`docs/methodology.md`](docs/methodology.md) | 研究纪律、统计方法、已知局限 |
-| [`docs/ui-implementation.md`](docs/ui-implementation.md) | UI 组件、设计令牌、复刻流程 |
-| [`docs/HANDOFF_PHASE1.md`](docs/HANDOFF_PHASE1.md) | **Phase 2 接手必读** |
-| [`docs/ADR/`](docs/ADR/) | 架构决策记录 |
+| [`docs/ADR/`](docs/ADR/) | 架构决策记录（11 篇） |
 
 ---
 

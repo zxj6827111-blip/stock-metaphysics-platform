@@ -18,10 +18,10 @@ from datetime import date, datetime
 def cmd_seed(args: argparse.Namespace) -> int:
     from sqlalchemy import select
 
+    from src.core.stock.exchange_sessions import seed_rows
     from src.db.base import init_db, session_scope
     from src.db.models import ExchangeSessionRow
     from src.knowledge.ingest.loader import seed_database
-    from src.core.stock.exchange_sessions import seed_rows
 
     init_db()
 
@@ -152,6 +152,19 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_import_market(args: argparse.Namespace) -> int:
+    """把 data/import/ 的真实行情导入 market_bar_daily（供 /analysis/{id}/backtest 等使用）。
+
+    只导入带来源元数据的文件；导入行标记 ``source=tencent_qfq_import``、
+    ``is_degraded=False``（真实历史数据，不是合成）。
+    """
+    from src.market.offline_importer import import_market_to_db
+
+    result = import_market_to_db(write_db=not args.dry_run)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result["errors"] == [] and result["series_written"] > 0 else 1
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     """环境自检：依赖、数据库、语料、引擎可用性。"""
     ok = True
@@ -257,6 +270,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_doc = sub.add_parser("doctor", help="环境与依赖自检")
     p_doc.set_defaults(func=cmd_doctor)
+
+    p_imp = sub.add_parser("import-market", help="校验并导入 data/import/ 的真实行情到数据库")
+    p_imp.add_argument("--dry-run", action="store_true", help="只校验不写库")
+    p_imp.set_defaults(func=cmd_import_market)
 
     return parser
 

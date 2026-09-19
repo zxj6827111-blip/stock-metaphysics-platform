@@ -29,7 +29,7 @@ function ShellInner({
   dataStatus,
   statusText,
   asOf,
-  footerLeft = "股票玄学多模型研究平台 v0.1.0 · Phase 1",
+  footerLeft = "股票玄学多模型研究平台 v0.2.0 · Phase 2",
   footerCenter = "让东方智慧与现代科学，在资本市场中相遇",
   footerRight = "「道生一，一生二，二生三，三生万物。」——《道德经》",
 }: AppShellProps) {

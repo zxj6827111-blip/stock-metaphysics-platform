@@ -26,6 +26,14 @@ const PAGES = [
   { key: "01-home", url: `/${SUFFIX}`, label: "首页" },
   { key: "02-overview", url: `/stock/600519/overview${SUFFIX}`, label: "综合研判" },
   { key: "03-bazi", url: `/stock/600519/bazi${SUFFIX}`, label: "八字详情" },
+  // Phase 2：参考图 04–10 对应的七个页面
+  { key: "04-ziwei", url: `/stock/600519/ziwei${SUFFIX}`, label: "紫微斗数详情" },
+  { key: "05-backtest", url: `/stock/600519/backtest${SUFFIX}`, label: "历史验证" },
+  { key: "06-factors", url: `/factors${SUFFIX}`, label: "因子字典" },
+  { key: "07-conflicts", url: `/stock/600519/conflicts${SUFFIX}`, label: "模型分歧中心" },
+  { key: "08-huangli", url: `/stock/600519/huangli${SUFFIX}`, label: "黄历 / 日课详情" },
+  { key: "09-evidence", url: `/stock/600519/evidence${SUFFIX}`, label: "古籍证据检索" },
+  { key: "10-timeline", url: `/stock/600519/timeline${SUFFIX}`, label: "时间窗口" },
 ];
 
 const OUT_ROOT = path.resolve(process.cwd(), "artifacts", "ui-review");
@@ -35,6 +43,13 @@ const REF_MAP = {
   "01-home": "01_home.png",
   "02-overview": "02_integrated_analysis.png",
   "03-bazi": "03_bazi_detail.png",
+  "04-ziwei": "04_ziwei_detail.png",
+  "05-backtest": "05_backtest_validation.png",
+  "06-factors": "06_factor_dictionary.png",
+  "07-conflicts": "07_model_conflict_center.png",
+  "08-huangli": "08_huangli_detail.png",
+  "09-evidence": "09_classics_evidence_search.png",
+  "10-timeline": "10_time_window.png",
 };
 
 async function main() {

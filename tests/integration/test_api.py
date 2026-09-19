@@ -38,9 +38,16 @@ class TestSystemEndpoints:
         assert r.status_code == 200
         body = r.json()
         assert body["status"] == "ok"
-        assert body["phase"] == "phase1"
+        # Phase 2 起 phase 标记升级（Phase 1 为 "phase1"）
+        assert body["phase"] == "phase2"
 
     def test_engines_lists_all_six(self, client):
+        """六类引擎必须全部登记（Phase 1 → Phase 2 的语义变化见注释）。
+
+        * liuyao / qimen 恒为不可用（本版本不实现）；
+        * 紫微已实现：``available`` 反映**排盘服务真实可达性**。
+          可用时必须带版本号；不可用时必须带可解释原因，禁止静默。
+        """
         r = client.get("/api/v1/system/engines")
         assert r.status_code == 200
         engines = {e["engine_id"]: e for e in r.json()["engines"]}
@@ -48,8 +55,13 @@ class TestSystemEndpoints:
         assert engines["calendar"]["available"] is True
         assert engines["huangli"]["available"] is True
         assert engines["bazi"]["available"] is True
-        assert engines["ziwei"]["available"] is False
-        assert "Phase 2" in engines["ziwei"]["unavailable_reason"]
+        assert engines["liuyao"]["available"] is False
+        assert engines["qimen"]["available"] is False
+        if engines["ziwei"]["available"]:
+            assert engines["ziwei"]["engine_version"].startswith("iztro-")
+        else:
+            assert engines["ziwei"]["unavailable_reason"]
+            assert "0 分" in engines["ziwei"]["unavailable_reason"]
 
     def test_versions(self, client):
         r = client.get("/api/v1/system/versions")
@@ -273,8 +285,14 @@ class TestAnalysisEndpoints:
 
 
 class TestZiweiNeverFaked:
+    """紫微永远不会被伪造：既不会用 0 分冒充，也不会默认填性别。
+
+    Phase 2 起紫微引擎已实现，但**本类测试仍然有效**：
+    `analysis/bazi` 的默认 `variant_mode=not_applicable`，
+    而紫微需要显式方向 —— 因此该端点下紫微依然必须是 unavailable。
+    """
+
     def test_opinion_unavailable_not_zero(self, client):
-        """紫微在 Phase 1 必须是 unavailable + score=None，绝不能是 0 分。"""
         r = client.post(
             "/api/v1/stocks/600519/analysis/bazi",
             json={"as_of": "2024-11-15T14:32:00"},
@@ -285,11 +303,24 @@ class TestZiweiNeverFaked:
         aid = body["analysis_id"]
         consensus = client.get(f"/api/v1/analysis/{aid}/consensus").json()
         assert "ziwei" in consensus["unavailable_engines"]
+        assert "ziwei" not in consensus["directions"], "不可用引擎不得出现在方向表里"
 
         guide = client.get(f"/api/v1/analysis/{aid}/guide").json()
         ziwei = next(e for e in guide["engines"] if e["engine"] == "ziwei")
         assert ziwei["available"] is False
-        assert "不提供任何紫微结果" in ziwei["reason"]
+        # 原因必须说明"为什么没有紫微"，而不是含糊其辞
+        assert "紫微" in ziwei["reason"]
+        assert "variant_mode" in ziwei["reason"] or "服务不可用" in ziwei["reason"]
+
+    def test_ziwei_endpoint_refuses_default_gender(self, client):
+        """紫微端点不得接受 not_applicable —— 否则等于偷偷选了一个方向。"""
+        r = client.post(
+            "/api/v1/stocks/600519/analysis/ziwei",
+            json={"as_of": "2024-11-15T14:32:00", "variant_mode": "not_applicable"},
+        )
+        assert r.status_code == 422
+        assert r.json()["error"]["code"] == "INVALID_REQUEST"
+        assert "variant_mode" in r.json()["error"]["message"]
 
 
 class TestKnowledgeEndpoints:

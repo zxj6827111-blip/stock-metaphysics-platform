@@ -16,13 +16,12 @@ from src.core.config import settings
 from src.core.schemas.analysis import (
     AnalysisRun,
     BaziAnalysisResponse,
-    ConsensusSnapshot,
     ConflictSnapshot,
+    ConsensusSnapshot,
     MetaphysicsOpinion,
+    MultiAnalysisResponse,
     ReasonItem,
 )
-from src.core.schemas.bazi import BaziChart
-from src.core.schemas.calendar import HuangliSnapshot
 from src.core.schemas.common import (
     CONSENSUS_CN_LABEL,
     Availability,
@@ -46,14 +45,59 @@ from src.db.models import (
     StockBirthProfileRow,
     StockMasterRow,
 )
+from src.engines.base import EngineContext
 from src.engines.bazi.bazi_engine import BaziEngine
 from src.engines.calendar.calendar_engine import CalendarEngine
 from src.engines.huangli.huangli_engine import HuangliEngine
+from src.engines.ziwei.ziwei_engine import ZiweiEngine, ZiweiUnavailableError
 from src.factors.registry.compute import compute_factor_set
 from src.factors.registry.definitions import DEFINITION_INDEX
 
 # 方向标签（中文）
 DIRECTION_LABEL: dict[int, str] = {1: "偏强", 0: "中性", -1: "偏弱"}
+
+#: 引擎 → 因子命名空间前缀。观点聚合只能消费自己的命名空间，
+#: 防止某个引擎"借"其他引擎的因子制造虚假一致（Phase 2 多模型纪律）。
+ENGINE_FACTOR_PREFIX: dict[EngineId, str] = {
+    EngineId.BAZI: "B_",
+    EngineId.HUANGLI: "H_",
+    EngineId.ZIWEI: "Z_",
+}
+
+#: 各引擎观点所依赖的**假设**。分歧分析需要它：如果两个引擎的差异来自
+#: 假设不同（而不是模型不同），那本身不是"模型分歧"，必须能分辨出来。
+OPINION_ASSUMPTIONS: dict[EngineId, tuple[str, ...]] = {
+    EngineId.BAZI: (
+        "股票出生的时柱口径：23:00 后归次日子时（晚子时）。",
+        "运限方向 variant 在 not_applicable 下不输出大运，大运不进入本观点的因子。",
+    ),
+    EngineId.HUANGLI: (
+        "黄历宜忌采用 lunar-python 内置通书口径；不同通书之间存在差异。",
+        "神煞类字段（建除/黄黑道/十二神/星宿）置信度 ≤ 0.55，权重已相应降低。",
+    ),
+    EngineId.ZIWEI: (
+        "股票无真实性别：紫微运限以方向 variant（顺行/逆行）表达，不默认男女。",
+        "顺行/逆行 variant 的差异仅限于大限/小限顺逆与长生十二神顺逆，"
+        "两者不是两条独立证据。",
+        f"宫位→金融含义的映射属于本项目研究假设（{settings.ziwei_stock_mapping_version}），"
+        "不是传统紫微定论。",
+    ),
+}
+
+
+def _agreement_label(agreement_score: float, label: ConsensusLabel) -> str:
+    """把方向一致度翻译成可读标签。
+
+    注意：``MIXED`` 一定是"低" —— 即使一致度数值看起来不低，
+    只要存在反向引擎，一致性就不该被描述为"中/高"。
+    """
+    if label == ConsensusLabel.MIXED:
+        return "低（存在反向引擎）"
+    if agreement_score >= 1.0:
+        return "高（方向完全一致）"
+    if agreement_score >= 0.6:
+        return "中"
+    return "低"
 
 
 def direction_from_score(score: float | None) -> int:
@@ -74,10 +118,12 @@ class AnalysisService:
         calendar: CalendarEngine | None = None,
         huangli: HuangliEngine | None = None,
         bazi: BaziEngine | None = None,
+        ziwei: ZiweiEngine | None = None,
     ) -> None:
         self.calendar = calendar or CalendarEngine()
         self.huangli = huangli or HuangliEngine(self.calendar)
         self.bazi = bazi or BaziEngine(self.calendar)
+        self.ziwei = ziwei if ziwei is not None else ZiweiEngine()
 
     # ------------------------------------------------------------------
     # 持久化辅助
@@ -201,8 +247,9 @@ class AnalysisService:
         from src.engines.bazi.bazi_engine import BaziEngine as _B
         from src.engines.calendar.calendar_engine import CalendarEngine as _C
         from src.engines.huangli.huangli_engine import HuangliEngine as _H
+        from src.engines.ziwei.ziwei_engine import ZiweiEngine as _Z
 
-        for engine in (_C(), _H(), _B()):
+        for engine in (_C(), _H(), _B(), _Z()):
             meta = engine.metadata
             stmt = select(EngineVersionRow).where(
                 EngineVersionRow.engine_id == meta.engine_id,
@@ -247,9 +294,23 @@ class AnalysisService:
         engine: EngineId,
         factor_set: FactorSet,
         engine_version: str,
+        *,
+        unavailable_reason: str = "",
     ) -> MetaphysicsOpinion:
-        """由因子集合聚合出引擎观点（传统规则强度，不是收益预测）。"""
-        prefix = "B_" if engine == EngineId.BAZI else "H_"
+        """由因子集合聚合出引擎观点（传统规则强度，不是收益预测）。
+
+        每个引擎只消费**自己的**因子命名空间：
+        bazi → ``B_*``、huangli → ``H_*``、ziwei → ``Z_*``。
+        这保证三个观点彼此独立，不会互相"借"因子制造虚假一致。
+        """
+        prefix = ENGINE_FACTOR_PREFIX.get(engine)
+        if prefix is None:
+            return MetaphysicsOpinion(
+                engine=engine, engine_version=engine_version,
+                availability=Availability.UNAVAILABLE, direction=0, score=None,
+                confidence=0.0,
+                note=f"引擎 {engine} 尚未定义因子命名空间，不产出观点（禁止用 0 分冒充）。",
+            )
         obs = [o for o in factor_set.observations if o.factor_id.startswith(prefix)
                and o.availability == "ok"]
 
@@ -258,7 +319,10 @@ class AnalysisService:
                 engine=engine, engine_version=engine_version,
                 availability=Availability.UNAVAILABLE, direction=0, score=None,
                 confidence=0.0,
-                note="该引擎未能产出任何可用因子，分数返回 null（不使用 0 分代替）。",
+                note=unavailable_reason or (
+                    f"该引擎未能产出任何可用因子（命名空间 {prefix}*），"
+                    "分数返回 null（不使用 0 分代替）。"
+                ),
             )
 
         # 归一化值加权（权重 = confidence），映射到 0-100
@@ -285,6 +349,7 @@ class AnalysisService:
             direction=direction,
             score=round(score, 2),
             confidence=round(sum(weights) / len(weights), 4),
+            assumptions=list(OPINION_ASSUMPTIONS.get(engine, ())),
             top_positive_reasons=[
                 ReasonItem(
                     text=o.explanation,
@@ -309,6 +374,90 @@ class AnalysisService:
                 "属于研究性指标，**不代表收益率预测，也不代表上涨概率**。"
             ),
         )
+
+    # ------------------------------------------------------------------
+    # 正式 Consensus / Conflict（Phase 2C）
+    # ------------------------------------------------------------------
+    @staticmethod
+    def build_consensus_and_conflict(
+        opinions: dict[str, MetaphysicsOpinion],
+        *,
+        factor_set: FactorSet | None = None,
+        data_quality: str = "B",
+        research_status: str = "NOT_RUN",
+        historical_stats: dict | None = None,
+        historical_conflict_stats: dict | None = None,
+    ) -> tuple[ConsensusSnapshot, ConflictSnapshot]:
+        """产出**正式**共识与分歧（``display_only=False``）。
+
+        与展示层实现的区别：
+          * 六分类 + ``agreement_score``（方向一致度，不是分数平均）；
+          * 携带 ``research_status`` 与 ``historical_consensus_stats``；
+          * ``interpretation`` 统一生成"共识 + 历史有效性"文案；
+          * 分歧检测覆盖方向 / 因子 / 时间尺度 / 假设四层。
+        """
+        from src.core.orchestration.consensus import build_consensus_and_conflict
+
+        report, conflict_report = build_consensus_and_conflict(
+            opinions, factor_set=factor_set, data_quality=data_quality,
+            research_status=research_status, historical_stats=historical_stats,
+            historical_conflict_stats=historical_conflict_stats,
+        )
+
+        consensus = ConsensusSnapshot(
+            display_only=False,
+            label=report.consensus_class,
+            label_cn=report.label_cn,
+            participating_engines=[EngineId(k) for k in report.directions],
+            unavailable_engines=[EngineId(k) for k in report.unavailable_engines],
+            directions=report.directions,
+            mean_score=(
+                round(sum(v.score or 0.0 for v in opinions.values()
+                          if v.availability == Availability.OK and v.score is not None)
+                      / max(report.available_engine_count, 1), 2)
+                if report.available_engine_count else None
+            ),
+            agreement=_agreement_label(report.agreement_score, report.consensus_class),
+            historical_validity=(
+                f"ResearchStatus={report.research_status}；"
+                "共识与历史有效性是两件事，必须分开阅读。"
+            ),
+            data_quality=str(report.data_quality.get("grade", data_quality)),
+            note="；".join(report.notes),
+            # 注意：ConsensusLabel 是 str-Enum，str() 会给出 "ConsensusLabel.X"，
+            # 必须走 ex_value() 取真正的值（HANDOFF §12.1#8 同类坑）。
+            consensus_class=ex_value(report.consensus_class),
+            agreement_score=report.agreement_score,
+            available_engine_count=report.available_engine_count,
+            positive_engine_count=report.positive_engine_count,
+            negative_engine_count=report.negative_engine_count,
+            neutral_engine_count=report.neutral_engine_count,
+            engine_opinions=report.engine_opinions,
+            research_status=report.research_status,
+            historical_consensus_stats=report.historical_consensus_stats,
+            interpretation=report.interpretation,
+            notes=list(report.notes),
+        )
+        conflict = ConflictSnapshot(
+            display_only=False,
+            has_conflict=conflict_report.has_conflict,
+            severity=conflict_report.severity,
+            conflicting_engines=[EngineId(k) for k in conflict_report.conflicting_engines],
+            directions=conflict_report.directions,
+            reasons=conflict_report.reasons,
+            conflicting_factor_ids=[
+                f for c in conflict_report.factor_conflicts for f in (c["factor_a"], c["factor_b"])
+            ],
+            note="；".join(conflict_report.notes),
+            conflict_level=conflict_report.conflict_level,
+            major_conflicts=conflict_report.major_conflicts,
+            factor_conflicts=conflict_report.factor_conflicts,
+            time_horizon_conflicts=conflict_report.time_horizon_conflicts,
+            assumption_conflicts=conflict_report.assumption_conflicts,
+            historical_conflict_stats=conflict_report.historical_conflict_stats,
+            notes=list(conflict_report.notes),
+        )
+        return consensus, conflict
 
     @staticmethod
     def build_display_consensus(
@@ -567,6 +716,290 @@ class AnalysisService:
             warnings=warnings,
         )
 
+    # ------------------------------------------------------------------
+    # 紫微（Phase 2A）
+    # ------------------------------------------------------------------
+    @staticmethod
+    def ziwei_variants(mode: VariantMode | str) -> list[VariantMode]:
+        """把 variant_mode 展开为需要实际计算的 variant 列表。
+
+        ``both`` → [forward, reverse]（**分别计算、分别保存，不得平均**）；
+        ``not_applicable`` → []（拒绝排盘，见 ADR-0010）。
+        """
+        m = VariantMode(ex_value(mode))
+        if m == VariantMode.BOTH:
+            return [VariantMode.FORWARD, VariantMode.REVERSE]
+        if m in (VariantMode.FORWARD, VariantMode.REVERSE):
+            return [m]
+        return []
+
+    def build_ziwei_charts(
+        self,
+        db: Session | None,
+        *,
+        stock: StockMaster,
+        birth_profile: StockBirthProfile,
+        as_of: datetime,
+        variant_mode: VariantMode | str,
+        persist: bool,
+    ) -> tuple[dict[str, object], dict[str, str], list[Warning_]]:
+        """按 variant 排紫微盘；每个 variant 单独落一份 ``raw_chart``。
+
+        Returns:
+            ``(variant → ZiweiChart, variant → chart_id, warnings)``
+
+        紫微排盘失败**不影响**八字/黄历：失败只产出 warning，
+        调用方据此把紫微标为 unavailable（禁止用 0 分冒充）。
+        """
+        charts: dict[str, object] = {}
+        chart_ids: dict[str, str] = {}
+        warnings: list[Warning_] = []
+        variants = self.ziwei_variants(variant_mode)
+        if not variants:
+            return charts, chart_ids, warnings
+
+        for variant in variants:
+            key = ex_value(variant)
+            started = time.perf_counter()
+            try:
+                chart = self.ziwei.calculate_chart(
+                    EngineContext(stock_code=stock.stock_code, as_of=as_of),
+                    birth_datetime=birth_profile.birth_datetime.replace(tzinfo=None),
+                    as_of=as_of,
+                    variant_mode=variant,
+                )
+            except ZiweiUnavailableError as exc:
+                warnings.append(Warning_(
+                    code="ZIWEI_UNAVAILABLE",
+                    message=f"紫微（{key}）不可用：{exc}。其余引擎不受影响。",
+                    severity="warning",
+                    context={"variant": key},
+                ))
+                if db is not None and persist:
+                    self.log_engine_run(
+                        db, engine_id="ziwei", engine_version=self.ziwei.engine_version,
+                        stock_code=stock.stock_code, as_of=as_of, status="unavailable",
+                        duration_ms=int((time.perf_counter() - started) * 1000),
+                        error=str(exc),
+                    )
+                continue
+
+            charts[key] = chart
+            for w in chart.warnings:  # type: ignore[attr-defined]
+                warnings.append(w)
+            if db is not None and persist:
+                chart_ids[key] = self.save_chart_artifact(
+                    db, engine_id="ziwei", engine_version=self.ziwei.engine_version,
+                    stock_code=stock.stock_code, as_of=as_of,
+                    input_payload={
+                        "birth_datetime": birth_profile.birth_datetime.isoformat(),
+                        "variant_mode": key,
+                        "gender_parameter": chart.gender_parameter,  # type: ignore[attr-defined]
+                        "as_of": as_of.isoformat(),
+                    },
+                    raw_chart=chart.model_dump(mode="json"),  # type: ignore[attr-defined]
+                    assumptions=[a.model_dump(mode="json") for a in chart.assumptions],  # type: ignore[attr-defined]
+                    warnings=[w.model_dump(mode="json") for w in chart.warnings],  # type: ignore[attr-defined]
+                    birth_profile_version=birth_profile.birth_profile_version,
+                )
+                self.log_engine_run(
+                    db, engine_id="ziwei", engine_version=self.ziwei.engine_version,
+                    stock_code=stock.stock_code, as_of=as_of, status="ok",
+                    duration_ms=int((time.perf_counter() - started) * 1000),
+                    warnings=[w.model_dump(mode="json") for w in chart.warnings],  # type: ignore[attr-defined]
+                )
+        return charts, chart_ids, warnings
+
+    def _ziwei_opinion_unavailable(self, reason: str) -> MetaphysicsOpinion:
+        return MetaphysicsOpinion(
+            engine=EngineId.ZIWEI,
+            engine_version=self.ziwei.engine_version if self.ziwei.availability == Availability.OK else "",
+            availability=Availability.UNAVAILABLE,
+            direction=0, score=None, confidence=0.0,
+            note=reason,
+        )
+
+    def run_multi_analysis(
+        self,
+        db: Session,
+        *,
+        stock: StockMaster,
+        birth_profile: StockBirthProfile,
+        as_of: datetime,
+        horizon: str = "20d",
+        huangli_days: int = 31,
+        persist: bool = True,
+    ) -> MultiAnalysisResponse:
+        """多模型综合分析：八字 + 紫微 + 黄历 → 三个独立观点 → 共识 / 分歧。
+
+        **故障隔离**：紫微服务不可用时，八字与黄历照常产出；
+        紫微观点为 ``availability=unavailable, score=null``，
+        共识的可用引擎数相应降低，**绝不把紫微按 0 分计入**。
+        """
+        warnings: list[Warning_] = []
+        analysis_id = f"AN-{as_of.strftime('%Y%m%d%H%M%S')}-{stock.stock_code}-{uuid.uuid4().hex[:6]}"
+        variant_mode = VariantMode(ex_value(birth_profile.variant_mode))
+
+        # --- 黄历 ---
+        huangli = self.huangli.snapshot(as_of, days=huangli_days)
+
+        # --- 八字 ---
+        chart = self.bazi.build_chart(
+            birth_datetime=birth_profile.birth_datetime.replace(tzinfo=None),
+            as_of=as_of,
+            variant_mode=variant_mode,
+            stock_code=stock.stock_code,
+        )
+
+        # --- 紫微（可失败） ---
+        ziwei_charts, ziwei_chart_ids, ziwei_warnings = self.build_ziwei_charts(
+            db, stock=stock, birth_profile=birth_profile, as_of=as_of,
+            variant_mode=variant_mode, persist=persist,
+        )
+        warnings.extend(ziwei_warnings)
+
+        # --- 紫微因子：一次只算一个 variant ---
+        # `both` 模式下紫微盘有两套。因子/观点层只能取一套作为"主 variant"，
+        # 否则同一 factor_id 会出现两个值，语义立刻变得不可解释。
+        ziwei_chart = None
+        if ziwei_charts:
+            primary = "forward" if "forward" in ziwei_charts else next(iter(ziwei_charts))
+            ziwei_chart = ziwei_charts[primary]
+            if len(ziwei_charts) > 1:
+                others = [k for k in ziwei_charts if k != primary]
+                warnings.append(Warning_(
+                    code="ZIWEI_VARIANT_PRIMARY_SELECTED",
+                    message=(
+                        f"紫微解析出 {len(ziwei_charts)} 个 variant（{', '.join(ziwei_charts)}）。"
+                        f"因子与观点层**只使用 primary={primary}**；"
+                        f"其余 variant（{', '.join(others)}）的盘面已分别保存，"
+                        "可在变体对比中单独查看。系统不会对两个 variant 取平均。"
+                    ),
+                    severity="info",
+                    context={"primary": primary, "others": others},
+                ))
+
+        # --- 因子 ---
+        factor_set = compute_factor_set(
+            chart, huangli, as_of, stock_code=stock.stock_code, ziwei_chart=ziwei_chart,
+        )
+
+        # --- 三个独立观点 ---
+        bazi_opinion = self.build_opinion(EngineId.BAZI, factor_set, self.bazi.engine_version)
+        huangli_opinion = self.build_opinion(EngineId.HUANGLI, factor_set, self.huangli.engine_version)
+
+        if ziwei_chart is not None:
+            ziwei_opinion = self.build_opinion(EngineId.ZIWEI, factor_set, self.ziwei.engine_version)
+        else:
+            reason = (
+                self.ziwei.unavailable_reason()
+                if not self.ziwei.availability == Availability.OK
+                else (
+                    "本次分析未启用紫微：variant_mode="
+                    f"{ex_value(variant_mode)}。紫微运限需要显式方向（forward/reverse/both），"
+                    "股票无真实性别，系统不提供任何默认性别假设（ADR-0010）。"
+                )
+            )
+            ziwei_opinion = self._ziwei_opinion_unavailable(reason)
+
+        opinions = {
+            EngineId.BAZI.value: bazi_opinion,
+            EngineId.ZIWEI.value: ziwei_opinion,
+            EngineId.HUANGLI.value: huangli_opinion,
+        }
+
+        dq = birth_profile.data_quality
+        consensus, conflict = self.build_consensus_and_conflict(
+            opinions, factor_set=factor_set, data_quality=ex_value(dq.grade),
+        )
+
+        versions = VersionStamp(
+            engine_version=self.bazi.engine_version,
+            rule_version=settings.factor_rule_version,
+            config_version=settings.config_version,
+            birth_profile_version=birth_profile.birth_profile_version,
+            knowledge_version=settings.knowledge_version,
+            factor_version=settings.factor_rule_version,
+            market_data_version=settings.market_data_version,
+            computed_at=datetime.now(),
+        )
+
+        if persist:
+            self.register_engine_versions(db)
+            self.upsert_stock(db, stock)
+            self.save_birth_profile(db, birth_profile)
+            chart_ids: dict[str, str] = {}
+            chart_ids["bazi"] = self.save_chart_artifact(
+                db, engine_id="bazi", engine_version=self.bazi.engine_version,
+                stock_code=stock.stock_code, as_of=as_of,
+                input_payload={
+                    "birth_datetime": birth_profile.birth_datetime.isoformat(),
+                    "birth_basis": ex_value(birth_profile.birth_basis),
+                    "variant_mode": ex_value(birth_profile.variant_mode),
+                    "as_of": as_of.isoformat(),
+                },
+                raw_chart=chart.model_dump(mode="json"),
+                assumptions=[a.model_dump(mode="json") for a in chart.assumptions],
+                warnings=[w.model_dump(mode="json") for w in chart.warnings],
+                birth_profile_version=birth_profile.birth_profile_version,
+            )
+            chart_ids["huangli"] = self.save_chart_artifact(
+                db, engine_id="huangli", engine_version=self.huangli.engine_version,
+                stock_code=stock.stock_code, as_of=as_of,
+                input_payload={"as_of": as_of.isoformat(), "days": huangli_days},
+                raw_chart=huangli.raw_huangli,
+                assumptions=huangli.assumptions,
+                warnings=[w.model_dump(mode="json") for w in huangli.warnings],
+                birth_profile_version=birth_profile.birth_profile_version,
+            )
+            for variant, cid in ziwei_chart_ids.items():
+                chart_ids[f"ziwei:{variant}"] = cid
+            self.save_factors(db, factor_set)
+
+            engines_completed = [EngineId.HUANGLI, EngineId.BAZI]
+            if ziwei_charts:
+                engines_completed.append(EngineId.ZIWEI)
+            run = AnalysisRun(
+                analysis_id=analysis_id,
+                stock_code=stock.stock_code,
+                as_of=as_of,
+                horizon=horizon,
+                stock=stock,
+                birth_profile=birth_profile,
+                engines_requested=[EngineId.CALENDAR, EngineId.HUANGLI, EngineId.BAZI, EngineId.ZIWEI],
+                engines_completed=engines_completed,
+                engines_failed=[],
+                chart_artifact_ids=chart_ids,
+                factor_set=factor_set,
+                opinions=opinions,
+                consensus=consensus,
+                conflict=conflict,
+                versions=versions,
+                warnings=warnings,
+            )
+            self.save_analysis_run(db, run, extra={
+                "factor_count": len(factor_set.observations),
+                "huangli": huangli.model_dump(mode="json"),
+                "ziwei_variants": sorted(ziwei_charts.keys()),
+            })
+
+        return MultiAnalysisResponse(
+            analysis_id=analysis_id,
+            stock=stock,
+            birth_profile=birth_profile,
+            as_of=as_of,
+            variant_mode=ex_value(variant_mode),
+            bazi_chart=chart.model_dump(mode="json"),
+            ziwei_charts={k: v.model_dump(mode="json") for k, v in ziwei_charts.items()},  # type: ignore[attr-defined]
+            huangli=huangli,
+            factors=factor_set,
+            opinions=opinions,
+            consensus=consensus,
+            conflict=conflict,
+            versions=versions,
+            warnings=warnings,
+        )
+
     def save_analysis_run(self, db: Session, run: AnalysisRun, extra: dict | None = None) -> None:
         payload = run.model_dump(mode="json")
         # 附加信息（如黄历快照、因子计数）统一放在 ``_extras`` 下，
@@ -662,6 +1095,48 @@ class AnalysisService:
             "warnings": artifact.warnings_json,
             "calculated_at": artifact.calculated_at.isoformat(),
         }
+
+    def load_ziwei_charts(self, db: Session, analysis_id: str) -> dict[str, dict]:
+        """读取**这一次分析**涉及的紫微盘面（variant → artifact）。
+
+        ``both`` 模式下会有两个变体，**分别返回、绝不平均**（见 ADR-0010）。
+
+        重要：只认本次分析在 ``chart_artifact_ids`` 中登记的 chart_id，
+        **不做** (stock_code, as_of, engine) 的模糊匹配 ——
+        否则同一天先跑过多模型分析、再跑八字分析时，
+        后者会"看到"前者的紫微盘面，从而谎报紫微可用。
+        """
+        row = db.get(AnalysisRunRow, analysis_id)
+        if row is None:
+            return {}
+        payload = dict(row.payload_json or {})
+        ids: dict = payload.get("chart_artifact_ids") or {}
+        zw_ids = {
+            str(k).split(":", 1)[1]: str(v)
+            for k, v in ids.items() if str(k).startswith("ziwei:")
+        }
+        if not zw_ids:
+            return {}
+
+        out: dict[str, dict] = {}
+        for variant, chart_id in zw_ids.items():
+            a = db.get(ChartArtifactRow, chart_id)
+            if a is None:
+                continue
+            out[variant] = {
+                "chart_id": a.chart_id,
+                "engine": a.engine,
+                "engine_version": a.engine_version,
+                "config_version": a.config_version,
+                "birth_profile_version": a.birth_profile_version,
+                "as_of": a.as_of.isoformat(),
+                "input": a.input_json,
+                "chart": a.raw_chart,
+                "assumptions": a.assumptions_json,
+                "warnings": a.warnings_json,
+                "calculated_at": a.calculated_at.isoformat(),
+            }
+        return out
 
     def load_birth_profile(self, db: Session, stock_code: str,
                            version: str | None = None) -> StockBirthProfile | None:

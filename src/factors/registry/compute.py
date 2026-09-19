@@ -17,8 +17,8 @@ from datetime import date, datetime, timedelta
 from src.core.config import settings
 from src.core.constants import (
     BRANCH_CLASH_OF,
-    BRANCH_HARMONY_OF,
     BRANCH_HARM_OF,
+    BRANCH_HARMONY_OF,
     DAY_TIAN_SHEN_LUCK,
     STEM_WUXING,
     WU_XING_ORDER,
@@ -26,12 +26,11 @@ from src.core.constants import (
     WUXING_GENERATES,
     WUXING_OVERCOME_BY,
     WUXING_OVERCOMES,
-    twelve_stage,
 )
 from src.core.schemas.bazi import BaziChart, TemporalPillar, YongShenAnalysis
 from src.core.schemas.calendar import HuangliDay, HuangliSnapshot
-from src.core.schemas.common import Direction, EngineId
-from src.core.schemas.factor import FactorCategory, FactorObservation, FactorSet
+from src.core.schemas.common import Direction
+from src.core.schemas.factor import FactorObservation, FactorSet
 from src.factors.registry.definitions import DEFINITION_INDEX, FACTOR_DISCLAIMER
 
 # 建除十二值的传统吉凶倾向（通书口径；仅作分类特征）
@@ -443,20 +442,21 @@ def _temporal_factors(
                         normalized=1.0 if is_output else 0.0, direction=Direction.NEUTRAL,
                         rule_score=10.0 if is_output else 0.0, confidence=0.8,
                         explanation=f"流年{'引动' if is_output else '未引动'}食伤。"))
-        _rel_factors(out, tp, code, as_of, "B_YEAR_005", "B_YEAR_006", "B_YEAR_007", "B_YEAR_008", "流年")
+        # 注意参数语义（曾因此产生 P0 级错误，见 docs/calculation-differences-phase1.md）：
+        #   _rel_factors(triple, harmony, clash, punish, extra_harm)
+        #   B_YEAR_005=冲原局  B_YEAR_006=合原局  B_YEAR_007=刑原局  B_YEAR_008=害原局
+        #   B_YEAR_010=流年三合。此前误把 005 接到三合位置，导致 005 ≡ 010、害从未计算。
+        _rel_factors(
+            out, tp, code, as_of,
+            clash_id="B_YEAR_005", harmony_id="B_YEAR_006", punish_id="B_YEAR_007",
+            extra_harm_id="B_YEAR_008", triple_id="B_YEAR_010",
+            scope="流年",
+        )
         stage = tp.di_shi
         out.append(_obs("B_YEAR_009", code, as_of, raw_value=stage,
                         normalized=_stage_norm(stage), direction=_stage_dir(stage),
                         rule_score=abs(_stage_norm(stage)) * 10, confidence=0.65,
                         explanation=f"日主在流年地支 {tp.ganzhi.branch} 处于「{stage}」。"))
-        out.append(_obs("B_YEAR_010", code, as_of, raw_value=tp.triple_harmonies,
-                        normalized=1.0 if tp.triple_harmonies else 0.0,
-                        direction=Direction.NEUTRAL,
-                        rule_score=10.0 if tp.triple_harmonies else 0.0, confidence=0.7,
-                        explanation=(
-                            f"流年{'形成' + '、'.join(tp.triple_harmonies) if tp.triple_harmonies else '未形成三合局'}。"
-                            "注意：三合 ≠ 股票上涨。"
-                        )))
 
     elif prefix == "B_MONTH":
         out.append(_obs("B_MONTH_001", code, as_of, raw_value=st_label, normalized=st_norm,
@@ -810,16 +810,36 @@ def compute_factor_set(
     as_of: datetime,
     *,
     stock_code: str | None = None,
+    ziwei_chart: object | None = None,
 ) -> FactorSet:
     """计算某只股票在某 as_of 的全部因子。
 
     严格只使用 ``as_of`` 时刻已经确定的盘面信息（原局 + 当时的流年/流月/流日
-    + 当月黄历扫描），**不读取任何行情数据**。
+    + 当月黄历扫描 + 紫微运限），**不读取任何行情数据**。
+
+    Args:
+        ziwei_chart: 可选的 ``ZiweiChart``。提供时追加 ``Z_*`` 因子。
+            **一次只能传一张盘**：``both`` 模式必须分别调用、
+            分别落库（``rule_version`` 会带 ``fwd``/``rev`` 后缀），
+            **不得把两个 variant 的因子合并成一份**（ADR-0010）。
+
+    注意：紫微因子使用 ``settings.ziwei_engine_version`` 作为 engine_version，
+    与八字因子的 ``bazi_engine_version`` 不同 —— 每个观测记录的是
+    **产出它的那个引擎**的版本。
     """
     code = stock_code or chart.stock_code or ""
     observations = compute_bazi_factors(chart, as_of)
     if huangli is not None:
         observations.extend(compute_huangli_factors(chart, huangli, as_of))
+
+    if ziwei_chart is not None:
+        from src.core.schemas.ziwei import ZiweiChart
+        from src.factors.ziwei.compute import compute_ziwei_factors
+
+        zw = ziwei_chart if isinstance(ziwei_chart, ZiweiChart) else ZiweiChart.model_validate(ziwei_chart)
+        observations.extend(compute_ziwei_factors(
+            zw, as_of, stock_code=code, variant=str(zw.variant_mode),
+        ))
 
     return FactorSet(
         stock_code=code,

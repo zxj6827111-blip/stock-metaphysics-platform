@@ -16,8 +16,7 @@
 
 from __future__ import annotations
 
-import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
@@ -31,12 +30,48 @@ from src.core.schemas.market import (
     NegativeControlReport,
     NegativeControlResult,
 )
-from src.research.event_study.engine import evaluate_event_study
+from src.research.event_study.engine import evaluate_event_study, extract_event_keys
 
 #: 判定为「更优」所需的最小差异（20 日平均收益）
 OUTPERFORM_EPSILON = 0.002
 #: 判定所需的最小样本数
 MIN_VERDICT_SAMPLE = 20
+#: 事件集合独立性阈值：Jaccard 超过该值说明对照与真实组几乎相同，对照失效
+JACCARD_NOT_INDEPENDENT = 0.9
+
+
+def _excess(hs: HorizonStats | None) -> float | None:
+    return hs.mean_excess_return if hs else None
+
+
+def _independence(
+    real_keys: set | None,
+    control_keys: set | None,
+    warnings: list[Warning_],
+) -> dict:
+    """计算事件集合独立性诊断并追加告警。"""
+    out: dict = {}
+    if real_keys is None or control_keys is None:
+        return out
+    inter = len(real_keys & control_keys)
+    union = len(real_keys | control_keys)
+    jaccard = (inter / union) if union else 0.0
+    out["real_event_count"] = len(real_keys)
+    out["event_count"] = len(control_keys)
+    out["overlap_with_real"] = inter
+    out["jaccard_with_real"] = round(jaccard, 6)
+    if union and jaccard > JACCARD_NOT_INDEPENDENT:
+        warnings.append(Warning_(
+            code="NEGATIVE_CONTROL_NOT_INDEPENDENT",
+            message=(
+                f"对照事件集合与真实集合 Jaccard={jaccard:.3f} > {JACCARD_NOT_INDEPENDENT}"
+                f"（交集 {inter}/{union}）。负对照无法区分真实因子与对照，"
+                "任何 tie 都不能解读为「没有信息量」的证据 —— 这是方法失效。"
+            ),
+            severity="error",
+            context={"jaccard": round(jaccard, 6), "overlap": inter, "union": union},
+        ))
+    return out
 
 
 def _verdict(
@@ -101,6 +136,7 @@ def random_birth_date_control(
     request: EventStudyRequest,
     *,
     real_stats: HorizonStats | None,
+    real_keys: set | None = None,
     seed: int | None = None,
 ) -> NegativeControlResult:
     """随机出生日期对照。
@@ -116,6 +152,11 @@ def random_birth_date_control(
     hs = _stats_by_horizon(result, 20)
     verdict, note, deltas = _verdict(real_stats, hs)
 
+    warnings = list(result.warnings)
+    independence = _independence(
+        real_keys, extract_event_keys(control_observations, request), warnings
+    )
+
     return NegativeControlResult(
         kind=NegativeControlKind.RANDOM_BIRTH_DATE,
         description="把股票出生时间随机打乱后重新排盘、重新计算因子，检验真实命盘是否优于随机命盘。",
@@ -125,9 +166,12 @@ def random_birth_date_control(
         control_mean_return_20d=hs.mean_return if hs else None,
         real_up_rate_20d=real_stats.up_rate if real_stats else None,
         control_up_rate_20d=hs.up_rate if hs else None,
+        real_mean_excess_return_20d=_excess(real_stats),
+        control_mean_excess_return_20d=_excess(hs),
         verdict=verdict,
         verdict_note=note,
-        warnings=result.warnings,
+        warnings=warnings,
+        **independence,
         **deltas,
     )
 
@@ -140,6 +184,7 @@ def shift_birth_date_control(
     *,
     real_stats: HorizonStats | None,
     days: int,
+    real_keys: set | None = None,
 ) -> NegativeControlResult:
     """出生日期 ±N 天对照。必须使用平移后重算的因子观测。"""
     result = evaluate_event_study(
@@ -147,6 +192,11 @@ def shift_birth_date_control(
     )
     hs = _stats_by_horizon(result, 20)
     verdict, note, deltas = _verdict(real_stats, hs)
+
+    warnings = list(result.warnings)
+    independence = _independence(
+        real_keys, extract_event_keys(control_observations, request), warnings
+    )
 
     return NegativeControlResult(
         kind=kind,
@@ -159,9 +209,12 @@ def shift_birth_date_control(
         control_mean_return_20d=hs.mean_return if hs else None,
         real_up_rate_20d=real_stats.up_rate if real_stats else None,
         control_up_rate_20d=hs.up_rate if hs else None,
+        real_mean_excess_return_20d=_excess(real_stats),
+        control_mean_excess_return_20d=_excess(hs),
         verdict=verdict,
         verdict_note=note,
-        warnings=result.warnings,
+        warnings=warnings,
+        **independence,
         **deltas,
     )
 
@@ -172,6 +225,7 @@ def random_factor_control(
     request: EventStudyRequest,
     *,
     real_stats: HorizonStats | None,
+    real_keys: set | None = None,
     seed: int | None = None,
 ) -> NegativeControlResult:
     """随机因子对照。
@@ -228,6 +282,12 @@ def random_factor_control(
     hs = _stats_by_horizon(result, 20)
     verdict, note, deltas = _verdict(real_stats, hs)
 
+    # 随机因子的事件集合 = 随机抽中的 (股票, 交易日)；衡量它与真实集合的重合
+    control_keys = {
+        (str(r.stock_code), r.trade_date) for r in random_hits.itertuples()
+    }
+    independence = _independence(real_keys, control_keys, warnings)
+
     warnings.append(Warning_(
         code="NC_RANDOM_FACTOR_METHOD",
         message=(
@@ -246,9 +306,12 @@ def random_factor_control(
         control_mean_return_20d=hs.mean_return if hs else None,
         real_up_rate_20d=real_stats.up_rate if real_stats else None,
         control_up_rate_20d=hs.up_rate if hs else None,
+        real_mean_excess_return_20d=_excess(real_stats),
+        control_mean_excess_return_20d=_excess(hs),
         verdict=verdict,
         verdict_note=note,
         warnings=warnings,
+        **independence,
         **deltas,
     )
 

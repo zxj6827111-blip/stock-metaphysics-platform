@@ -7,15 +7,14 @@ from datetime import date, datetime, time
 from pydantic import Field, field_validator
 
 from src.core.schemas.common import (
-    SMBaseModel,
     Assumption,
     BirthBasis,
     DataQuality,
     DataQualityGrade,
     Exchange,
+    SMBaseModel,
     SourceRef,
     VariantMode,
-    Warning_,
 )
 
 

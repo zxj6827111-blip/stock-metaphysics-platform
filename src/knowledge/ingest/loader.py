@@ -23,7 +23,15 @@ from src.core.schemas.knowledge import (
     LicenseStatus,
 )
 
-BAZI_SEED = settings.knowledge_dir / "bazi" / "classical_seed.json"
+#: 各术数域的语料文件。Phase 2 起支持多域（bazi / ziwei）。
+#: 新增域时必须同时给出 ``domain`` 字段，loader 会用它做交叉校验。
+CORPUS_FILES: dict[str, Path] = {
+    "bazi": settings.knowledge_dir / "bazi" / "classical_seed.json",
+    "ziwei": settings.knowledge_dir / "ziwei" / "classical_seed.json",
+}
+
+#: 向后兼容别名（Phase 1 只有 bazi）
+BAZI_SEED = CORPUS_FILES["bazi"]
 
 
 class KnowledgeLoadError(RuntimeError):
@@ -32,8 +40,44 @@ class KnowledgeLoadError(RuntimeError):
 
 @lru_cache(maxsize=8)
 def load_corpus(path: str | None = None) -> tuple[tuple[ClassicalBook, ...], tuple[ClassicalEntry, ...]]:
-    """加载并缓存语料。"""
-    target = Path(path) if path else BAZI_SEED
+    """加载并缓存**全部术数域**的语料。
+
+    多域加载的纪律：
+      * 每个文件里的 ``domain`` 字段必须与其所在的域键一致（防止把紫微条目
+        混进八字域，从而让"域过滤"失效）；
+      * 某个域的文件缺失时**跳过并继续**，不让整个知识库失效 ——
+        但会记录在 ``corpus_meta()["missing_domains"]`` 里，不静默。
+    """
+    if path:
+        targets = [Path(path)]
+    else:
+        targets = [p for p in CORPUS_FILES.values() if p.exists()]
+
+    if not targets:
+        raise KnowledgeLoadError(
+            f"古籍语料文件全部缺失，已尝试：{[str(p) for p in CORPUS_FILES.values()]}"
+        )
+
+    books: list[ClassicalBook] = []
+    entries: list[ClassicalEntry] = []
+    for target in targets:
+        b, e = _load_one(target)
+        books.extend(b)
+        entries.extend(e)
+
+    # 去重（同 entry_id 只保留第一次出现）
+    seen: set[str] = set()
+    unique_entries: list[ClassicalEntry] = []
+    for e in entries:
+        if e.entry_id in seen:
+            continue
+        seen.add(e.entry_id)
+        unique_entries.append(e)
+    return tuple(books), tuple(unique_entries)
+
+
+def _load_one(target: Path) -> tuple[list[ClassicalBook], list[ClassicalEntry]]:
+    """加载单个语料文件。"""
     if not target.exists():
         raise KnowledgeLoadError(f"古籍语料文件缺失: {target}")
 
@@ -88,9 +132,21 @@ def load_corpus(path: str | None = None) -> tuple[tuple[ClassicalBook, ...], tup
 
 
 def corpus_meta(path: str | None = None) -> dict:
-    target = Path(path) if path else BAZI_SEED
-    payload = json.loads(target.read_text(encoding="utf-8"))
-    return payload.get("_meta", {})
+    """合并全部域的 ``_meta``；缺失域会被显式列出。"""
+    if path:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        return payload.get("_meta", {})
+
+    merged: dict = {"domains": {}, "missing_domains": []}
+    for domain, target in CORPUS_FILES.items():
+        if not target.exists():
+            merged["missing_domains"].append(domain)
+            continue
+        payload = json.loads(target.read_text(encoding="utf-8"))
+        merged["domains"][domain] = payload.get("_meta", {})
+    # bazi 作为主域，其字段提升到顶层以保持 Phase 1 调用方兼容
+    merged.update(merged["domains"].get("bazi", {}))
+    return merged
 
 
 def get_books() -> list[ClassicalBook]:
@@ -103,7 +159,7 @@ def get_entries() -> list[ClassicalEntry]:
 
 def seed_database() -> dict[str, int]:
     """把语料写入 ``classical_book`` / ``classical_entry`` 表（幂等）。"""
-    from sqlalchemy import delete, select
+    from sqlalchemy import select
 
     from src.core.stock.exchange_sessions import ex_value
     from src.db.base import session_scope

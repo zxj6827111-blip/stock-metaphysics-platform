@@ -1,13 +1,33 @@
-# 股票玄学多模型研究平台 · Phase 1
+# 股票玄学多模型研究平台 · Phase 2
 #
-#   docker compose up          启动 api + web
+#   docker compose up          启动 api + web + ziwei
 #   docker compose run --rm api python -m pytest -q
 #
-# 说明：Phase 1 只需要 api 与 web 两个服务；
-# 不需要 Redis / Kafka / Kubernetes（architecture §68）。
-# services/ziwei-service 在 Phase 2 加入。
+# 说明：Phase 2 需要三个服务；仍然不需要 Redis / Kafka / Kubernetes。
+#   ziwei  = 紫微排盘（Node.js + iztro），只提供 /internal/** 内部接口
+# 若不想起 ziwei 服务，API 会降级为本机 node 子进程（见 src/engines/ziwei/transport.py）；
+# 容器内没有 node，因此容器部署必须起 ziwei 服务。
 
 services:
+  ziwei:
+    build:
+      context: ./services/ziwei-service
+      dockerfile: Dockerfile
+    container_name: smp-ziwei
+    # 只暴露给 compose 内部网络 —— 排盘服务不是对外接口
+    expose:
+      - "8100"
+    environment:
+      ZIWEI_HOST: 0.0.0.0
+      ZIWEI_PORT: "8100"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -22,10 +42,15 @@ services:
       SMP_MARKET_PROVIDER: ${SMP_MARKET_PROVIDER:-akshare}
       SMP_ALLOW_SYNTHETIC_MARKET_FALLBACK: "true"
       SMP_CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
+      # 紫微排盘走常驻服务（容器内没有 node，子进程通道不可用）
+      SMP_ZIWEI_SERVICE_URL: http://ziwei:8100
       PYTHONUTF8: "1"
     volumes:
       # 持久化 SQLite / Parquet / 研究数据
       - smp-data:/app/data
+    depends_on:
+      ziwei:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/v1/system/health')"]
       interval: 20s

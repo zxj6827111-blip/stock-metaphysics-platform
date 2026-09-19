@@ -8,6 +8,7 @@ import {
   api,
   endpoints,
   type ApiBaziAnalysis,
+  type ApiMultiAnalysis,
   type ApiConsensus,
   type ApiConflict,
   type ApiEvidence,
@@ -550,6 +551,8 @@ export function buildOverview(
         }`
       : "尚未运行研究流水线（POST /api/v1/research/run），因此没有历史验证数据。",
     dataQuality,
+    researchStatus: backtest?.research_status ?? null,
+    researchStatusReasons: backtest?.research_status_reasons ?? [],
   };
 }
 
@@ -581,4 +584,118 @@ export function buildBaziPage(
       { label: "平均收益", value: h20?.mean_return != null ? `${(h20.mean_return * 100).toFixed(1)}%` : "—" },
     ],
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phase 2：多模型分析                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 由 `/analysis/multi` 的响应构造上下文栏数据。
+ *
+ * 与 `buildContext` 的差别：multi 响应同时含八字与紫微，
+ * 但上下文栏只需要"股票 + 出生档案 + as_of"这三块。
+ */
+export function buildContextFromMulti(analysis: ApiMultiAnalysis): StockContext {
+  const b = analysis.birth_profile;
+  const s = analysis.stock;
+  return {
+    stock: {
+      code: s.stock_code,
+      windCode: s.wind_code,
+      name: s.name || "—",
+      exchange: EXCHANGE_CN[s.exchange] ?? s.exchange,
+      board: s.board,
+      listingDate: s.listing_date ?? "",
+      industry: s.industry,
+    },
+    birthProfile: {
+      basis: b.birth_basis,
+      basisLabel: b.birth_basis === "listing_open" ? "上市首日正式开盘" : b.birth_basis,
+      datetime: b.birth_datetime.replace("T", " ").slice(0, 19),
+      timezone: b.timezone,
+      quality: b.data_quality?.grade ?? "B",
+      qualityScore: b.data_quality?.score ?? 0.8,
+      sessionKey: b.evidence?.lookup_key ?? "",
+      derivation: b.evidence?.derivation ?? "",
+      variantMode: b.variant_mode,
+      variantNote: b.variant_note,
+      assumptions: b.assumptions ?? [],
+    },
+    asOf: (analysis.as_of ?? "").replace("T", " "),
+    horizon: "20 交易日",
+    quality: b.data_quality?.grade ?? "B",
+  };
+}
+
+/** 引擎 key → 中文名（面向人的文本一律用中文名）。 */
+export const ENGINE_CN: Record<string, string> = {
+  bazi: "八字",
+  ziwei: "紫微斗数",
+  huangli: "黄历",
+  calendar: "历法",
+  liuyao: "六爻",
+  qimen: "奇门遁甲",
+};
+
+export function engineCn(key: string): string {
+  return ENGINE_CN[key] ?? key;
+}
+
+/** 把 0–1 的比例渲染成百分数；**null 必须显示为"—"而不是 0%**。 */
+export function pct(v: number | null | undefined, digits = 2): string {
+  if (v === null || v === undefined) return "—";
+  return `${(v * 100).toFixed(digits)}%`;
+}
+
+export function num(v: number | null | undefined, digits = 4): string {
+  if (v === null || v === undefined) return "—";
+  return v.toFixed(digits);
+}
+
+/** 控制结果 → 中文标签 + 语义色（红涨绿跌遵循 ADR-0007）。 */
+export const CONTROL_RESULT_LABEL: Record<string, { label: string; tone: string }> = {
+  outperform: { label: "优于对照", tone: "up" },
+  underperform: { label: "弱于对照", tone: "down" },
+  tie: { label: "无差异", tone: "flat" },
+  invalid: { label: "对照失效", tone: "down" },
+  not_run: { label: "未运行", tone: "flat" },
+};
+
+/**
+ * 由后端 `opinions` 直接构造三张引擎卡。
+ *
+ * **前端不重算分数**：score / direction / confidence 全部来自后端 opinion
+ * （由 `AnalysisService.build_opinion` 产出）。Phase 1 曾在综合页对黄历因子
+ * 做前端聚合，Phase 2 已移除 —— 分数必须只有一个来源。
+ */
+export function toEngineCardsFromOpinions(analysis: ApiMultiAnalysis): EngineCardView[] {
+  const order: { key: "bazi" | "ziwei" | "huangli"; display: string; route: string }[] = [
+    { key: "bazi", display: "八字模型", route: "bazi" },
+    { key: "ziwei", display: "紫微斗数", route: "ziwei" },
+    { key: "huangli", display: "黄历模型", route: "huangli" },
+  ];
+  return order.map(({ key, display, route }) => {
+    const op = analysis.opinions?.[key];
+    const ok = !!op && op.availability === "ok" && op.score !== null;
+    const positives = (op?.top_positive_reasons ?? []).map((r) => r.text);
+    const negatives = (op?.top_negative_reasons ?? []).map((r) => r.text);
+    return {
+      engine: key,
+      displayName: display,
+      available: ok,
+      direction: (ok ? op!.direction : 0) as Direction,
+      directionLabel: ok ? (DIRECTION_LABEL[op!.direction] ?? "中性") : "不可用",
+      score: ok ? op!.score : null,
+      confidence: ok ? op!.confidence : null,
+      positiveCount: positives.length,
+      negativeCount: negatives.length,
+      summary: ok
+        ? positives[0] ?? negatives[0] ?? "该引擎未给出明细理由"
+        : op?.note ?? "该引擎本次不可用（score = null，不计入共识分母）",
+      unavailableReason: ok ? "" : (op?.note ?? "本次分析未产出该引擎结果"),
+      detailHref: `/stock/${analysis.stock.stock_code}/${route}`,
+      accent: key,
+    } satisfies EngineCardView;
+  });
 }

@@ -80,6 +80,53 @@ test-ui-install: ## 安装 Playwright 浏览器
 .PHONY: test-all
 test-all: test test-ui ## 运行全部测试（后端 + UI）
 
+.PHONY: test-ziwei
+test-ziwei: ## 只运行紫微引擎 + 紫微因子 + 紫微 Golden Cases
+	$(PY) -m pytest tests/engines/test_ziwei_engine.py tests/factors/test_ziwei_factors.py tests/golden/test_ziwei_golden.py -v
+
+.PHONY: test-ziwei-golden
+test-ziwei-golden: ## 只运行紫微 Golden Cases（iztro 升级后必跑）
+	$(PY) -m pytest tests/golden/test_ziwei_golden.py -v
+
+.PHONY: test-consensus
+test-consensus: ## 只运行 Opinion / Consensus / Conflict / 时间窗口测试
+	$(PY) -m pytest tests/consensus tests/timeline -v
+
+# ---------------------------------------------------------------------------
+# 紫微服务（Node.js + iztro）
+# ---------------------------------------------------------------------------
+.PHONY: ziwei-install
+ziwei-install: ## 安装紫微服务依赖（services/ziwei-service）
+	cd services/ziwei-service && npm install --no-fund --no-audit
+
+.PHONY: ziwei-build
+ziwei-build: ## 构建紫微服务（tsc → dist/）
+	cd services/ziwei-service && npm run build
+
+.PHONY: ziwei-smoke
+ziwei-smoke: ## 紫微服务自检（单次排盘）
+	cd services/ziwei-service && node dist/cli.js --smoke
+
+.PHONY: ziwei-serve
+ziwei-serve: ## 启动紫微 HTTP 服务（默认 127.0.0.1:8100）
+	cd services/ziwei-service && node dist/server.js
+
+.PHONY: acceptance
+acceptance: ## Phase 1 正式一键验收（编译/全量测试/泄漏/Golden/事件集区分度/负对照/隔离/lint/审计/UI）
+	PYTHONUTF8=1 $(PY) scripts/run_acceptance.py
+
+.PHONY: acceptance-core
+acceptance-core: ## 快速验收循环（跳过 UI 与因子审计）
+	PYTHONUTF8=1 $(PY) scripts/run_acceptance.py --skip-ui --skip-audit
+
+.PHONY: import-market
+import-market: ## 校验并导入 data/import/ 真实行情快照到数据库
+	$(PY) -m src.cli import-market
+
+.PHONY: research-real
+research-real: ## 在真实导入快照上跑 20 股研究流水线（真实数据 smoke research）
+	$(PY) scripts/run_real_research.py
+
 # ---------------------------------------------------------------------------
 # 代码质量
 # ---------------------------------------------------------------------------

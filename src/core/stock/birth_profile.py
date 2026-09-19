@@ -54,11 +54,11 @@ def _ensure_trading_day(
 ) -> tuple[date, bool, str]:
     """把"上市日"对齐到首个正式交易日。
 
-    由于 Phase 1 没有独立的交易日历表，这里采用保守策略：
+    判定来源优先级（Phase 1.1 起）：
 
-    * 周末 → 顺延到下一个工作日；
-    * 若调用方提供了 ``is_trading_day`` 回调（例如用行情数据判断），则用其校验；
-    * 若无法校验，则在 ``data_quality`` 中降级并记录假设。
+    * 调用方显式提供的 ``is_trading_day`` 回调（例如行情数据校验）；
+    * **实测交易日历**（``TradingCalendarProvider``，由指数实测交易日推导）；
+    * 周末规则兜底 —— 此时在 ``data_quality`` 中降级并记录假设。
     """
     cursor = candidate
     shifted = False
@@ -113,9 +113,53 @@ def build_birth_profile(
             raise BirthProfileError(
                 f"{stock.stock_code} 缺少上市日期，无法构造 listing_open 出生档案"
             )
-        trading_day, shifted, shift_note = _ensure_trading_day(
-            stock.listing_date, is_trading_day=is_trading_day
-        )
+        cal_source_note = ""
+        if is_trading_day is None:
+            # 无显式回调时，默认使用实测交易日历（节假日可正确对齐）
+            from src.core.stock.trading_calendar import get_trading_calendar_provider
+
+            cal = get_trading_calendar_provider().for_exchange(ex_value(exchange))
+            if cal.loaded:
+                if cal.covers(stock.listing_date):
+                    cal_query = cal.next_trading_day(stock.listing_date)
+                    if cal_query.value is None:
+                        raise BirthProfileError(
+                            f"无法在交易日历中找到 {stock.listing_date} 之后的交易日: "
+                            f"{cal_query.degraded_reason}"
+                        )
+                    trading_day = cal_query.value  # type: ignore[assignment]
+                    shifted = trading_day != stock.listing_date
+                    shift_note = (
+                        f"上市日 {stock.listing_date} 非交易日，已顺延至 {trading_day}"
+                        if shifted else ""
+                    )
+                    cal_source_note = (
+                        f"交易日判定来源：{exchange} 实测交易日历"
+                        f"（{cal.coverage[0]}~{cal.coverage[1]}，指数实测交易日推导）"
+                    )
+                else:
+                    notes.append(
+                        f"上市日 {stock.listing_date} 超出现有交易日历覆盖范围 "
+                        f"{cal.coverage}，回退到周末规则"
+                    )
+                    score = min(score, 0.9)
+                    trading_day, shifted, shift_note = _ensure_trading_day(
+                        stock.listing_date, is_trading_day=None
+                    )
+            else:
+                trading_day, shifted, shift_note = _ensure_trading_day(
+                    stock.listing_date, is_trading_day=None
+                )
+                notes.append(
+                    f"实测交易日历不可用（{cal.load_error}），交易日按周末规则校验"
+                )
+                score = min(score, 0.9)
+        else:
+            trading_day, shifted, shift_note = _ensure_trading_day(
+                stock.listing_date, is_trading_day=is_trading_day
+            )
+        if cal_source_note:
+            notes.append(cal_source_note)
         if shift_note:
             notes.append(shift_note)
         if shifted:
@@ -150,9 +194,8 @@ def build_birth_profile(
             score = min(score, 0.85)
             notes.append(f"未命中板块专属时段，回退到 {matched_key}")
 
-        if is_trading_day is None:
-            score = min(score, 0.9)
-            notes.append("Phase 1 未接入独立交易日历表，交易日仅按周末规则校验")
+        if is_trading_day is not None:
+            notes.append("交易日判定使用调用方提供的行情校验回调")
 
         evidence = BirthProfileEvidence(
             listing_date=stock.listing_date,

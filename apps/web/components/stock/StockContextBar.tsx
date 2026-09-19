@@ -22,7 +22,7 @@ export function StockContextBar({
   showTabs = false,
 }: {
   context: StockContext;
-  activeTab?: "overview" | "bazi" | "huangli";
+  activeTab?: string;
   onRecalculate?: () => void;
   recalculating?: boolean;
   /** 参考图 02 的上下文栏是单行；03 额外带一行股票切换条。 */
@@ -34,11 +34,16 @@ export function StockContextBar({
 
   const { stock, birthProfile, asOf, horizon, quality } = context;
 
+  // Phase 2：七个页面全部落地，标签不再有 disabled 项
   const TABS: { key: string; label: string; href: string; disabled?: boolean }[] = [
     { key: "overview", label: "综合研判", href: `/stock/${stock.code}/overview${suffix}` },
     { key: "bazi", label: "八字", href: `/stock/${stock.code}/bazi${suffix}` },
+    { key: "ziwei", label: "紫微斗数", href: `/stock/${stock.code}/ziwei${suffix}` },
     { key: "huangli", label: "黄历", href: `/stock/${stock.code}/huangli${suffix}` },
-    { key: "ziwei", label: "紫微斗数", href: "#", disabled: true },
+    { key: "timeline", label: "时间窗口", href: `/stock/${stock.code}/timeline${suffix}` },
+    { key: "backtest", label: "历史验证", href: `/stock/${stock.code}/backtest${suffix}` },
+    { key: "evidence", label: "古籍证据", href: `/stock/${stock.code}/evidence${suffix}` },
+    { key: "conflicts", label: "模型分歧", href: `/stock/${stock.code}/conflicts${suffix}` },
   ];
 
   return (

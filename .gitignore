@@ -31,7 +31,15 @@ apps/web/playwright-report/
 apps/web/artifacts/ui-review/*/current.png
 apps/web/artifacts/ui-review/*/reference.png
 
+# ---- 生成产物（验收 JSON / 日志 / 截图）----
+# 这些是可重新生成的验证输出，不入库；文档在 docs/ 下。
+artifacts/
+services/ziwei-service/node_modules/
+services/ziwei-service/dist/
+
 # ---- 杂项 ----
+# 临时响应抓取文件（不属于项目交付物）
+resp_an.json
 .env
 .DS_Store
 Thumbs.db

@@ -366,6 +366,15 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
 
 > **样本为 0 时不会给出任何数值**，`note` 中说明原因（如"尚未运行研究流水线"）。
 
+**Phase 1.1 起新增字段**（向后兼容的可选字段）：
+
+| 字段 | 说明 |
+|---|---|
+| `research_status` | 研究状态机输出：`NOT_RUN / NO_REAL_DATA / INSUFFICIENT_SAMPLE / INVALID_CONTROL / NO_SIGNAL / INCONCLUSIVE / WEAK_EVIDENCE / SUPPORTED_IN_SAMPLE`。合成/降级行情恒为 `NO_REAL_DATA`。 |
+| `research_status_reasons` | 人类可读的状态理由（中文字符串数组） |
+| `data_source` | 面板数据真相：标签行数 / 降级代码列表 / 是否真实数据 |
+| `activation_stats` | 每只目标因子的激活统计（`total/activated/activation_rate`）；`activation_rate>95%` 或 `<0.5%` 触发 `LOW_DISCRIMINATION_FACTOR` 警告 |
+
 ### 2.10 `GET /api/v1/analysis/{analysis_id}/guide`
 
 给前端的引擎可用性说明。

@@ -39,15 +39,15 @@ import {
 } from "@/components/shell/Icons";
 import { FIXTURE_QUERY_VALUE, overviewFixture } from "@/lib/fixture";
 import {
-  buildContext,
-  buildEngineCards,
+  buildContextFromMulti,
   buildOverview,
   toConflictView,
   toConsensusView,
   toDataQualityView,
+  toEngineCardsFromOpinions,
 } from "@/lib/dataSource";
-import { api, endpoints, type ApiConsensus, type ApiConflict } from "@/lib/api";
-import { loadAnalysis } from "@/lib/dataSource";
+import { api, endpoints, type ApiConsensus, type ApiConflict, type ApiEventStudy, type ApiEvidence } from "@/lib/api";
+import { loadMultiAnalysis } from "@/lib/analysisStore";
 import type { OverviewPageData } from "@/lib/types";
 
 function OverviewInner() {
@@ -62,6 +62,9 @@ function OverviewInner() {
   const [loading, setLoading] = useState(!fixture);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
+  const [analysisId, setAnalysisId] = useState<string>("");
+  const [researchStatus, setResearchStatus] = useState<string>("NOT_RUN");
+  const [exporting, setExporting] = useState(false);
   const [drawerData, setDrawerData] = useState<{
     supporting: never[];
     counter: never[];
@@ -74,73 +77,64 @@ function OverviewInner() {
     setLoading(true);
     setError(null);
     try {
-      const res = await loadAnalysis(code);
-      const ctx = buildContext(res.analysis);
-      const engines = buildEngineCards(res.analysis, {
-        ziweiAvailable: false,
-        huangliOpinion: null,
-        stockCode: code,
-        fixtureSuffix: "",
-      });
+      // Phase 2：综合页的数据源改为 `/analysis/multi` —— 它同时产出
+      // BaziOpinion / ZiweiOpinion / HuangliOpinion / Consensus / Conflict，
+      // 全部来自正式 ConsensusEngine 与 ConflictDetector，
+      // **不再是展示层 fixture aggregation**。
+      const multi = await loadMultiAnalysis({ code, variant: "forward" });
+      const aid = multi.analysis_id;
 
-      const [consensus, conflict] = await Promise.allSettled([
-        api.get<ApiConsensus>(endpoints.consensus(res.analysis.analysis_id)),
-        api.get<ApiConflict>(endpoints.conflicts(res.analysis.analysis_id)),
+      // 三模型观点：直接消费后端 opinion，前端**不重算分数**
+      const base = buildContextFromMulti(multi);
+      const engines = toEngineCardsFromOpinions(multi);
+
+      const [consensusRes, conflictRes, backtestRes, evidenceRes] = await Promise.allSettled([
+        api.get<ApiConsensus>(endpoints.consensus(aid)),
+        api.get<ApiConflict>(endpoints.conflicts(aid)),
+        api.get<ApiEventStudy>(endpoints.backtest(aid)),
+        api.get<ApiEvidence>(endpoints.evidence(aid)),
       ]);
 
-      // 黄历 opinion 来自因子集（前缀 H_），不走引擎 API
-      const huangliFactors = res.factors?.observations.filter((o) => o.factor_id.startsWith("H_")) ?? [];
-      const huangliAvailable = huangliFactors.length > 0;
-      if (huangliAvailable) {
-        const w = huangliFactors.reduce((a, o) => a + Math.max(o.confidence, 1e-6), 0);
-        const raw = huangliFactors.reduce((a, o) => a + (o.normalized_value ?? 0) * Math.max(o.confidence, 1e-6), 0) / (w || 1);
-        const score = Math.max(0, Math.min(100, 50 + raw * 50));
-        engines[2] = {
-          ...engines[2],
-          score: Number(score.toFixed(2)),
-          direction: score >= 58 ? 1 : score <= 42 ? -1 : 0,
-          directionLabel: score >= 58 ? "偏强" : score <= 42 ? "偏弱" : "中性",
-          confidence: w / huangliFactors.length,
-          positiveCount: huangliFactors.filter((o) => o.direction === 1).length,
-          negativeCount: huangliFactors.filter((o) => o.direction === -1).length,
-          available: true,
-        };
-      }
-
       const consensusView =
-        consensus.status === "fulfilled"
-          ? toConsensusView(consensus.value)
+        consensusRes.status === "fulfilled"
+          ? toConsensusView(consensusRes.value)
           : overviewFixture.consensus;
       const conflictView =
-        conflict.status === "fulfilled" ? toConflictView(conflict.value) : overviewFixture.conflict;
+        conflictRes.status === "fulfilled"
+          ? toConflictView(conflictRes.value)
+          : overviewFixture.conflict;
 
       const dq = toDataQualityView(
-        ctx.quality,
-        res.analysis.birth_profile.data_quality?.notes ?? [],
-        `v${res.analysis.versions?.engine_version ?? "-"}`,
+        base.quality,
+        multi.birth_profile.data_quality?.notes ?? [],
+        `v${multi.versions?.engine_version ?? "-"}`,
       );
 
       setData(
         buildOverview(
           code,
-          ctx,
+          base,
           engines,
           consensusView,
           conflictView,
-          res.backtest,
-          res.evidence,
+          backtestRes.status === "fulfilled" ? backtestRes.value : null,
+          evidenceRes.status === "fulfilled" ? evidenceRes.value : null,
           dq,
         ),
       );
-      if (res.evidence) {
+      if (evidenceRes.status === "fulfilled") {
         setDrawerData({
-          supporting: res.evidence.evidence.supporting_evidence as never[],
-          counter: res.evidence.evidence.counter_evidence as never[],
-          neutral: res.evidence.evidence.neutral_evidence as never[],
-          note: res.evidence.evidence.note,
-          method: res.evidence.evidence.retrieval_method,
+          supporting: evidenceRes.value.evidence.supporting_evidence as never[],
+          counter: evidenceRes.value.evidence.counter_evidence as never[],
+          neutral: evidenceRes.value.evidence.neutral_evidence as never[],
+          note: evidenceRes.value.evidence.note,
+          method: evidenceRes.value.evidence.retrieval_method,
         });
       }
+      setResearchStatus(consensusRes.status === "fulfilled"
+        ? (consensusRes.value.research_status ?? "NOT_RUN")
+        : "NOT_RUN");
+      setAnalysisId(aid);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       if (fixture) setData(overviewFixture);
@@ -167,12 +161,70 @@ function OverviewInner() {
 
   const metrics = useMemo(() => data?.backtestMetrics ?? [], [data]);
 
+  /**
+   * 导出研究报告（Markdown / HTML）。
+   *
+   * 报告内容由后端 `render_report` 生成，包含版本 / 假设 / 限制 /
+   * ResearchStatus / 负对照 —— 前端只负责触发下载，不参与内容拼装。
+   */
+  const exportReport = useCallback(
+    async (format: "markdown" | "html") => {
+      if (!analysisId) return;
+      setExporting(true);
+      try {
+        const text = await api.raw(endpoints.report(analysisId, format));
+        const blob = new Blob([text], {
+          type: format === "html" ? "text/html;charset=utf-8" : "text/markdown;charset=utf-8",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `report-${analysisId}.${format === "html" ? "html" : "md"}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setExporting(false);
+      }
+    },
+    [analysisId],
+  );
+
+
   return (
     <AppShell activeNav="overview" dataStatus={error ? "bad" : "ok"} statusText={error ? "后端未连接" : "数据正常"}>
       <PageHero
         title="综合研判"
         subtitle="多模型交叉验证 · 识别趋势共识 · 提示关键风险"
         seal="正"
+        right={
+          <div className="flex items-center gap-2" data-testid="report-export">
+            <button
+              type="button"
+              disabled={!analysisId || exporting}
+              onClick={() => void exportReport("markdown")}
+              className="rounded border px-3 py-1 text-[12px] transition-opacity hover:opacity-80 disabled:opacity-40"
+              style={{ borderColor: "var(--color-line)", color: "var(--color-ink)" }}
+            >
+              {exporting ? "导出中…" : "导出 Markdown"}
+            </button>
+            <button
+              type="button"
+              disabled={!analysisId || exporting}
+              onClick={() => void exportReport("html")}
+              className="rounded border px-3 py-1 text-[12px] transition-opacity hover:opacity-80 disabled:opacity-40"
+              style={{ borderColor: "var(--color-line)", color: "var(--color-ink)" }}
+            >
+              导出 HTML
+            </button>
+            <span className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
+              ResearchStatus {researchStatus}
+            </span>
+          </div>
+        }
       />
 
       {data ? <StockContextBar context={data.context} activeTab="overview" onRecalculate={load} recalculating={loading} /> : null}
@@ -191,6 +243,35 @@ function OverviewInner() {
       ) : null}
 
       {loading && !data ? <SkeletonOverview /> : null}
+
+      {/* 数据可用性横幅：合成/降级行情时必须显著告警（P0-1 验收要求） */}
+      {data?.researchStatus === "NO_REAL_DATA" ? (
+        <div
+          data-testid="synthetic-data-banner"
+          className="mb-3 flex items-start gap-3 border px-4 py-3 text-[12.5px] leading-relaxed"
+          style={{
+            borderColor: "var(--color-warn)",
+            background: "color-mix(in srgb, var(--color-warn) 11%, transparent)",
+            color: "var(--color-warn)",
+          }}
+        >
+          <span className="mt-[1px] shrink-0 text-[15px]" aria-hidden>
+            ⚠
+          </span>
+          <div>
+            <div className="font-semibold">
+              当前为合成/降级行情，仅用于系统联调，不构成历史研究证据（RESEARCH_DATA_UNAVAILABLE）
+            </div>
+            <div className="mt-1 text-[11.5px] opacity-85">
+              历史验证卡片、上涨率与事件研究仅代表前端/链路测试输出；真实研究结论必须基于
+              真实历史行情运行 <code className="smp-num">POST /api/v1/research/run</code>。
+              {(data.researchStatusReasons ?? []).map((r, i) => (
+                <span key={i} className="mt-1 block">{r}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {data ? (
         <>

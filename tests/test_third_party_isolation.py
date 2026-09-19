@@ -11,8 +11,6 @@ from __future__ import annotations
 import ast
 import pathlib
 
-import pytest
-
 #: 允许直接 import 第三方库的模块白名单（Adapter 层）
 ALLOWED_LUNAR = {
     pathlib.Path("src/engines/calendar/calendar_engine.py"),
@@ -150,23 +148,69 @@ class TestEngineContractsExist:
 
 
 class TestPlaceholderEngines:
-    """未实现的术数引擎只能预留接口，不得返回伪造结果。"""
+    """未实现的术数引擎只能预留接口，不得返回伪造结果。
 
-    def test_ziwei_engine_is_placeholder(self):
+    Phase 2 变化：`ziwei` 已实现（ADR-0009），因此它从"占位"升级为
+    "必须是真实 Adapter 实现"的检查；`liuyao` / `qimen` 仍保持占位要求。
+    """
+
+    def test_ziwei_engine_is_a_real_implementation(self):
+        """紫微不再是占位：必须实现 MetaphysicsEngine 且不泄漏第三方类型。"""
         import pathlib
+
+        from src.engines.base import MetaphysicsEngine
+        from src.engines.ziwei.ziwei_engine import ZiweiEngine
+
+        assert issubclass(ZiweiEngine, MetaphysicsEngine)
+        assert ZiweiEngine.metadata.engine_id == "ziwei"
 
         ziwei = pathlib.Path("src/engines/ziwei")
         files = [p for p in ziwei.rglob("*.py") if p.name != "__init__.py"]
-        # Phase 1 允许为空（仅占位），一旦有实现必须实现 MetaphysicsEngine
+        assert files, "紫微引擎必须有实现文件"
+        # Python 侧永远不 import iztro 的 JS 包；也不得在业务层出现 JS 交互
         for path in files:
-            text = path.read_text(encoding="utf-8")
-            assert "MetaphysicsEngine" in text or "Phase 2" in text
+            mods = _imported_modules(path)
+            assert "iztro" not in mods, f"{path} 直接依赖 iztro（违反 ADR-0001/0009）"
 
-    def test_package_dirs_exist_for_future_engines(self):
+    def test_placeholder_engines_still_declare_phase_status(self):
+        """liuyao / qimen 仍是占位：文件内必须声明未实现状态。"""
         import pathlib
 
-        for name in ("ziwei", "liuyao", "qimen"):
-            assert (pathlib.Path("src/engines") / name).is_dir(), f"缺少 {name} 预留目录"
+        for name in ("liuyao", "qimen"):
+            d = pathlib.Path("src/engines") / name
+            assert d.is_dir(), f"缺少 {name} 预留目录"
+            files = [p for p in d.rglob("*.py") if p.name != "__init__.py"]
+            for path in files:
+                text = path.read_text(encoding="utf-8")
+                assert "MetaphysicsEngine" in text or "Phase" in text or "预留" in text
+
+    def test_ziwei_service_never_leaks_into_business_layer(self):
+        """紫微的 Node 服务只能被 `src/engines/ziwei/` 接触。
+
+        判据是**代码引用**（transport 类 / 工厂函数），不是注释里提到服务路径 ——
+        配置项 `settings.ziwei_service_url` 是合法的（它只是一个地址字符串）。
+        """
+        import pathlib
+
+        allowed = pathlib.Path("src/engines/ziwei")
+        forbidden_symbols = (
+            "SubprocessZiweiTransport", "HttpZiweiTransport",
+            "NullZiweiTransport", "build_transport",
+        )
+        offenders: list[str] = []
+        for root in ("src", "apps"):
+            for path in pathlib.Path(root).rglob("*.py"):
+                if allowed in path.parents:
+                    continue
+                mods = _imported_modules(path)
+                if "src.engines.ziwei.transport" in mods:
+                    offenders.append(f"{path}: 直接 import 紫微 transport")
+                text = path.read_text(encoding="utf-8")
+                for sym in forbidden_symbols:
+                    # 允许在类型注解 / 依赖注入签名之外完全不出现
+                    if sym in text:
+                        offenders.append(f"{path}: 引用 {sym}")
+        assert not offenders, f"紫微服务细节泄漏到 Adapter 之外：{offenders}"
 
 
 class TestNoBusinessEnumLeakage:

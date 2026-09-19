@@ -26,11 +26,15 @@ test.describe("全局外壳", () => {
     }
   });
 
-  test("未实现模块显示为禁用而不是隐藏", async ({ page }) => {
+  test("Phase 2 导航项已启用（紫微/时间窗口/历史验证/古籍/分歧）", async ({ page }) => {
     await page.goto(`/${FIXTURE}`);
+    for (const key of ["nav-ziwei", "nav-timeline", "nav-backtest", "nav-evidence", "nav-conflicts"]) {
+      const item = page.getByTestId(key).first();
+      await expect(item, `${key} 应可见`).toBeVisible();
+    }
+    // 紫微在 Phase 2 已实现，不再标记为 disabled
     const ziwei = page.getByTestId("nav-ziwei").first();
-    await expect(ziwei).toBeVisible();
-    await expect(ziwei).toHaveAttribute("aria-disabled", "true");
+    await expect(ziwei).not.toHaveAttribute("aria-disabled", "true");
   });
 
   test("fixture 提示可见（如实标注演示数据）", async ({ page }) => {
@@ -228,29 +232,74 @@ test.describe("无控制台错误", () => {
   });
 });
 
-test.describe("Phase 2 占位页", () => {
-  test("紫微页明确说明未实现且不伪造结果", async ({ page }) => {
+test.describe("Phase 2 页面（真实数据路径）", () => {
+  test("紫微页渲染真实盘面组件（十二宫网格 + 变体切换）", async ({ page }) => {
     await page.goto("/stock/600519/ziwei");
-    // 等待 Suspense 结束、主内容真正可见后再读取文本
-    await expect(page.getByTestId("page-title").first()).toBeVisible();
+    await expect(page.getByTestId("page-title").first()).toHaveText("紫微斗数详情");
+    // 变体切换器必须在：顺行/逆行是两个假设，不能替用户选
+    await expect(page.getByTestId("variant-switcher").first()).toBeVisible();
+    // 页面必须给出明确的可用性说明（有盘面 / 不可用都要说清楚）
     const main = page.locator("main");
-    await expect(main).toContainText("紫微斗数");
-    const text = await main.innerText();
-    expect(text).toContain("Phase 2");
-    expect(text).toContain("不会提供任何伪造的紫微结果");
+    await expect(main).toContainText(/十二宫|不可用/);
+  });
+
+  test("模型分歧页给出冲突归因与『不平均』声明", async ({ page }) => {
+    await page.goto("/stock/600519/conflicts");
+    await expect(page.getByTestId("page-title").first()).toHaveText("模型分歧中心");
+    await expect(page.getByTestId("opinion-cards").first()).toBeVisible();
+    const main = page.locator("main");
+    await expect(main).toContainText("不做平均");
+  });
+
+  test("历史验证页把『术数规则强度』与『统计有效性』视觉分区", async ({ page }) => {
+    await page.goto("/stock/600519/backtest");
+    await expect(page.getByTestId("page-title").first()).toHaveText("历史验证");
+    await expect(page.getByTestId("section-deterministic").first()).toBeVisible();
+    await expect(page.getByTestId("section-empirical").first()).toBeVisible();
+    await expect(page.getByTestId("research-status-card").first()).toBeVisible();
+  });
+
+  test("时间窗口页声明聚合口径版本且否弃『流周』", async ({ page }) => {
+    await page.goto("/stock/600519/timeline");
+    await expect(page.getByTestId("page-title").first()).toHaveText("时间窗口");
+    const main = page.locator("main");
+    await expect(main).toContainText("聚合口径版本");
+  });
+
+  test("古籍证据页三栏并列（支持 / 反证 / 中性）", async ({ page }) => {
+    await page.goto("/stock/600519/evidence");
+    await expect(page.getByTestId("page-title").first()).toHaveText("古籍证据检索");
+    const main = page.locator("main");
+    await expect(main).toContainText("支持性证据");
+    await expect(main).toContainText("反证");
+  });
+
+  test("黄历页把传统黄历数据与研究映射分区", async ({ page }) => {
+    await page.goto("/stock/600519/huangli");
+    await expect(page.getByTestId("page-title").first()).toHaveText("黄历 / 日课详情");
+    await expect(page.getByTestId("section-traditional-huangli").first()).toBeVisible();
+    await expect(page.getByTestId("section-huangli-factors").first()).toBeVisible();
+  });
+
+  test("因子字典页列出 114 个因子并显示规则分语义", async ({ page }) => {
+    await page.goto("/factors");
+    await expect(page.getByTestId("page-title").first()).toHaveText("因子字典");
+    await expect(page.getByTestId("factor-search").first()).toBeVisible();
+    await expect(page.getByTestId("factor-table").first()).toBeVisible();
+    const main = page.locator("main");
+    await expect(main).toContainText("不代表预期收益率");
+  });
+
+  test("综合研判页提供报告导出", async ({ page }) => {
+    await page.goto("/stock/600519/overview");
+    await expect(page.getByTestId("report-export").first()).toBeVisible();
   });
 
   for (const [path, title] of [
-    ["/stock/600519/huangli", "黄历 / 日课"],
-    ["/stock/600519/backtest", "历史验证"],
-    ["/stock/600519/evidence", "古籍证据"],
-    ["/stock/600519/conflicts", "模型分歧"],
-    ["/stock/600519/timeline", "时间窗口"],
     ["/research", "研究实验室"],
-    ["/factors", "因子字典"],
     ["/settings", "系统设置"],
   ] as const) {
-    test(`${path} 返回可访问页面`, async ({ page }) => {
+    test(`${path} 仍为占位页（本版本不实现）`, async ({ page }) => {
       const resp = await page.goto(path);
       expect(resp?.status()).toBe(200);
       await expect(page.getByTestId("page-title").first()).toHaveText(title);

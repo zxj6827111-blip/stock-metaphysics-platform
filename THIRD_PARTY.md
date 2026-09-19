@@ -41,34 +41,62 @@
 | 稳定性风险 | 高 —— 上游接口（东方财富/新浪）可能变更或限流。系统已实现 retry + 缓存 + 显式降级 |
 | 升级策略 | 跑 `tests/market/test_normalization.py`；若字段名变化需同步更新 `CN_COLUMN_MAP` |
 
-### 1.3 bazi-pro（**尚未接入**）
+### 1.3 bazi-pro（**正式排除**，ADR-0008）
 
 | 项 | 值 |
 |---|---|
-| 计划用途 | 八字格局、喜用神、多流派规则、古籍语料 |
+| 计划用途 | ~~八字格局、喜用神参照~~（Phase 1.1 起不再是候选） |
 | 候选仓库 | https://github.com/new1234cq/bazi-pro |
-| 锁定 commit | **❌ 未锁定** |
-| 当前状态 | **未接入**。Phase 1 使用自研确定性内核 `smx-bazi-native-1.0.0` |
-| 决策依据 | 见 [`docs/ADR/ADR-0002`](docs/ADR/ADR-0002-bazi-engine-backend.md) |
-| 许可证 | **未核实** —— 该仓库的 README/版权/提交历史大量指向原作者 `Minervaowl7/bazi-pro`，无法确认当前账号与原作者的关系。**商用前必须核实** |
+| 当前状态 | **不接入、不 fork、不参考**。Canonical 引擎为自研 `smx-bazi-native-1.x` |
+| 决策依据 | [`docs/ADR/ADR-0008`](docs/ADR/ADR-0008-bazi-engine-strategy.md)（正式取代 ADR-0002 的过渡措辞） |
+| 许可证 | **未核实**。该仓库的 README/版权/提交历史大量指向原作者 `Minervaowl7/bazi-pro`，无法确认账号与原作者关系；在许可证核实之前不得进入生产路径 |
 
-**Phase 2 接入要求**：
+**若未来重新评估**：必须（1）证明文件级许可证；（2）确认作者链；（3）通过 `BaziEngine` adapter 接入并跑 Golden 对拍——任何分歧写入 `docs/calculation-differences-phase1.md`。
 
-1. 先 fork 到你自己的组织，**锁定 commit SHA**；
-2. 只通过 `BaziEngine` adapter 调用（不得复制源码进主项目）；
-3. 与自研内核做**双引擎交叉验证**，差异写入 `docs/calculation-differences.md`；
-4. 古籍语料迁出前必须逐条核实 `license_status`。
+### 1.4 腾讯行情接口（一次性导入工具，非运行时依赖）
 
-### 1.4 其他规划中的第三方（Phase 2+）
+| 项 | 值 |
+|---|---|
+| 用途 | 在 AKShare 被代理拦截的环境中，抓取**真实**历史行情落盘为 `data/import/` 快照 |
+| 端点 | `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get`（腾讯自选股公开 K 线接口） |
+| 调用位置 | `scripts/fetch_market_import.py`（一次性/手动刷新用，**不在运行时链路**） |
+| 复权口径 | 个股 **hfq**（qfq 对高股息老股在深历史区间会产生负价格 → 禁用于研究） |
+| 许可证 | 行情数据的版权归腾讯视频/深圳交易所等原数据源所有；仅限个人研究用途，商用前需另获授权 |
+| 质量校验 | 导入端 `src/market/offline_importer.py` 强制：正价格、日期单调、无重复、无 _meta.json 不入库 |
+| 快照语义 | 同一目录是同一抓取时刻；不同快照日不可混用（`market_data_version` 以 `fetched_at` 标识） |
+
+### 1.5 iztro（紫微斗数，Phase 2A 正式接入）
+
+| 项 | 值 |
+|---|---|
+| 用途 | 紫微斗数排盘：十二宫 / 星曜 / 生年四化 / 三方四正 / 大限小限 / 流年流月流日流时 |
+| 仓库 | https://github.com/SylarLong/iztro |
+| 锁定版本 | **2.6.1**（`services/ziwei-service/package.json` 中为精确版本，非 `^`） |
+| 接入方式 | `services/ziwei-service`（Node.js + TypeScript）→ `ZiweiEngine` Adapter（`src/engines/ziwei/`） |
+| 业务层可见性 | ❌ 完全隔离 —— Python 侧永不 `import` iztro，只消费本项目 `ZiweiChart` |
+| 许可证 | **MIT**（已由 npm registry 元数据核实；仓库归属与 npm 作者一致） |
+| 运行时依赖 | `dayjs` / `i18next` / `lunar-lite` / `lunar-typescript`（均为 permissive） |
+| 决策依据 | [`docs/ADR/ADR-0009`](docs/ADR/ADR-0009-ziwei-engine-iztro.md) |
+| 风险 | ① 首次引入 Node 运行时依赖（Docker 多一个服务）；② 升级可能改变安星/四化口径 |
+| 升级策略 | **必须先跑 `make test-ziwei-golden`**；口径变化写入 `docs/calculation-differences-phase2-ziwei.md` 并提升 `ziwei_engine_version` |
+
+**传输层降级顺序**（`src/engines/ziwei/transport.py`）：
+
+```
+http（SMP_ZIWEI_SERVICE_URL） → subprocess（node + dist/cli.js） → unavailable
+```
+
+不可用时紫微输出 `available: false, score: null`，**不以 0 分参与任何聚合**。
+
+### 1.6 其他规划中的第三方（Phase 2+）
 
 | 项目 | 用途 | 仓库 | 许可证状态 |
 |---|---|---|---|
-| iztro | 紫微斗数排盘 | https://github.com/SylarLong/iztro | 未核实（MIT 声明待确认） |
-| Tianji | 八字/紫微第二计算源、六爻 | https://github.com/Zijian-Ni/tianji | 未核实 |
+| Tianji | 八字/紫微第二计算源、六爻 | https://github.com/Zijian-Ni/tianji | 未核实（Phase 2 未使用） |
 | vectorbt | 大规模研究回测（可选） | https://github.com/polakowo/vectorbt | **需审查**（可能存在商业授权限制） |
 | backtrader | 替代回测引擎 | https://github.com/mementum/backtrader | **GPL-3.0，商用需审查** |
 
-> ⚠️ 上述四个项目**在 Phase 1 中完全没有被引用**，列在此处仅作 Phase 2 决策准备。
+> ⚠️ 上述三个项目**在 Phase 1 / Phase 2 中均未被引用或安装**，列在此处仅作后续决策准备。
 
 ---
 
@@ -154,6 +182,21 @@
 
 ---
 
+## 3.1 Node 服务依赖（Phase 2A）
+
+见 [`services/ziwei-service/package.json`](services/ziwei-service/package.json)。
+
+| 包 | 版本 | 用途 | 许可证 |
+|---|---|---|---|
+| iztro | **2.6.1**（精确锁定） | 紫微斗数排盘 | MIT |
+| typescript | ^5.9.0（dev） | 编译（仅构建期） | Apache-2.0 |
+| @types/node | ^22.15.0（dev） | 类型（仅构建期） | MIT |
+
+> 服务**不引入 Web 框架**（`server.ts` 只用 Node 内置 `http`），
+> 也不引入构建工具链（只用 `tsc`）。依赖面越小，供应链风险越低。
+
+---
+
 ## 4. 古籍语料版权
 
 | 项 | 说明 |
@@ -174,7 +217,8 @@
 
 | 数据 | 来源 | 合规说明 |
 |---|---|---|
-| A 股行情 | AKShare → 东方财富/新浪 | 仅供研究；商用前需核实数据源条款 |
+| A 股行情 | AKShare → 东方财富/新浪 （网络可达时） | 仅供研究；商用前需核实数据源条款 |
+| A 股行情（离线真实通道） | **腾讯自选股接口 → 落盘 csv + `offline_import` provider** | 同上。Phase 1.1 起成为"AKShare 不可用时的真实数据通道（P0-2）" |
 | 股票基础资料 | AKShare → 东方财富 | 同上 |
 | 交易所交易时段 | 公开交易规则整理（`config/exchange_session_calendar.json`） | 公开信息 |
 | 古籍语料 | 公版古籍 | 见 §4 |

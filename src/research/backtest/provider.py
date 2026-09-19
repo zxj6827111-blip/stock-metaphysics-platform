@@ -95,31 +95,36 @@ class LocalBacktestProvider(BacktestProvider):
         labels: pd.DataFrame,
         request: EventStudyRequest,
     ) -> NegativeControlReport:
+        from src.research.event_study.engine import extract_event_keys
+
         real_stats = next((h for h in real_result.horizons if h.horizon == 20), None)
+        # 真实事件集合（同一套过滤 + 激活逻辑），用于独立性诊断
+        real_keys = extract_event_keys(observations, request)
         results = []
 
         random_panel = control_panels.get(str(NegativeControlKind.RANDOM_BIRTH_DATE))
         if random_panel is not None:
             results.append(random_birth_date_control(
-                random_panel[0], random_panel[1], request, real_stats=real_stats
+                random_panel[0], random_panel[1], request,
+                real_stats=real_stats, real_keys=real_keys,
             ))
 
         plus7 = control_panels.get(str(NegativeControlKind.SHIFT_PLUS_7D))
         if plus7 is not None:
             results.append(shift_birth_date_control(
                 NegativeControlKind.SHIFT_PLUS_7D, plus7[0], plus7[1], request,
-                real_stats=real_stats, days=7,
+                real_stats=real_stats, days=7, real_keys=real_keys,
             ))
 
         minus7 = control_panels.get(str(NegativeControlKind.SHIFT_MINUS_7D))
         if minus7 is not None:
             results.append(shift_birth_date_control(
                 NegativeControlKind.SHIFT_MINUS_7D, minus7[0], minus7[1], request,
-                real_stats=real_stats, days=-7,
+                real_stats=real_stats, days=-7, real_keys=real_keys,
             ))
 
         results.append(random_factor_control(
-            observations, labels, request, real_stats=real_stats
+            observations, labels, request, real_stats=real_stats, real_keys=real_keys
         ))
 
         return summarize_controls(real_result.experiment_id, request.factor_ids, results)

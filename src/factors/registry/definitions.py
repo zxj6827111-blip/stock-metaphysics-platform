@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+from src.core.config import settings
 from src.core.schemas.common import Direction, EngineId
 from src.core.schemas.factor import FactorCategory, FactorDefinition
 
@@ -48,7 +49,9 @@ def _d(
         normalized_hint=normalized_hint,
         default_direction=direction,
         rule_score_meaning=_RULE_SCORE_MEANING,
-        rule_version="v1",
+        # rule_version 全局唯一来源 = settings.factor_rule_version；
+        # 修复 BUG（如 v1.1 的流年冲刑害接线错误）只升配置一处。
+        rule_version=settings.factor_rule_version,
         enabled=True,
         requires=requires or [],
         tags=tags or [],
@@ -374,7 +377,24 @@ HUANGLI_MONTH_DEFINITIONS: list[FactorDefinition] = [
 ]
 
 
+# Phase 2B：紫微因子（``Z_*``）。使用独立的 rule_version（zv1，观测再按 variant
+# 后缀区分为 zv1.fwd / zv1.rev），与八字/黄历因子的修复节奏解耦。
+from src.factors.ziwei.definitions import (  # noqa: E402 - 避免循环导入，置于此处
+    ALL_ZIWEI_DEFINITIONS,
+)
+
 ALL_DEFINITIONS: list[FactorDefinition] = [
+    *NATAL_DEFINITIONS,
+    *YEAR_DEFINITIONS,
+    *MONTH_DEFINITIONS,
+    *DAY_DEFINITIONS,
+    *HUANGLI_DAY_DEFINITIONS,
+    *HUANGLI_MONTH_DEFINITIONS,
+    *ALL_ZIWEI_DEFINITIONS,
+]
+
+#: Phase 1 因子（八字 + 黄历）—— 用于"Phase 1 因子未变"的机器校验
+PHASE1_DEFINITIONS: list[FactorDefinition] = [
     *NATAL_DEFINITIONS,
     *YEAR_DEFINITIONS,
     *MONTH_DEFINITIONS,
@@ -385,6 +405,11 @@ ALL_DEFINITIONS: list[FactorDefinition] = [
 
 #: 因子 ID → 定义
 DEFINITION_INDEX: dict[str, FactorDefinition] = {d.factor_id: d for d in ALL_DEFINITIONS}
+
+#: 因子 ID → 定义（仅 Phase 1 的 65 个），供紫微因子与 Phase 1 因子做隔离校验
+PHASE1_DEFINITION_INDEX: dict[str, FactorDefinition] = {
+    d.factor_id: d for d in PHASE1_DEFINITIONS
+}
 
 #: 每类因子的解释（用于 observation.explanation）
 FACTOR_DISCLAIMER = _EXPL

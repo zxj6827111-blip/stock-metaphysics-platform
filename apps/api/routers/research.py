@@ -12,13 +12,16 @@ from apps.api.deps import (
     db_session,
     get_analysis_service,
     get_backtest,
-    get_knowledge,
     get_market,
 )
 from apps.api.errors import InvalidRequestError, NotFoundError
 from src.core.config import settings
-from src.core.orchestration.analysis_service import AnalysisService
-from src.core.schemas.common import BirthBasis, VariantMode, Warning_
+from src.core.orchestration.analysis_service import AnalysisService, direction_from_score
+from src.core.schemas.common import VariantMode, Warning_
+from src.core.schemas.consensus import (
+    ConsensusResearchRequest,
+    ConsensusResearchResult,
+)
 from src.core.schemas.market import (
     EventStudyRequest,
     EventStudyResult,
@@ -27,15 +30,16 @@ from src.core.schemas.market import (
     NegativeControlReport,
 )
 from src.core.schemas.stock import BirthProfileCreateRequest, StockBirthProfile
-from src.db.models import BacktestExperimentRow, BacktestResultRow
-from src.engines.bazi.bazi_engine import BaziEngine
-from src.engines.huangli.huangli_engine import HuangliEngine
-from src.factors.registry.compute import compute_factor_set
-from src.factors.registry.definitions import DEFINITION_INDEX
-from src.knowledge.retrieval.provider import build_query_from_factors
-from src.research.pipeline import ResearchPipeline, new_experiment_id
 from src.core.stock.birth_profile import build_birth_profile
 from src.core.stock.exchange_sessions import ex_value
+from src.db.models import BacktestExperimentRow, BacktestResultRow
+from src.engines.base import EngineContext
+from src.engines.bazi.bazi_engine import BaziEngine
+from src.engines.huangli.huangli_engine import HuangliEngine
+from src.engines.ziwei.ziwei_engine import ZiweiUnavailableError
+from src.factors.registry.compute import compute_factor_set
+from src.factors.registry.definitions import DEFINITION_INDEX
+from src.research.pipeline import ResearchPipeline, new_experiment_id
 
 router = APIRouter(prefix="/api/v1/research", tags=["research"])
 
@@ -65,6 +69,10 @@ class ResearchRunResponse(BaseModel):
     panel_stats: dict = Field(default_factory=dict)
     warnings: list[Warning_] = Field(default_factory=list)
     duration_ms: int = 0
+    #: 研究状态机输出：合成/降级数据时恒为 NO_REAL_DATA（Phase 1.1 P0-1）
+    research_status: str = "NOT_RUN"
+    research_status_reasons: list[str] = Field(default_factory=list)
+    data_source: dict = Field(default_factory=dict)
 
 
 def _build_helpers(market, service: AnalysisService):
@@ -121,9 +129,8 @@ def run_research(
     """
     import time as _time
 
-    from src.research.pipeline import month_starts
     from src.research.labels.forward_returns import compute_labels
-    from src.research.event_study.engine import build_labels_frame, build_observations_frame
+    from src.research.pipeline import month_starts
 
     started = _time.perf_counter()
     warnings: list[Warning_] = []
@@ -136,10 +143,19 @@ def run_research(
         raise InvalidRequestError("采样日期为空，请检查 date_from / date_to")
 
     # --- 行情与标签 ---
+    # 记录每只序列的降级状态：合成/降级行情不得产出"研究证据"（P0-1）
     series_cache: dict[str, object] = {}
+    series_meta: dict[str, dict] = {}
+    computed_label_objs: list = []
+
     bench = None
+    bench_meta = {"is_degraded": False, "source": ""}
     try:
         bench = market.get_benchmark_bars(settings.benchmark_index_code, date_from, date_to)
+        bench_meta = {
+            "is_degraded": bool(getattr(bench, "is_degraded", False)),
+            "source": str(getattr(getattr(bench, "source_ref", None), "source", "") or ""),
+        }
     except Exception as exc:  # noqa: BLE001
         warnings.append(Warning_(
             code="RESEARCH_BENCHMARK_UNAVAILABLE",
@@ -150,9 +166,16 @@ def run_research(
     def label_builder(code: str, as_of_date: date):
         if code not in series_cache:
             series_cache[code] = market.get_daily_bars(code, date_from, date_to)
+            s = series_cache[code]
+            series_meta[code] = {
+                "is_degraded": bool(getattr(s, "is_degraded", False)),
+                "source": str(getattr(getattr(s, "source_ref", None), "source", "") or ""),
+            }
         series = series_cache[code]
-        return compute_labels(series, as_of_date, benchmark_series=bench,  # type: ignore[arg-type]
-                              benchmark_code=settings.benchmark_index_code)
+        labels = compute_labels(series, as_of_date, benchmark_series=bench,  # type: ignore[arg-type]
+                                benchmark_code=settings.benchmark_index_code)
+        computed_label_objs.append(labels)
+        return labels
 
     birth_provider, factor_builder, _bazi = _build_helpers(market, service)
 
@@ -206,8 +229,54 @@ def run_research(
 
     duration_ms = int((_time.perf_counter() - started) * 1000)
 
+    # --- P0-1：研究状态机判定（合成/降级数据 → NO_REAL_DATA，禁止产出有效性语义） ---
+    from src.research.status import assess_research_status
+
+    degraded_codes = sorted([c for c, m in series_meta.items() if m["is_degraded"]])
+    if bench_meta["is_degraded"]:
+        degraded_codes.append(f"benchmark:{settings.benchmark_index_code}")
+    data_is_real = not degraded_codes
+    if not data_is_real:
+        warnings.append(Warning_(
+            code="RESEARCH_DATA_UNAVAILABLE",
+            message=(
+                "本次运行的行情为合成或降级数据（"
+                + ", ".join(degraded_codes[:10])
+                + ("..." if len(degraded_codes) > 10 else "")
+                + "）。所有统计仅用于系统联调，不构成任何历史有效性证据。"
+            ),
+            severity="error",
+        ))
+
+    assessment = assess_research_status(
+        real_result, control_report,
+        data_is_real=data_is_real,
+        data_problems=[f"降级/合成来源: {c}" for c in degraded_codes[:20]],
+    )
+    real_result.research_status = assessment.status.value
+    real_result.research_status_reasons = assessment.reasons
+    real_result.data_source = {
+        "provider": getattr(market, "provider_id", ""),
+        "is_real": data_is_real,
+        "degraded_codes": degraded_codes,
+        "benchmark_degraded": bool(bench_meta["is_degraded"]),
+    }
+
     if payload.persist:
-        _persist_experiment(db, experiment_id, payload, real_result, control_report, observations)
+        # 标签写穿透（含数据来源与降级标记；合成数据的标签会被打上 is_degraded=True）
+        # 注意：四个面板（真实 + 三类对照）会重复计算同一批标签，先去重再写库。
+        from src.research.labels.store import upsert_label
+
+        unique_labels = {
+            (lab.stock_code, lab.as_of, lab.benchmark_code, lab.data_source): lab
+            for lab in computed_label_objs
+        }
+        for lab in unique_labels.values():
+            upsert_label(db, lab)
+        _persist_experiment(
+            db, experiment_id, payload, real_result, control_report, observations,
+            status=assessment.status.value,
+        )
         db.commit()
 
     return ResearchRunResponse(
@@ -223,11 +292,15 @@ def run_research(
         },
         warnings=warnings,
         duration_ms=duration_ms,
+        research_status=assessment.status.value,
+        research_status_reasons=assessment.reasons,
+        data_source=real_result.data_source or {},
     )
 
 
 def _persist_experiment(db: Session, experiment_id: str, payload: ResearchRunRequest,
-                        real_result, control_report, observations) -> None:
+                        real_result, control_report, observations, *,
+                        status: str = "completed") -> None:
     from sqlalchemy import delete
 
     db.execute(delete(BacktestResultRow).where(BacktestResultRow.experiment_id == experiment_id))
@@ -243,7 +316,8 @@ def _persist_experiment(db: Session, experiment_id: str, payload: ResearchRunReq
                          "run_negative_controls": payload.run_negative_controls},
             methodology=real_result.methodology,
             seed=settings.negative_control_seed,
-            status="completed",
+            # 状态直接反映研究可信度（如 NO_REAL_DATA），拒绝把降级数据标成 completed
+            status=status,
         ))
 
     for h in real_result.horizons:
@@ -252,7 +326,8 @@ def _persist_experiment(db: Session, experiment_id: str, payload: ResearchRunReq
             sample_count=h.sample_count, up_rate=h.up_rate, excess_up_rate=h.excess_up_rate,
             mean_return=h.mean_return, median_return=h.median_return, std_return=h.std_return,
             mean_excess_return=h.mean_excess_return, max_drawdown=h.max_drawdown,
-            mean_max_return=h.mean_max_return, extra_json={"note": h.note},
+            mean_max_return=h.mean_max_return,
+            extra_json={"note": h.note, "research_status": status},
         ))
 
     if control_report is not None:
@@ -264,7 +339,13 @@ def _persist_experiment(db: Session, experiment_id: str, payload: ResearchRunReq
                     mean_return=h.mean_return, median_return=h.median_return,
                     std_return=h.std_return, mean_excess_return=h.mean_excess_return,
                     max_drawdown=h.max_drawdown, mean_max_return=h.mean_max_return,
-                    extra_json={"verdict": r.verdict, "note": r.verdict_note},
+                    extra_json={
+                        "verdict": r.verdict, "note": r.verdict_note,
+                        "research_status": status,
+                        "jaccard_with_real": r.jaccard_with_real,
+                        "overlap_with_real": r.overlap_with_real,
+                        "event_count": r.event_count,
+                    },
                 ))
     db.flush()
 
@@ -285,7 +366,14 @@ def get_labels(
     start = date(max(as_of_date.year - 1, 2000), 1, 1)
     end = date(min(as_of_date.year + 1, date.today().year), 12, 31)
 
-    series = market.get_daily_bars(code, start, end)
+    from src.core.stock import codes as _codes
+
+    try:
+        normalized = _codes.normalize_code(code)
+    except ValueError as exc:
+        raise InvalidRequestError(f"无法解析股票代码: {code!r}") from exc
+
+    series = market.get_daily_bars(normalized, start, end)
     try:
         bench = market.get_benchmark_bars(settings.benchmark_index_code, start, end)
     except Exception:  # noqa: BLE001
@@ -296,6 +384,8 @@ def get_labels(
                               benchmark_code=settings.benchmark_index_code)
     except InsufficientForwardData as exc:
         raise NotFoundError(str(exc)) from exc
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc)) from exc
 
 
 @router.get("/factor-definitions", summary="因子定义列表（研究向）")
@@ -355,3 +445,174 @@ def get_experiment(experiment_id: str, db: Session = Depends(db_session)) -> dic
         },
         "results_by_variant": grouped,
     }
+
+
+# ---------------------------------------------------------------------------
+# 多模型共振 / 冲突研究（Phase 2C）
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/consensus",
+    response_model=ConsensusResearchResult,
+    summary="多模型共振 / 冲突的历史研究（含独立负对照 + 多重比较警告）",
+)
+def run_consensus_research_endpoint(
+    payload: ConsensusResearchRequest,
+    db: Session = Depends(db_session),
+    market=Depends(get_market),
+    service: AnalysisService = Depends(get_analysis_service),
+) -> ConsensusResearchResult:
+    """研究「三模型共振 / 冲突」在真实历史数据上是否有统计支持。
+
+    **纪律**
+
+    * 只允许研究**预定义**的组合（见 `src/core/schemas/consensus.py`），
+      不支持自由组合搜索（数据挖掘防护）；
+    * 共振必须与**随机模型方向**对照 —— "三个模型都说好"本身不是证据；
+    * 组合数超过阈值时产出多重比较警告（含 Bonferroni 参考阈值）；
+    * 结论以 `ResearchStatus` 状态机输出，`NO_SIGNAL` 是合法且常见的结果。
+    """
+    import time as _time
+
+    from src.core.schemas.consensus import ConsensusResearchRequest  # noqa: F401
+    from src.research.consensus_research import (
+        build_consensus_panel,
+        month_sample_dates,
+        run_consensus_research,
+    )
+    from src.research.labels.forward_returns import compute_labels
+
+    started = _time.perf_counter()
+    warnings: list[Warning_] = []
+
+    universe = payload.universe or DEFAULT_UNIVERSE[:6]
+    sample_dates = month_sample_dates(
+        payload.date_from, payload.date_to, payload.sample_step_months,
+    )
+    if not sample_dates:
+        raise InvalidRequestError("采样日期区间为空，请检查 date_from / date_to。")
+
+    date_from = date.fromisoformat(payload.date_from)
+    date_to = date.fromisoformat(payload.date_to)
+    horizon = payload.horizon
+
+    bazi = BaziEngine()
+    huangli = HuangliEngine()
+    variant = VariantMode(payload.variant_mode)
+    profile_cache: dict[str, StockBirthProfile] = {}
+    series_cache: dict[str, object] = {}
+    huangli_cache: dict[str, object] = {}
+    degraded_codes: set[str] = set()
+
+    try:
+        bench = market.get_benchmark_bars(settings.benchmark_index_code, date_from, date_to)
+    except Exception as exc:  # noqa: BLE001
+        bench = None
+        warnings.append(Warning_(
+            code="RESEARCH_BENCHMARK_UNAVAILABLE",
+            message=f"基准指数不可用，超额收益将为空：{type(exc).__name__}: {exc}",
+            severity="warning",
+        ))
+
+    def opinion_builder(code: str, as_of_date: date):
+        """该时刻的三模型方向（只读 as_of 及之前的盘面）。"""
+        as_of = datetime(as_of_date.year, as_of_date.month, as_of_date.day, 15, 0, 0)
+        if code not in profile_cache:
+            profile_cache[code] = build_birth_profile(
+                market.get_stock(code), BirthProfileCreateRequest(variant_mode=variant),
+            )
+        profile = profile_cache[code]
+
+        hl_key = as_of_date.isoformat()
+        hl = huangli_cache.get(hl_key)
+        if hl is None:
+            hl = huangli.snapshot(as_of, days=31)
+            huangli_cache[hl_key] = hl
+
+        chart = bazi.build_chart(
+            birth_datetime=profile.birth_datetime.replace(tzinfo=None),
+            as_of=as_of, variant_mode=variant, stock_code=code,
+        )
+
+        ziwei_chart = None
+        try:
+            ziwei_chart = service.ziwei.calculate_chart(
+                EngineContext(stock_code=code, as_of=as_of),
+                birth_datetime=profile.birth_datetime.replace(tzinfo=None),
+                as_of=as_of, variant_mode=variant,
+            )
+        except ZiweiUnavailableError as exc:
+            warnings.append(Warning_(
+                code="CONSENSUS_ZIWEI_UNAVAILABLE",
+                message=f"{code}@{as_of_date} 紫微不可用：{exc}",
+                severity="warning",
+            ))
+
+        fset = compute_factor_set(
+            chart, hl, as_of, stock_code=code, ziwei_chart=ziwei_chart,  # type: ignore[arg-type]
+        )
+        dirs: dict[str, int] = {}
+        for engine, prefix in (
+            ("bazi", "B_"), ("huangli", "H_"), ("ziwei", "Z_"),
+        ):
+            obs = [
+                o for o in fset.observations
+                if o.factor_id.startswith(prefix) and o.availability == "ok"
+            ]
+            if not obs:
+                continue
+            weights = [max(o.confidence, 1e-6) for o in obs]
+            vals = [o.normalized_value or 0.0 for o in obs]
+            wsum = sum(weights)
+            raw = sum(v * w for v, w in zip(vals, weights, strict=True)) / wsum if wsum else 0.0
+            score = max(0.0, min(100.0, 50.0 + raw * 50.0))
+            dirs[engine] = direction_from_score(score)
+        return dirs
+
+    def label_builder(code: str, as_of_date: date):
+        if code not in series_cache:
+            series = market.get_daily_bars(code, date_from, date_to)
+            series_cache[code] = series
+            if bool(getattr(series, "is_degraded", False)):
+                degraded_codes.add(code)
+        return compute_labels(
+            series_cache[code], as_of_date,  # type: ignore[arg-type]
+            benchmark_series=bench, benchmark_code=settings.benchmark_index_code,
+        )
+
+    panel, directions = build_consensus_panel(
+        stocks=universe, sample_dates=sample_dates,
+        opinion_builder=opinion_builder, label_builder=label_builder, warnings=warnings,
+    )
+
+    result = run_consensus_research(
+        panel=panel, directions=directions, request=payload, warnings=warnings,
+        data_source={
+            "rows": int(len(panel)),
+            "universes": len(universe),
+            "sample_dates": len(sample_dates),
+            "degraded_codes": sorted(degraded_codes),
+            "is_real": not degraded_codes,
+            "market_provider": getattr(market, "provider_id", ""),
+            "variant_mode": payload.variant_mode,
+            "horizon": horizon,
+        },
+    )
+
+    if degraded_codes:
+        result.overall_research_status = "NO_REAL_DATA"
+        result.overall_reasons = [
+            "样本中含合成或降级行情来源，本结果仅用于系统联调，不构成任何历史有效性证据。"
+        ]
+        result.warnings.append(Warning_(
+            code="RESEARCH_DATA_UNAVAILABLE",
+            message=f"以下股票使用合成/降级行情：{', '.join(sorted(degraded_codes))}",
+            severity="error",
+        ))
+
+    if payload.persist:
+        db.commit()
+    result.methodology += f"  组合数 {len(result.combos)}，参数数 {result.multiple_testing.parameter_count}。"
+    _ = started
+    return result

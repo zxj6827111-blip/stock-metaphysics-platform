@@ -298,6 +298,38 @@ DAY_TIAN_SHEN_LUCK: dict[str, str] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# 六十甲子纳音（传统固定映射，无流派分歧）
+# ---------------------------------------------------------------------------
+#
+# 为什么放在这里：lunar-python 的 ``getYearNaYin`` 等接口与
+# ``getYearInGanZhiExact`` 存在口径差（见 docs/calculation-differences-phase1.md），
+# 会导致同一柱"干支是甲辰、纳音却是癸卯的金箔金"这种内部矛盾。
+# 纳音是干支的纯函数，本项目自掌，保证"柱与纳音永不冲突"。
+
+_NAYIN_SEQUENCE = (
+    "海中金", "炉中火", "大林木", "路旁土", "剑锋金", "山头火",
+    "涧下水", "城头土", "白蜡金", "杨柳木", "泉中水", "屋上土",
+    "霹雳火", "松柏木", "长流水", "沙中金", "山下火", "平地木",
+    "壁上土", "金箔金", "覆灯火", "天河水", "大驿土", "钗钏金",
+    "桑柘木", "大溪水", "沙中土", "天上火", "石榴木", "大海水",
+)
+
+_SIXTY_JIAZI = tuple(
+    HEAVENLY_STEMS[i % 10] + EARTHLY_BRANCHES[i % 12] for i in range(60)
+)
+
+#: 六十甲子 → 纳音（如 甲辰 → 覆灯火）
+NAYIN_OF: dict[str, str] = {
+    jiazi: _NAYIN_SEQUENCE[i // 2] for i, jiazi in enumerate(_SIXTY_JIAZI)
+}
+
+
+def nayin_of(ganzhi_text: str) -> str:
+    """由干支文本查纳音；无法识别返回空串（不猜测）。"""
+    return NAYIN_OF.get(ganzhi_text, "")
+
+
 __all__ = [
     "HEAVENLY_STEMS", "EARTHLY_BRANCHES", "STEM_INDEX", "BRANCH_INDEX",
     "STEM_YANG", "BRANCH_YANG", "BRANCH_ZODIAC", "BRANCH_HOUR_RANGE",
@@ -311,4 +343,5 @@ __all__ = [
     "BRANCH_CLASH_OF", "BRANCH_HARMONY_OF", "BRANCH_HARM_OF",
     "TWELVE_STAGES", "twelve_stage", "STEM_CHANGSHENG_START",
     "TWELVE_DUTY_OFFICERS", "DAY_TIAN_SHEN_LUCK",
+    "NAYIN_OF", "nayin_of",
 ]

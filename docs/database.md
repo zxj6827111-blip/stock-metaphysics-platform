@@ -25,9 +25,10 @@
 | 14 | `backtest_experiment` | 研究实验 | PK `experiment_id` |
 | 15 | `backtest_result` | 研究结果（按 variant × horizon） | — |
 | 16 | `analysis_run` | 分析运行索引（API 查询入口） | PK `analysis_id` |
+| 17 | `forward_label` | **未来收益标签持久化**（Phase 1.1 新增） | UNIQUE (`stock_code`,`as_of`,`benchmark_code`,`label_source`) |
 | — | `alembic_version` | Migration 版本 | — |
 
-**Migration 文件**：`migrations/versions/<rev>_phase1_initial_schema.py`
+**Migration 文件**：`migrations/versions/a2b7e06fb0ad_*.py`（初始）、`dadb21454a4b_*.py`（Phase 1.1 加固：forward_label + updated_at 补齐）
 
 ```bash
 python -m alembic upgrade head                  # 应用
@@ -252,12 +253,14 @@ python -m alembic upgrade head
 
 ## 5. 已知限制
 
-1. **无独立交易日历表**：交易日仅按周末规则 + 行情数据校验，
-   节假日上市会被错误对齐到节假日。Phase 2 应引入 `trading_calendar` 表。
-2. **标签未落库**：`_load_label_rows` 每次请求重算（约 1–3 秒）。
-   Phase 2 应建 `forward_label` 表并增量更新。
+1. ~~**无独立交易日历表**~~ **Phase 1.1 已解决**：`data/import/calendar/{SSE,SZSE}.csv` 由指数**实测交易日**推导（真实历史上证/深证指数的全部交易日）。缺文件时 `TradingCalendarProvider.is_trading_day` 返回 `None` 并标 `out_of_coverage`（不假意用周末规则糊弄）。
+2. ~~**标签未落库**~~ **Phase 1.1 已解决**：`forward_label` 表 + `upsert_label`，`/analysis/{id}/backtest` 命中持久化行毫秒返回；空表时仍按旧路径重算一次并写穿透。
 3. **无分区/归档**：`factor_observation` 会随研究规模快速增长
    （3000 股票 × 3000 交易日 × 65 因子 ≈ 5.85 亿行）。
    Phase 2 应把大规模因子搬到 Parquet + DuckDB。
 4. **DuckDB 尚未实际使用**：依赖已就位（`src/core/config.py` 中有 `duckdb_path`），
    Phase 1 的查询规模用 SQLite 足够。
+
+**Phase 1.1 新增 `forward_label` 表**：`(stock_code, as_of, benchmark_code, label_source)` 唯一；
+`label_source` 取值 `akshare / tencent_hfq_import / synthetic_demo`，`is_degraded=True`
+标记降级/合成数据 —— 研究状态机会据此把结果收口为 `NO_REAL_DATA`。
