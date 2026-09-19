@@ -12,6 +12,7 @@
 
 | 项 | 值 |
 |---|---|
+| **最终 commit SHA** | **`68a43f05b6156122366568a1ed0ad298aaa3c608`** |
 | 版本 | `0.2.0` / phase `phase2` |
 | 上游基线 | Phase 1 `6d4d5d7` + Phase 1.1 加固 |
 | 测试 | **1003 pytest PASS / 44 Playwright PASS** |
