@@ -93,6 +93,10 @@
 
 ### 产出物
 - `src/research/calibration/`
+- `scripts/phase3_calibration_audit.py`
+- `data/phase3_universe/phase3c_factor_distribution.csv`
+- `data/phase3_universe/phase3c_opinion_distribution.csv`
+- `data/phase3_universe/phase3c_calibration_metadata.json`
 - `docs/factor-calibration-methodology.md`
 - `docs/bazi-opinion-bias-analysis.md`
 - `tests/research/test_calibration.py`
@@ -195,7 +199,7 @@
 |---|---|---|
 | 3A | **DONE** (commit `17c3fbc`) | `universe_memberships v2-phase3a` 500 只 (333 退市 + 167 在市)；ADR-0012 切换主数据源 |
 | 3B | **DONE** (commit `c9fee4a`) | 4 birth model 注册（company_foundation 显式 UNAVAILABLE，无伪造）；500股×3模型 factor 对比 → `docs/birth-model-study.md` |
-| 3C | PENDING | 依赖 3A + 3B |
+| 3C | **DONE** (Phase 3C commit) | 500 股 × 3 birth model × 18 采样点；Factor 5814 行摘要、Opinion 153 行摘要；BAZI 原始正向率 94.0%–96.6%，TRAIN-only Calibration 正向率 25.5%–26.7%；无失败；行业切片显式 `POINT_IN_TIME_INDUSTRY_UNAVAILABLE` |
 | 3D | PENDING | 依赖 3A + 3B + 3C |
 | 3E | PENDING | 依赖 3A 行业表 |
 | 3F | PENDING | 依赖 3D |
@@ -221,6 +225,40 @@
 * 三模型的 "Is factor discrimination sensitive?" → 答：no，宏观分布相似
 
 *创建于 2026-09-19；3A 完成于 2026-09-19；3B 完成于 2026-09-19*
+
+---
+
+## §3C 完成回填（2026-09-20）
+
+### 真实审计范围与产物
+
+* 主宇宙：`v2-phase3a`，500 只股票（333 退市 + 167 在市）；Phase 3A canonical 快照截止 `2026-08-14`。
+* Birth model：`listing_open_v1` / `listing_close_v1` / `ipo_approx_v1`，共 1500 个可用出生档案；`company_foundation` 仍显式 UNAVAILABLE，不造数据。
+* 日历采样：18 个点（2010-01-01、每年 1 月及 2026-08-14），覆盖 TRAIN `2010–2018`、Validation `2019–2022`、OOS 描述区间 `2023–2026-08-14`。
+* 原始 Opinion 观测：68,520 行；Factor 摘要：5814 行；Opinion 摘要：153 行；单点计算失败：0；紫微批量排盘失败：0。
+* 产物：`scripts/phase3_calibration_audit.py`、`src/research/calibration/`、`data/phase3_universe/phase3c_factor_distribution.csv`、`data/phase3_universe/phase3c_opinion_distribution.csv`、`data/phase3_universe/phase3c_calibration_metadata.json`、`docs/bazi-opinion-bias-analysis.md`、`docs/factor-calibration-methodology.md`、`tests/research/test_calibration.py`。
+
+### 真实研究结果（仅分布诊断，不是有效性结论）
+
+| Birth model | 原始 BAZI_POS 正向率 | 原始 +1 / 0 / -1 | TRAIN-only Calibration +1 正向率 | 解释 |
+|---|---:|---:|---:|---|
+| `listing_open_v1` | **96.4%** | 7336 / 276 / 0 | **25.9%** | 原始固定 58/42 阈值高度偏正；校准只重表达分布 |
+| `listing_close_v1` | **94.0%** | 7156 / 456 / 0 | **25.5%** | 时柱变化没有消除原始方向偏置 |
+| `ipo_approx_v1` | **96.6%** | 7359 / 257 / 0 | **26.7%** | 日柱近似变化也没有消除原始方向偏置 |
+
+* `opinion.score`、原始 `direction`、Factor `normalized_value` / `rule_score` / `direction` 均未被修改；Calibration 只追加研究派生列。
+* 方向阈值只由全体 TRAIN 原始分布的 P25/P75 冻结得到；Validation/OOS 只做 transform，没有参与任何 threshold、均值、标准差或分位点拟合。
+* 行业切片状态为 `POINT_IN_TIME_INDUSTRY_UNAVAILABLE`，没有用当前行业资料伪装历史 PIT 分类。
+* 本结果说明 BAZI_POS 是当前参数下的高激活/高正向分布偏置，**不说明上涨概率、收益率或术数有效性**；正式 walk-forward/OOS gate 尚未开始，留在 3D。
+
+### 验证记录
+
+* 等价于 `make test` 的 `.venv/Scripts/python.exe -m pytest -q`：**1043 passed**（1 个既有 FastAPI deprecation warning）。
+* 等价于 `make test-leak`：**28 passed**。
+* 等价于 `make test-golden`：**262 passed**。
+* 3C 定向 lint（Calibration、批量紫微、审计脚本及相关测试）：**通过**。
+* `scripts/run_acceptance.py --skip-ui`：compile、unit/integration、leakage、Golden、event-set distinctness、negative controls、third-party isolation、factor-quality audit 全部 PASS；总状态因仓库既有全量 ruff 历史问题为 FAIL。该 lint 失败不由 3C 新增文件引入，未在本阶段扩大范围修复。
+* 当前环境没有 `make` 命令，因此上述 Makefile 目标均用等价 Python 命令执行；UI 未纳入本阶段，且 3C 未修改前端。
 
 ---
 

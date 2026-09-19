@@ -168,57 +168,93 @@ class ZiweiEngine(MetaphysicsEngine[ZiweiChart]):
     ) -> ZiweiChart:
         """排一张紫微盘。
 
+        单次调用复用批量入口，保证研究批量排盘与运行时单盘排盘使用完全相同的
+        请求构造、版本戳、assumptions 和 warning 口径。
+
         Raises:
             ZiweiUnavailableError: 服务不可用 / variant 不适用 / 服务拒绝请求。
         """
-        birth = birth_datetime or (context.extras or {}).get("birth_datetime")
-        if birth is None:
-            raise ZiweiUnavailableError("未提供 birth_datetime，无法排紫微盘。")
+        charts = self.calculate_charts([{
+            "context": context,
+            "birth_datetime": birth_datetime,
+            "as_of": as_of,
+            "variant_mode": variant_mode,
+            "stock_code": kwargs.get("stock_code", ""),
+        }])
+        return charts[0]
 
-        mode = VariantMode(variant_mode) if not isinstance(variant_mode, VariantMode) else variant_mode
-        if mode == VariantMode.NOT_APPLICABLE:
-            raise ZiweiUnavailableError(
-                "variant_mode=not_applicable 时不进行紫微排盘：紫微运限需要顺逆方向，"
-                "而股票没有真实性别。请显式指定 forward（顺行）或 reverse（逆行），"
-                "或 both（两者分别计算、分别保存，不得平均）。"
-            )
+    def calculate_charts(self, requests: list[dict]) -> list[ZiweiChart]:
+        """批量排紫微盘并按输入顺序返回。
 
+        ``requests`` 每项必须含 ``context``，可选 ``birth_datetime`` / ``as_of`` /
+        ``variant_mode`` / ``stock_code``。该入口只做请求编排与结果装配，不改变
+        iztro 的计算口径；研究流水线用它减少重复启动 Node subprocess 的成本。
+        """
+        if not requests:
+            return []
         if not self._transport.available():
             raise ZiweiUnavailableError(self._transport.describe())
 
-        as_of_dt = as_of or context.as_of or birth
-        request = {
-            "solarDate": f"{birth.year}-{birth.month}-{birth.day}",
-            "timeIndex": hour_to_time_index(birth),
-            "variantMode": {
-                VariantMode.FORWARD: "variant_forward",
-                VariantMode.REVERSE: "variant_reverse",
-            }.get(mode, "not_applicable"),
-            "asOfDate": f"{as_of_dt.year}-{as_of_dt.month}-{as_of_dt.day}",
-            "asOfTimeIndex": hour_to_time_index(as_of_dt),
-        }
+        transport_requests: list[dict] = []
+        prepared: list[tuple[EngineContext, datetime, datetime, VariantMode, str]] = []
+        for item in requests:
+            context = item.get("context")
+            if not isinstance(context, EngineContext):
+                raise ZiweiUnavailableError("紫微批量请求缺少 EngineContext。")
+            birth = item.get("birth_datetime") or (context.extras or {}).get("birth_datetime")
+            if not isinstance(birth, datetime):
+                raise ZiweiUnavailableError("未提供有效 birth_datetime，无法排紫微盘。")
+            raw_mode = item.get("variant_mode", VariantMode.NOT_APPLICABLE)
+            mode = raw_mode if isinstance(raw_mode, VariantMode) else VariantMode(raw_mode)
+            if mode == VariantMode.NOT_APPLICABLE:
+                raise ZiweiUnavailableError(
+                    "variant_mode=not_applicable 时不进行紫微排盘：紫微运限需要顺逆方向，"
+                    "而股票没有真实性别。请显式指定 forward（顺行）或 reverse（逆行），"
+                    "或 both（两者分别计算、分别保存，不得平均）。"
+                )
+            as_of_dt = item.get("as_of") or context.as_of or birth
+            if not isinstance(as_of_dt, datetime):
+                raise ZiweiUnavailableError("未提供有效 as_of，无法排紫微盘。")
+            transport_requests.append({
+                "solarDate": f"{birth.year}-{birth.month}-{birth.day}",
+                "timeIndex": hour_to_time_index(birth),
+                "variantMode": {
+                    VariantMode.FORWARD: "variant_forward",
+                    VariantMode.REVERSE: "variant_reverse",
+                }.get(mode, "not_applicable"),
+                "asOfDate": f"{as_of_dt.year}-{as_of_dt.month}-{as_of_dt.day}",
+                "asOfTimeIndex": hour_to_time_index(as_of_dt),
+            })
+            prepared.append((
+                context, birth, as_of_dt, mode,
+                context.stock_code or str(item.get("stock_code") or ""),
+            ))
 
         try:
             with self._lock:
-                charts = self._transport.batch([request])
+                charts = self._transport.batch(transport_requests)
         except ZiweiRequestError as exc:
             raise ZiweiUnavailableError(f"紫微排盘被服务拒绝：{exc}") from exc
         except ZiweiTransportError as exc:
             raise ZiweiUnavailableError(f"紫微排盘失败：{exc}") from exc
 
-        chart = charts[0]
-        chart = chart.model_copy(update={
-            "stock_code": context.stock_code or str(kwargs.get("stock_code") or ""),
-            "birth_datetime": birth,
-            "as_of": as_of_dt,
-            "engine_version": self.metadata.engine_version,
-            "config_version": self.metadata.config_version,
-            "assumptions": self.collect_assumptions(),
-            "warnings": self._chart_warnings(chart, mode),
-            "calculated_at": datetime.now(),
-        })
-        self._last_warnings = list(chart.warnings)
-        return chart
+        out: list[ZiweiChart] = []
+        for chart, (_context, birth, as_of_dt, mode, stock_code) in zip(
+            charts, prepared, strict=True,
+        ):
+            stamped = chart.model_copy(update={
+                "stock_code": stock_code,
+                "birth_datetime": birth,
+                "as_of": as_of_dt,
+                "engine_version": self.metadata.engine_version,
+                "config_version": self.metadata.config_version,
+                "assumptions": self.collect_assumptions(),
+                "warnings": self._chart_warnings(chart, mode),
+                "calculated_at": datetime.now(),
+            })
+            out.append(stamped)
+        self._last_warnings = list(out[-1].warnings) if out else []
+        return out
 
     def _chart_warnings(self, chart: ZiweiChart, mode: VariantMode) -> list[Warning_]:
         warnings: list[Warning_] = []

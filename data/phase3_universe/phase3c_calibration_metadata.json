@@ -1,0 +1,4257 @@
+{
+  "audit": {
+    "generated_at": "2026-09-20T07:04:13",
+    "universe_size": 500,
+    "profile_count": 1500,
+    "sample_dates": 18,
+    "date_from": "2010-01-01",
+    "date_to": "2026-08-14",
+    "step_months": 12,
+    "cutoff": "2026-08-14",
+    "factor_rows": 5814,
+    "opinion_rows": 153,
+    "raw_opinion_observations": 68520,
+    "industry_status": "POINT_IN_TIME_INDUSTRY_UNAVAILABLE",
+    "market_data_version": "phase3a_astockdata_cutoff_20260814",
+    "bazi_engine_version": "smx-bazi-native-1.0.0",
+    "factor_rule_version": "v1.1",
+    "calibration_version": "research-calibration-v1",
+    "ziwei_status": "attempted",
+    "ziwei_unavailable_reason": "",
+    "failures": {}
+  },
+  "factor_calibration": {
+    "calibration_version": "research-calibration-v1",
+    "fit_partition": "TRAIN",
+    "fit_max_as_of": "2018-12-31",
+    "value_col": "normalized_value",
+    "group_cols": [
+      "engine",
+      "birth_model",
+      "factor_id"
+    ],
+    "lower_quantile": 0.25,
+    "upper_quantile": 0.75,
+    "group_count": 342,
+    "groups": [
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_DAY_001"
+        ],
+        "sample_count": 3339,
+        "mean": 0.075292003594,
+        "std": 0.783888295376,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_DAY_002"
+        ],
+        "sample_count": 3339,
+        "mean": 0.165318957772,
+        "std": 0.271841046845,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_DAY_003"
+        ],
+        "sample_count": 3339,
+        "mean": 0.177747828691,
+        "std": 0.280523119593,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_DAY_004"
+        ],
+        "sample_count": 3339,
+        "mean": 0.015333932315,
+        "std": 0.796175137489,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_DAY_005"
+        ],
+        "sample_count": 3339,
+        "mean": 0.501414265049,
+        "std": 0.321379095506,
+        "lower_threshold": 0.222222,
+        "upper_threshold": 0.777778
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_DAY_006"
+        ],
+        "sample_count": 3339,
+        "mean": 0.011081162025,
+        "std": 0.829341742569,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_DAY_007"
+        ],
+        "sample_count": 3339,
+        "mean": 0.217580113807,
+        "std": 0.314936184069,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_DAY_008"
+        ],
+        "sample_count": 3339,
+        "mean": 0.123989218329,
+        "std": 0.239276427232,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_MONTH_001"
+        ],
+        "sample_count": 3339,
+        "mean": 0.033722671459,
+        "std": 0.797180346033,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_MONTH_002"
+        ],
+        "sample_count": 3339,
+        "mean": 0.349805330937,
+        "std": 0.678420062065,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_MONTH_003"
+        ],
+        "sample_count": 3339,
+        "mean": 0.873914345612,
+        "std": 0.331945872312,
+        "lower_threshold": 1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_MONTH_004"
+        ],
+        "sample_count": 3339,
+        "mean": 0.324348607367,
+        "std": 0.468130952049,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_MONTH_005"
+        ],
+        "sample_count": 3339,
+        "mean": 0.339922132375,
+        "std": 0.473682463573,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_MONTH_006"
+        ],
+        "sample_count": 3339,
+        "mean": 0.039233303384,
+        "std": 0.194149559077,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_MONTH_007"
+        ],
+        "sample_count": 3339,
+        "mean": 0.152890086852,
+        "std": 0.264557930652,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_MONTH_008"
+        ],
+        "sample_count": 3339,
+        "mean": 0.137466307278,
+        "std": 0.248928801179,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_MONTH_009"
+        ],
+        "sample_count": 3339,
+        "mean": 0.118897873615,
+        "std": 0.231728238875,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_MONTH_010"
+        ],
+        "sample_count": 3339,
+        "mean": 0.107217729859,
+        "std": 0.231610927325,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_MONTH_011"
+        ],
+        "sample_count": 3339,
+        "mean": 0.498752118898,
+        "std": 0.319822862869,
+        "lower_threshold": 0.222222,
+        "upper_threshold": 0.777778
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_MONTH_012"
+        ],
+        "sample_count": 3339,
+        "mean": -0.064091045223,
+        "std": 0.838623731062,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_001"
+        ],
+        "sample_count": 3339,
+        "mean": -0.16142557652,
+        "std": 0.69686578837,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_002"
+        ],
+        "sample_count": 3339,
+        "mean": 0.613731656184,
+        "std": 0.295530701952,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_003"
+        ],
+        "sample_count": 3339,
+        "mean": 0.487870619946,
+        "std": 0.499852856488,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_004"
+        ],
+        "sample_count": 3339,
+        "mean": 0.188679245283,
+        "std": 0.39125361044,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_005"
+        ],
+        "sample_count": 3339,
+        "mean": 0.62271638215,
+        "std": 0.24877926725,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_006"
+        ],
+        "sample_count": 3339,
+        "mean": 0.636567834681,
+        "std": 0.283096760484,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_007"
+        ],
+        "sample_count": 3339,
+        "mean": 0.647574123989,
+        "std": 0.280703854995,
+        "lower_threshold": 0.5,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_008"
+        ],
+        "sample_count": 3339,
+        "mean": 0.636418089248,
+        "std": 0.280845832541,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_009"
+        ],
+        "sample_count": 3339,
+        "mean": 0.617789757412,
+        "std": 0.298876446715,
+        "lower_threshold": 0.4,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_010"
+        ],
+        "sample_count": 3339,
+        "mean": 0.61850853549,
+        "std": 0.308575727313,
+        "lower_threshold": 0.2,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_011"
+        ],
+        "sample_count": 3339,
+        "mean": 0.259159315064,
+        "std": 0.23215785095,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.333333
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_012"
+        ],
+        "sample_count": 3339,
+        "mean": 0.492400663073,
+        "std": 0.179961837113,
+        "lower_threshold": 0.354833,
+        "upper_threshold": 0.615667
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_013"
+        ],
+        "sample_count": 3339,
+        "mean": -0.102354460916,
+        "std": 0.453979302126,
+        "lower_threshold": -0.321513,
+        "upper_threshold": 0.321513
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_014"
+        ],
+        "sample_count": 3339,
+        "mean": 0.180980443246,
+        "std": 0.118758744768,
+        "lower_threshold": 0.0965,
+        "upper_threshold": 0.2588
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_015"
+        ],
+        "sample_count": 3339,
+        "mean": 0.177860017969,
+        "std": 0.096559481538,
+        "lower_threshold": 0.1129,
+        "upper_threshold": 0.2353
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_016"
+        ],
+        "sample_count": 3339,
+        "mean": 0.609717276131,
+        "std": 0.43305887491,
+        "lower_threshold": 0.4199945,
+        "upper_threshold": 0.936374
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_017"
+        ],
+        "sample_count": 3339,
+        "mean": 0.837975557353,
+        "std": 0.195120464828,
+        "lower_threshold": 0.666667,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_NATAL_018"
+        ],
+        "sample_count": 3339,
+        "mean": 0.045223120695,
+        "std": 0.998976911322,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_YEAR_001"
+        ],
+        "sample_count": 3339,
+        "mean": 0.060676849356,
+        "std": 0.788063630559,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_YEAR_002"
+        ],
+        "sample_count": 3339,
+        "mean": -0.060197663971,
+        "std": 0.807693663137,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_YEAR_003"
+        ],
+        "sample_count": 3339,
+        "mean": 0.61485474693,
+        "std": 0.486629620048,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_YEAR_004"
+        ],
+        "sample_count": 3339,
+        "mean": 0.615154237796,
+        "std": 0.486558836645,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_YEAR_005"
+        ],
+        "sample_count": 3339,
+        "mean": 0.123839472896,
+        "std": 0.240757501007,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_YEAR_006"
+        ],
+        "sample_count": 3339,
+        "mean": 0.1841868823,
+        "std": 0.284481878718,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_YEAR_007"
+        ],
+        "sample_count": 3339,
+        "mean": 0.299341120096,
+        "std": 0.348082735044,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_YEAR_008"
+        ],
+        "sample_count": 3339,
+        "mean": 0.174752920036,
+        "std": 0.275690573562,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_YEAR_009"
+        ],
+        "sample_count": 3339,
+        "mean": 0.010781671159,
+        "std": 0.834206525421,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1",
+          "B_YEAR_010"
+        ],
+        "sample_count": 3339,
+        "mean": 0.0790655885,
+        "std": 0.269841103642,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_DAY_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.068365817091,
+        "std": 0.789118764128,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_DAY_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.12203898051,
+        "std": 0.233819812307,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_DAY_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.183808095952,
+        "std": 0.285756649482,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_DAY_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.062308845577,
+        "std": 0.788943882885,
+        "lower_threshold": -0.8,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_DAY_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.499483591004,
+        "std": 0.319756242458,
+        "lower_threshold": 0.222222,
+        "upper_threshold": 0.777778
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_DAY_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.0023988006,
+        "std": 0.830451334016,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_DAY_007"
+        ],
+        "sample_count": 3335,
+        "mean": 0.225937031484,
+        "std": 0.322799990886,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_DAY_008"
+        ],
+        "sample_count": 3335,
+        "mean": 0.166716641679,
+        "std": 0.270656676713,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_MONTH_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.042698650675,
+        "std": 0.79139292533,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_MONTH_002"
+        ],
+        "sample_count": 3335,
+        "mean": -0.032263868066,
+        "std": 0.815554999592,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_MONTH_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.831484257871,
+        "std": 0.374323639093,
+        "lower_threshold": 1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_MONTH_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.32023988006,
+        "std": 0.466568643695,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_MONTH_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.346026986507,
+        "std": 0.475701914139,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_MONTH_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.226086956522,
+        "std": 0.418296120724,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_MONTH_007"
+        ],
+        "sample_count": 3335,
+        "mean": 0.155772113943,
+        "std": 0.25527501518,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_MONTH_008"
+        ],
+        "sample_count": 3335,
+        "mean": 0.122188905547,
+        "std": 0.229371098324,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_MONTH_009"
+        ],
+        "sample_count": 3335,
+        "mean": 0.119790104948,
+        "std": 0.230307696581,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_MONTH_010"
+        ],
+        "sample_count": 3335,
+        "mean": 0.091754122939,
+        "std": 0.203730749778,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_MONTH_011"
+        ],
+        "sample_count": 3335,
+        "mean": 0.501582543928,
+        "std": 0.320307969272,
+        "lower_threshold": 0.222222,
+        "upper_threshold": 0.777778
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_MONTH_012"
+        ],
+        "sample_count": 3335,
+        "mean": -0.137331334333,
+        "std": 0.832816836238,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_001"
+        ],
+        "sample_count": 3335,
+        "mean": -0.198650674663,
+        "std": 0.666986313982,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.63988005997,
+        "std": 0.267349112273,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.507346326837,
+        "std": 0.499946028569,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.255772113943,
+        "std": 0.436294326885,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.61311844078,
+        "std": 0.296664904281,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.605472263868,
+        "std": 0.290317321705,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_007"
+        ],
+        "sample_count": 3335,
+        "mean": 0.612143928036,
+        "std": 0.293512140441,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_008"
+        ],
+        "sample_count": 3335,
+        "mean": 0.660344827586,
+        "std": 0.26400394314,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_009"
+        ],
+        "sample_count": 3335,
+        "mean": 0.596221889055,
+        "std": 0.289544125895,
+        "lower_threshold": 0.4,
+        "upper_threshold": 0.8
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_010"
+        ],
+        "sample_count": 3335,
+        "mean": 0.551724137931,
+        "std": 0.269614409662,
+        "lower_threshold": 0.4,
+        "upper_threshold": 0.8
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_011"
+        ],
+        "sample_count": 3335,
+        "mean": 0.271064342429,
+        "std": 0.226704582899,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.333333
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_012"
+        ],
+        "sample_count": 3335,
+        "mean": 0.509161038381,
+        "std": 0.16298718663,
+        "lower_threshold": 0.396,
+        "upper_threshold": 0.619667
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_013"
+        ],
+        "sample_count": 3335,
+        "mean": -0.113426993703,
+        "std": 0.495545727346,
+        "lower_threshold": -0.582783,
+        "upper_threshold": 0.321513
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_014"
+        ],
+        "sample_count": 3335,
+        "mean": 0.187634992504,
+        "std": 0.109922595427,
+        "lower_threshold": 0.1129,
+        "upper_threshold": 0.2412
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_015"
+        ],
+        "sample_count": 3335,
+        "mean": 0.176638530735,
+        "std": 0.110379925193,
+        "lower_threshold": 0.0953,
+        "upper_threshold": 0.2494
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_016"
+        ],
+        "sample_count": 3335,
+        "mean": 0.613038683358,
+        "std": 0.396274852288,
+        "lower_threshold": 0.445529,
+        "upper_threshold": 0.90843
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_017"
+        ],
+        "sample_count": 3335,
+        "mean": 0.834183017691,
+        "std": 0.204540138216,
+        "lower_threshold": 0.666667,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_NATAL_018"
+        ],
+        "sample_count": 3335,
+        "mean": -0.046476761619,
+        "std": 0.998919371436,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_YEAR_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.044317841079,
+        "std": 0.79518223668,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_YEAR_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.068125937031,
+        "std": 0.782944464898,
+        "lower_threshold": -0.8,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_YEAR_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.616491754123,
+        "std": 0.486240343062,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_YEAR_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.625487256372,
+        "std": 0.483996847602,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_YEAR_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.177661169415,
+        "std": 0.279207358001,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_YEAR_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.177061469265,
+        "std": 0.28065846884,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_YEAR_007"
+        ],
+        "sample_count": 3335,
+        "mean": 0.291454272864,
+        "std": 0.351354819134,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_YEAR_008"
+        ],
+        "sample_count": 3335,
+        "mean": 0.126686656672,
+        "std": 0.236937537272,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_YEAR_009"
+        ],
+        "sample_count": 3335,
+        "mean": 0.022188905547,
+        "std": 0.834122009381,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1",
+          "B_YEAR_010"
+        ],
+        "sample_count": 3335,
+        "mean": 0.064767616192,
+        "std": 0.246115363366,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_DAY_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.074302848576,
+        "std": 0.789972340078,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_DAY_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.164617691154,
+        "std": 0.268610108841,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_DAY_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.174812593703,
+        "std": 0.274658985984,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_DAY_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.019550224888,
+        "std": 0.801049784484,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_DAY_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.499483591004,
+        "std": 0.319756242458,
+        "lower_threshold": 0.222222,
+        "upper_threshold": 0.777778
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_DAY_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.0023988006,
+        "std": 0.830451334016,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_DAY_007"
+        ],
+        "sample_count": 3335,
+        "mean": 0.216341829085,
+        "std": 0.311527344628,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_DAY_008"
+        ],
+        "sample_count": 3335,
+        "mean": 0.123088455772,
+        "std": 0.231818434941,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_MONTH_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.03664167916,
+        "std": 0.801984492667,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_MONTH_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.382128935532,
+        "std": 0.675494129662,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_MONTH_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.883058470765,
+        "std": 0.321350599775,
+        "lower_threshold": 1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_MONTH_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.301049475262,
+        "std": 0.458714168853,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_MONTH_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.346026986507,
+        "std": 0.475701914139,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_MONTH_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.025487256372,
+        "std": 0.157599670477,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_MONTH_007"
+        ],
+        "sample_count": 3335,
+        "mean": 0.15832083958,
+        "std": 0.256201404037,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_MONTH_008"
+        ],
+        "sample_count": 3335,
+        "mean": 0.121289355322,
+        "std": 0.22886753059,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_MONTH_009"
+        ],
+        "sample_count": 3335,
+        "mean": 0.119790104948,
+        "std": 0.230307696581,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_MONTH_010"
+        ],
+        "sample_count": 3335,
+        "mean": 0.093103448276,
+        "std": 0.204771697432,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_MONTH_011"
+        ],
+        "sample_count": 3335,
+        "mean": 0.501582543928,
+        "std": 0.320307969272,
+        "lower_threshold": 0.222222,
+        "upper_threshold": 0.777778
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_MONTH_012"
+        ],
+        "sample_count": 3335,
+        "mean": -0.137331334333,
+        "std": 0.832816836238,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_001"
+        ],
+        "sample_count": 3335,
+        "mean": -0.147676161919,
+        "std": 0.691785056065,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.616341829085,
+        "std": 0.280946339488,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.471964017991,
+        "std": 0.499213364918,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.244977511244,
+        "std": 0.430073866015,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.629835082459,
+        "std": 0.249456025452,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.608995502249,
+        "std": 0.288526284368,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_007"
+        ],
+        "sample_count": 3335,
+        "mean": 0.632833583208,
+        "std": 0.278222416306,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_008"
+        ],
+        "sample_count": 3335,
+        "mean": 0.651499250375,
+        "std": 0.291633718921,
+        "lower_threshold": 0.5,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_009"
+        ],
+        "sample_count": 3335,
+        "mean": 0.591604197901,
+        "std": 0.295739318303,
+        "lower_threshold": 0.4,
+        "upper_threshold": 0.8
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_010"
+        ],
+        "sample_count": 3335,
+        "mean": 0.631184407796,
+        "std": 0.311131234617,
+        "lower_threshold": 0.2,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_011"
+        ],
+        "sample_count": 3335,
+        "mean": 0.267266248576,
+        "std": 0.230303719713,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.333333
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_012"
+        ],
+        "sample_count": 3335,
+        "mean": 0.500869773613,
+        "std": 0.165120141574,
+        "lower_threshold": 0.3765,
+        "upper_threshold": 0.6175
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_013"
+        ],
+        "sample_count": 3335,
+        "mean": -0.130793607796,
+        "std": 0.497608733516,
+        "lower_threshold": -0.582783,
+        "upper_threshold": 0.321513
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_014"
+        ],
+        "sample_count": 3335,
+        "mean": 0.181677211394,
+        "std": 0.110401156736,
+        "lower_threshold": 0.1024,
+        "upper_threshold": 0.2547
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_015"
+        ],
+        "sample_count": 3335,
+        "mean": 0.175153793103,
+        "std": 0.095971310102,
+        "lower_threshold": 0.1141,
+        "upper_threshold": 0.2353
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_016"
+        ],
+        "sample_count": 3335,
+        "mean": 0.614145767316,
+        "std": 0.410108065353,
+        "lower_threshold": 0.412412,
+        "upper_threshold": 0.935774
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_017"
+        ],
+        "sample_count": 3335,
+        "mean": 0.851674267766,
+        "std": 0.193312523211,
+        "lower_threshold": 0.666667,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_NATAL_018"
+        ],
+        "sample_count": 3335,
+        "mean": -0.046476761619,
+        "std": 0.998919371436,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_YEAR_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.075142428786,
+        "std": 0.788950930298,
+        "lower_threshold": -0.8,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_YEAR_002"
+        ],
+        "sample_count": 3335,
+        "mean": -0.069145427286,
+        "std": 0.810133545263,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_YEAR_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.616491754123,
+        "std": 0.486240343062,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_YEAR_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.625487256372,
+        "std": 0.483996847602,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_YEAR_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.129385307346,
+        "std": 0.239577489087,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_YEAR_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.182008995502,
+        "std": 0.278419473488,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_YEAR_007"
+        ],
+        "sample_count": 3335,
+        "mean": 0.295952023988,
+        "std": 0.348221160628,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_YEAR_008"
+        ],
+        "sample_count": 3335,
+        "mean": 0.174362818591,
+        "std": 0.272617398883,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_YEAR_009"
+        ],
+        "sample_count": 3335,
+        "mean": 0.022188905547,
+        "std": 0.834122009381,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1",
+          "B_YEAR_010"
+        ],
+        "sample_count": 3335,
+        "mean": 0.088755622189,
+        "std": 0.284390685007,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_DAY_001"
+        ],
+        "sample_count": 3339,
+        "mean": 0.075292003594,
+        "std": 0.783888295376,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_DAY_002"
+        ],
+        "sample_count": 3339,
+        "mean": 0.015333932315,
+        "std": 0.796175137489,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_DAY_003"
+        ],
+        "sample_count": 3339,
+        "mean": -0.079964061096,
+        "std": 0.271237552764,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_DAY_004"
+        ],
+        "sample_count": 3339,
+        "mean": 0.084755914945,
+        "std": 0.278518131953,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_DAY_005"
+        ],
+        "sample_count": 3339,
+        "mean": 0.007829132674,
+        "std": 0.254202789197,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_DAY_006"
+        ],
+        "sample_count": 3339,
+        "mean": 0.13596885295,
+        "std": 0.867756267986,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_DAY_007"
+        ],
+        "sample_count": 3339,
+        "mean": 0.37106918239,
+        "std": 0.928605223914,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_DAY_008"
+        ],
+        "sample_count": 3339,
+        "mean": 0.37106918239,
+        "std": 0.928605223914,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_DAY_009"
+        ],
+        "sample_count": 3339,
+        "mean": 0.338724168913,
+        "std": 0.27966574247,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_DAY_010"
+        ],
+        "sample_count": 3339,
+        "mean": 0.075232105421,
+        "std": 0.786175417129,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_DAY_011"
+        ],
+        "sample_count": 3339,
+        "mean": -0.113507038035,
+        "std": 0.993537192216,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_DAY_012"
+        ],
+        "sample_count": 3339,
+        "mean": -0.109014675052,
+        "std": 0.31165762573,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_MONTH_001"
+        ],
+        "sample_count": 3339,
+        "mean": -0.008665197364,
+        "std": 0.066272173653,
+        "lower_threshold": -0.066667,
+        "upper_threshold": 0.066667
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_MONTH_002"
+        ],
+        "sample_count": 3339,
+        "mean": -0.008665197364,
+        "std": 0.066272173653,
+        "lower_threshold": -0.066667,
+        "upper_threshold": 0.066667
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_MONTH_003"
+        ],
+        "sample_count": 3339,
+        "mean": 0.626010781671,
+        "std": 0.124995913215,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_MONTH_004"
+        ],
+        "sample_count": 3339,
+        "mean": 0.623989218329,
+        "std": 0.124995913215,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1",
+          "H_MONTH_005"
+        ],
+        "sample_count": 3339,
+        "mean": 0.466387094939,
+        "std": 0.248240166118,
+        "lower_threshold": 0.266667,
+        "upper_threshold": 0.666667
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_DAY_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.068365817091,
+        "std": 0.789118764128,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_DAY_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.062308845577,
+        "std": 0.788943882885,
+        "lower_threshold": -0.8,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_DAY_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.081259370315,
+        "std": 0.273233023353,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_DAY_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.081259370315,
+        "std": 0.273233023353,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_DAY_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.038362056672,
+        "std": 0.23637940264,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.321513
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_DAY_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.136131934033,
+        "std": 0.867918308074,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_DAY_007"
+        ],
+        "sample_count": 3335,
+        "mean": 0.371514242879,
+        "std": 0.928427254737,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_DAY_008"
+        ],
+        "sample_count": 3335,
+        "mean": 0.371514242879,
+        "std": 0.928427254737,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_DAY_009"
+        ],
+        "sample_count": 3335,
+        "mean": 0.344677661169,
+        "std": 0.291775328163,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_DAY_010"
+        ],
+        "sample_count": 3335,
+        "mean": 0.040179910045,
+        "std": 0.795801556644,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_DAY_011"
+        ],
+        "sample_count": 3335,
+        "mean": -0.112443778111,
+        "std": 0.993658088461,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_DAY_012"
+        ],
+        "sample_count": 3335,
+        "mean": -0.108845577211,
+        "std": 0.311445368456,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_MONTH_001"
+        ],
+        "sample_count": 3335,
+        "mean": -0.00869558051,
+        "std": 0.066298557077,
+        "lower_threshold": -0.066667,
+        "upper_threshold": 0.066667
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_MONTH_002"
+        ],
+        "sample_count": 3335,
+        "mean": -0.00869558051,
+        "std": 0.066298557077,
+        "lower_threshold": -0.066667,
+        "upper_threshold": 0.066667
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_MONTH_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.625037481259,
+        "std": 0.124999994381,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_MONTH_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.625937031484,
+        "std": 0.124996487839,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1",
+          "H_MONTH_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.515921976012,
+        "std": 0.247107614099,
+        "lower_threshold": 0.333333,
+        "upper_threshold": 0.733333
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_DAY_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.074302848576,
+        "std": 0.789972340078,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_DAY_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.019550224888,
+        "std": 0.801049784484,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_DAY_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.081259370315,
+        "std": 0.273233023353,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_DAY_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.081259370315,
+        "std": 0.273233023353,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_DAY_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.00650082069,
+        "std": 0.24958905353,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_DAY_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.136131934033,
+        "std": 0.867918308074,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_DAY_007"
+        ],
+        "sample_count": 3335,
+        "mean": 0.371514242879,
+        "std": 0.928427254737,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_DAY_008"
+        ],
+        "sample_count": 3335,
+        "mean": 0.371514242879,
+        "std": 0.928427254737,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_DAY_009"
+        ],
+        "sample_count": 3335,
+        "mean": 0.335382308846,
+        "std": 0.282019855095,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_DAY_010"
+        ],
+        "sample_count": 3335,
+        "mean": 0.084917541229,
+        "std": 0.788863899903,
+        "lower_threshold": -0.8,
+        "upper_threshold": 0.6
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_DAY_011"
+        ],
+        "sample_count": 3335,
+        "mean": -0.112443778111,
+        "std": 0.993658088461,
+        "lower_threshold": -1.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_DAY_012"
+        ],
+        "sample_count": 3335,
+        "mean": -0.108845577211,
+        "std": 0.311445368456,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_MONTH_001"
+        ],
+        "sample_count": 3335,
+        "mean": -0.00869558051,
+        "std": 0.066298557077,
+        "lower_threshold": -0.066667,
+        "upper_threshold": 0.066667
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_MONTH_002"
+        ],
+        "sample_count": 3335,
+        "mean": -0.00869558051,
+        "std": 0.066298557077,
+        "lower_threshold": -0.066667,
+        "upper_threshold": 0.066667
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_MONTH_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.625037481259,
+        "std": 0.124999994381,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_MONTH_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.625937031484,
+        "std": 0.124996487839,
+        "lower_threshold": 0.5,
+        "upper_threshold": 0.75
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1",
+          "H_MONTH_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.479860034783,
+        "std": 0.253285993904,
+        "lower_threshold": 0.266667,
+        "upper_threshold": 0.666667
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_AGE_001"
+        ],
+        "sample_count": 3339,
+        "mean": 0.389907445343,
+        "std": 0.331134258453,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.604368
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_AGE_002"
+        ],
+        "sample_count": 3339,
+        "mean": -0.257562144355,
+        "std": 0.315799662335,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_CAREER_001"
+        ],
+        "sample_count": 3339,
+        "mean": 0.382403085654,
+        "std": 0.319681606279,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.582783
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_CAREER_002"
+        ],
+        "sample_count": 3339,
+        "mean": 0.576969152441,
+        "std": 0.344041362,
+        "lower_threshold": 0.5,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_CAREER_003"
+        ],
+        "sample_count": 3339,
+        "mean": -0.253818508535,
+        "std": 0.300064290813,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_CAREER_004"
+        ],
+        "sample_count": 3339,
+        "mean": 0.151841868823,
+        "std": 0.358867546172,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_DAY_001"
+        ],
+        "sample_count": 3339,
+        "mean": -0.003730025756,
+        "std": 0.623289763483,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.636364
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_DAY_002"
+        ],
+        "sample_count": 3339,
+        "mean": 0.387048918538,
+        "std": 0.329206411287,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.582783
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_DAY_003"
+        ],
+        "sample_count": 3339,
+        "mean": -0.167415297694,
+        "std": 0.214506097722,
+        "lower_threshold": -0.333333,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_DAY_004"
+        ],
+        "sample_count": 3339,
+        "mean": 0.032263330338,
+        "std": 0.649063419043,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.636364
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_DAY_005"
+        ],
+        "sample_count": 3339,
+        "mean": -0.079310536388,
+        "std": 0.61879465211,
+        "lower_threshold": -0.454545,
+        "upper_threshold": 0.454545
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_DECADE_001"
+        ],
+        "sample_count": 3339,
+        "mean": 0.394500826595,
+        "std": 0.330920259795,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.582783
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_DECADE_002"
+        ],
+        "sample_count": 3339,
+        "mean": -0.263402216232,
+        "std": 0.319847481072,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_FIN_001"
+        ],
+        "sample_count": 3339,
+        "mean": 0.416034207547,
+        "std": 0.319248534357,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.644987
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_FIN_002"
+        ],
+        "sample_count": 3339,
+        "mean": 0.561844863732,
+        "std": 0.358852049657,
+        "lower_threshold": 0.5,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_FIN_003"
+        ],
+        "sample_count": 3339,
+        "mean": -0.213836477987,
+        "std": 0.27571180156,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_FIN_004"
+        ],
+        "sample_count": 3339,
+        "mean": 0.176100628931,
+        "std": 0.380905759238,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_LIFE_001"
+        ],
+        "sample_count": 3339,
+        "mean": 0.413637014076,
+        "std": 0.326520496879,
+        "lower_threshold": 0.033321,
+        "upper_threshold": 0.5935755
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_LIFE_002"
+        ],
+        "sample_count": 3339,
+        "mean": 0.595238095238,
+        "std": 0.333654062103,
+        "lower_threshold": 0.5,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_LIFE_003"
+        ],
+        "sample_count": 3339,
+        "mean": 0.151043172207,
+        "std": 0.221428264649,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.333333
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_LIFE_004"
+        ],
+        "sample_count": 3339,
+        "mean": -0.264300688829,
+        "std": 0.337797883409,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_LIFE_005"
+        ],
+        "sample_count": 3339,
+        "mean": -0.035642424079,
+        "std": 0.437397941875,
+        "lower_threshold": -0.462117,
+        "upper_threshold": 0.462117
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_LIFE_006"
+        ],
+        "sample_count": 3339,
+        "mean": 0.0,
+        "std": 0.0,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_LIFE_007"
+        ],
+        "sample_count": 3339,
+        "mean": -0.057202755316,
+        "std": 0.684635267027,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MONTH_001"
+        ],
+        "sample_count": 3339,
+        "mean": -0.010645536987,
+        "std": 0.63089921382,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.454545
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MONTH_002"
+        ],
+        "sample_count": 3339,
+        "mean": 0.388395196466,
+        "std": 0.330687101128,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.6246775
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MONTH_003"
+        ],
+        "sample_count": 3339,
+        "mean": -0.165518518718,
+        "std": 0.209481248436,
+        "lower_threshold": -0.333333,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MONTH_004"
+        ],
+        "sample_count": 3339,
+        "mean": 0.010699991315,
+        "std": 0.661569622824,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.636364
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MONTH_005"
+        ],
+        "sample_count": 3339,
+        "mean": -0.104249939802,
+        "std": 0.594807037146,
+        "lower_threshold": -0.454545,
+        "upper_threshold": 0.454545
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MOVE_001"
+        ],
+        "sample_count": 3339,
+        "mean": 0.370841122492,
+        "std": 0.335119630167,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.582783
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MOVE_002"
+        ],
+        "sample_count": 3339,
+        "mean": -0.264749925127,
+        "std": 0.309798583084,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MOVE_003"
+        ],
+        "sample_count": 3339,
+        "mean": 0.157831686134,
+        "std": 0.364583111219,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MUTAGEN_001"
+        ],
+        "sample_count": 3339,
+        "mean": 0.426624737945,
+        "std": 0.448291509252,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MUTAGEN_002"
+        ],
+        "sample_count": 3339,
+        "mean": 0.407008086253,
+        "std": 0.436736245008,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MUTAGEN_003"
+        ],
+        "sample_count": 3339,
+        "mean": 0.358640311471,
+        "std": 0.440968137372,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MUTAGEN_004"
+        ],
+        "sample_count": 3339,
+        "mean": -0.437256663672,
+        "std": 0.450152305609,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MUTAGEN_005"
+        ],
+        "sample_count": 3339,
+        "mean": 0.44474393531,
+        "std": 0.36754173782,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_MUTAGEN_006"
+        ],
+        "sample_count": 3339,
+        "mean": -0.350404312668,
+        "std": 0.477096562901,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_TRINE_001"
+        ],
+        "sample_count": 3339,
+        "mean": 0.583302596286,
+        "std": 0.220026051873,
+        "lower_threshold": 0.43212,
+        "upper_threshold": 0.761594
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_TRINE_002"
+        ],
+        "sample_count": 3339,
+        "mean": 0.337426433663,
+        "std": 0.22958716492,
+        "lower_threshold": 0.166667,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_TRINE_003"
+        ],
+        "sample_count": 3339,
+        "mean": -0.499251272836,
+        "std": 0.253972999689,
+        "lower_threshold": -0.75,
+        "upper_threshold": -0.25
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_TRINE_004"
+        ],
+        "sample_count": 3339,
+        "mean": -0.011498960467,
+        "std": 0.533733541376,
+        "lower_threshold": -0.582783,
+        "upper_threshold": 0.321513
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_TRINE_005"
+        ],
+        "sample_count": 3339,
+        "mean": 0.687870619946,
+        "std": 0.24431160055,
+        "lower_threshold": 0.6,
+        "upper_threshold": 0.8
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_YEAR_001"
+        ],
+        "sample_count": 3339,
+        "mean": -0.21402707637,
+        "std": 0.54586247665,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.090909
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_YEAR_002"
+        ],
+        "sample_count": 3339,
+        "mean": 0.383757174004,
+        "std": 0.329852037452,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.644987
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_YEAR_003"
+        ],
+        "sample_count": 3339,
+        "mean": -0.207147727763,
+        "std": 0.220229478882,
+        "lower_threshold": -0.333333,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_YEAR_004"
+        ],
+        "sample_count": 3339,
+        "mean": 0.016471999401,
+        "std": 0.645436141643,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.636364
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_YEAR_005"
+        ],
+        "sample_count": 3339,
+        "mean": 0.000462869422,
+        "std": 0.613002197191,
+        "lower_threshold": -0.454545,
+        "upper_threshold": 0.454545
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1",
+          "Z_YEAR_006"
+        ],
+        "sample_count": 3339,
+        "mean": 0.041928721174,
+        "std": 0.138586950784,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_AGE_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.378646728036,
+        "std": 0.336977826411,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.604368
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_AGE_002"
+        ],
+        "sample_count": 3335,
+        "mean": -0.28395802099,
+        "std": 0.336928428385,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_CAREER_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.388934073163,
+        "std": 0.338690516487,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.699677
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_CAREER_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.594602698651,
+        "std": 0.35567906991,
+        "lower_threshold": 0.5,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_CAREER_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.227736131934,
+        "std": 0.324087651625,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_CAREER_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.176011994003,
+        "std": 0.380830371649,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_DAY_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.010004094753,
+        "std": 0.63768554869,
+        "lower_threshold": -0.454545,
+        "upper_threshold": 0.636364
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_DAY_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.400567594303,
+        "std": 0.33423691914,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.699677
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_DAY_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.167816011094,
+        "std": 0.217025622112,
+        "lower_threshold": -0.333333,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_DAY_004"
+        ],
+        "sample_count": 3335,
+        "mean": -0.013656812594,
+        "std": 0.652234489979,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.636364
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_DAY_005"
+        ],
+        "sample_count": 3335,
+        "mean": -0.206378637181,
+        "std": 0.711042129187,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.454545
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_DECADE_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.371777465067,
+        "std": 0.336198019796,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.582783
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_DECADE_002"
+        ],
+        "sample_count": 3335,
+        "mean": -0.263418290855,
+        "std": 0.306763846332,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_FIN_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.377751785607,
+        "std": 0.336523861376,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.582783
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_FIN_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.571214392804,
+        "std": 0.347333635264,
+        "lower_threshold": 0.5,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_FIN_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.277211394303,
+        "std": 0.32208469463,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_FIN_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.123538230885,
+        "std": 0.329054002247,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_LIFE_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.36864898051,
+        "std": 0.338776503264,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.604368
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_LIFE_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.561769115442,
+        "std": 0.353299106334,
+        "lower_threshold": 0.5,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_LIFE_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.180309772114,
+        "std": 0.258918092037,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.333333
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_LIFE_004"
+        ],
+        "sample_count": 3335,
+        "mean": -0.235682158921,
+        "std": 0.303282305531,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_LIFE_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.011607913943,
+        "std": 0.443232694867,
+        "lower_threshold": -0.462117,
+        "upper_threshold": 0.462117
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_LIFE_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.0,
+        "std": 0.0,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_LIFE_007"
+        ],
+        "sample_count": 3335,
+        "mean": -0.030734632684,
+        "std": 0.670004072612,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MONTH_001"
+        ],
+        "sample_count": 3335,
+        "mean": -0.002153465967,
+        "std": 0.619404752544,
+        "lower_threshold": -0.5454545,
+        "upper_threshold": 0.636364
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MONTH_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.387828025187,
+        "std": 0.331328618068,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.644987
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MONTH_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.168215803298,
+        "std": 0.213150659802,
+        "lower_threshold": -0.333333,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MONTH_004"
+        ],
+        "sample_count": 3335,
+        "mean": -0.040207175112,
+        "std": 0.654704932628,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.636364
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MONTH_005"
+        ],
+        "sample_count": 3335,
+        "mean": -0.209813282759,
+        "std": 0.712057602156,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.454545
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MOVE_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.391664961319,
+        "std": 0.339851826036,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.699677
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MOVE_002"
+        ],
+        "sample_count": 3335,
+        "mean": -0.26071964018,
+        "std": 0.335797412003,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MOVE_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.171514242879,
+        "std": 0.376957699707,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MUTAGEN_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.432083958021,
+        "std": 0.446162049776,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MUTAGEN_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.43748125937,
+        "std": 0.450791355674,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MUTAGEN_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.405997001499,
+        "std": 0.458725193977,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MUTAGEN_004"
+        ],
+        "sample_count": 3335,
+        "mean": -0.399850074963,
+        "std": 0.45023729377,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MUTAGEN_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.492653673163,
+        "std": 0.378812954993,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_MUTAGEN_006"
+        ],
+        "sample_count": 3335,
+        "mean": -0.325337331334,
+        "std": 0.468500749385,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_TRINE_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.574891065667,
+        "std": 0.216963439489,
+        "lower_threshold": 0.421899,
+        "upper_threshold": 0.74539
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_TRINE_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.434032983808,
+        "std": 0.184153667168,
+        "lower_threshold": 0.333333,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_TRINE_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.483283358321,
+        "std": 0.316644962303,
+        "lower_threshold": -0.75,
+        "upper_threshold": -0.25
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_TRINE_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.147514197001,
+        "std": 0.536743008559,
+        "lower_threshold": -0.321513,
+        "upper_threshold": 0.582783
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_TRINE_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.697871064468,
+        "std": 0.234002322262,
+        "lower_threshold": 0.6,
+        "upper_threshold": 0.8
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_YEAR_001"
+        ],
+        "sample_count": 3335,
+        "mean": -0.214338298651,
+        "std": 0.54556410456,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.090909
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_YEAR_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.378173266567,
+        "std": 0.338024745686,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.644987
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_YEAR_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.180409702549,
+        "std": 0.217054064607,
+        "lower_threshold": -0.333333,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_YEAR_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.01071282069,
+        "std": 0.647515564099,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.636364
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_YEAR_005"
+        ],
+        "sample_count": 3335,
+        "mean": -0.014801674363,
+        "std": 0.719982911669,
+        "lower_threshold": -0.818182,
+        "upper_threshold": 0.818182
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1",
+          "Z_YEAR_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.038830584708,
+        "std": 0.133818825451,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_AGE_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.390120132834,
+        "std": 0.336716035272,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.644987
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_AGE_002"
+        ],
+        "sample_count": 3335,
+        "mean": -0.257571214393,
+        "std": 0.315870244001,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_CAREER_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.378338149925,
+        "std": 0.337501961548,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.644987
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_CAREER_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.589805097451,
+        "std": 0.352269733317,
+        "lower_threshold": 0.5,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_CAREER_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.242578710645,
+        "std": 0.294249648256,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_CAREER_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.125037481259,
+        "std": 0.330761408782,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_DAY_001"
+        ],
+        "sample_count": 3335,
+        "mean": -0.00095407916,
+        "std": 0.623284356603,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.454545
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_DAY_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.384045813793,
+        "std": 0.329148173447,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.604368
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_DAY_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.165017391004,
+        "std": 0.209205740462,
+        "lower_threshold": -0.333333,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_DAY_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.004388709745,
+        "std": 0.655772568775,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.636364
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_DAY_005"
+        ],
+        "sample_count": 3335,
+        "mean": -0.084639411694,
+        "std": 0.624169322647,
+        "lower_threshold": -0.454545,
+        "upper_threshold": 0.454545
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_DECADE_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.399718116642,
+        "std": 0.337493884425,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.699677
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_DECADE_002"
+        ],
+        "sample_count": 3335,
+        "mean": -0.263868065967,
+        "std": 0.313989706546,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_FIN_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.383387522039,
+        "std": 0.33398388364,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.644987
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_FIN_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.579610194903,
+        "std": 0.344201700418,
+        "lower_threshold": 0.5,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_FIN_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.216941529235,
+        "std": 0.283368474311,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_FIN_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.161619190405,
+        "std": 0.368101110699,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_LIFE_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.419762773013,
+        "std": 0.336959952134,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.699677
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_LIFE_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.5988005997,
+        "std": 0.34619161804,
+        "lower_threshold": 0.5,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_LIFE_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.145627126537,
+        "std": 0.215388608629,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.333333
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_LIFE_004"
+        ],
+        "sample_count": 3335,
+        "mean": -0.268815592204,
+        "std": 0.329352106524,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_LIFE_005"
+        ],
+        "sample_count": 3335,
+        "mean": -0.045718109745,
+        "std": 0.435085916296,
+        "lower_threshold": -0.462117,
+        "upper_threshold": 0.462117
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_LIFE_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.0,
+        "std": 0.0,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_LIFE_007"
+        ],
+        "sample_count": 3335,
+        "mean": -0.066416791604,
+        "std": 0.675339590441,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MONTH_001"
+        ],
+        "sample_count": 3335,
+        "mean": -0.001989911544,
+        "std": 0.632046754103,
+        "lower_threshold": -0.454545,
+        "upper_threshold": 0.5454545
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MONTH_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.390797989505,
+        "std": 0.337273975791,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.644987
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MONTH_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.164017886957,
+        "std": 0.206953803105,
+        "lower_threshold": -0.333333,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MONTH_004"
+        ],
+        "sample_count": 3335,
+        "mean": -0.023252013193,
+        "std": 0.666458392361,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.636364
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MONTH_005"
+        ],
+        "sample_count": 3335,
+        "mean": -0.102902994303,
+        "std": 0.598737588518,
+        "lower_threshold": -0.454545,
+        "upper_threshold": 0.454545
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MOVE_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.382868634183,
+        "std": 0.343850803592,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.644987
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MOVE_002"
+        ],
+        "sample_count": 3335,
+        "mean": -0.23808095952,
+        "std": 0.297144691957,
+        "lower_threshold": -0.5,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MOVE_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.152923538231,
+        "std": 0.359913780906,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MUTAGEN_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.435982008996,
+        "std": 0.451577995847,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MUTAGEN_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.371064467766,
+        "std": 0.434307500326,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MUTAGEN_003"
+        ],
+        "sample_count": 3335,
+        "mean": 0.341829085457,
+        "std": 0.443278924235,
+        "lower_threshold": 0.0,
+        "upper_threshold": 1.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MUTAGEN_004"
+        ],
+        "sample_count": 3335,
+        "mean": -0.398050974513,
+        "std": 0.445311181508,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MUTAGEN_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.431934032984,
+        "std": 0.363659983164,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_MUTAGEN_006"
+        ],
+        "sample_count": 3335,
+        "mean": -0.315442278861,
+        "std": 0.464691776953,
+        "lower_threshold": -1.0,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_TRINE_001"
+        ],
+        "sample_count": 3335,
+        "mean": 0.589415244078,
+        "std": 0.208116978822,
+        "lower_threshold": 0.50983,
+        "upper_threshold": 0.739783
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_TRINE_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.337581265967,
+        "std": 0.223491880469,
+        "lower_threshold": 0.166667,
+        "upper_threshold": 0.5
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_TRINE_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.484107946027,
+        "std": 0.250805431878,
+        "lower_threshold": -0.5,
+        "upper_threshold": -0.25
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_TRINE_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.004823355622,
+        "std": 0.518009748645,
+        "lower_threshold": -0.582783,
+        "upper_threshold": 0.321513
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_TRINE_005"
+        ],
+        "sample_count": 3335,
+        "mean": 0.691094452774,
+        "std": 0.23906709317,
+        "lower_threshold": 0.6,
+        "upper_threshold": 0.8
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_YEAR_001"
+        ],
+        "sample_count": 3335,
+        "mean": -0.214338298651,
+        "std": 0.54556410456,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.090909
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_YEAR_002"
+        ],
+        "sample_count": 3335,
+        "mean": 0.380777992204,
+        "std": 0.336851561699,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.644987
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_YEAR_003"
+        ],
+        "sample_count": 3335,
+        "mean": -0.20739618081,
+        "std": 0.22024456247,
+        "lower_threshold": -0.333333,
+        "upper_threshold": 0.0
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_YEAR_004"
+        ],
+        "sample_count": 3335,
+        "mean": 0.000626952624,
+        "std": 0.647894629553,
+        "lower_threshold": -0.636364,
+        "upper_threshold": 0.636364
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_YEAR_005"
+        ],
+        "sample_count": 3335,
+        "mean": -0.002535072864,
+        "std": 0.620857840206,
+        "lower_threshold": -0.454545,
+        "upper_threshold": 0.454545
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1",
+          "Z_YEAR_006"
+        ],
+        "sample_count": 3335,
+        "mean": 0.042428785607,
+        "std": 0.139334816021,
+        "lower_threshold": 0.0,
+        "upper_threshold": 0.0
+      }
+    ]
+  },
+  "opinion_calibration": {
+    "calibration_version": "research-calibration-v1",
+    "fit_partition": "TRAIN",
+    "fit_max_as_of": "2018-12-31",
+    "value_col": "opinion_score",
+    "group_cols": [
+      "engine",
+      "birth_model"
+    ],
+    "lower_quantile": 0.25,
+    "upper_quantile": 0.75,
+    "group_count": 9,
+    "groups": [
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1"
+        ],
+        "sample_count": 3339,
+        "mean": 64.757014076071,
+        "std": 3.339975481576,
+        "lower_threshold": 62.42,
+        "upper_threshold": 67.11
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1"
+        ],
+        "sample_count": 3335,
+        "mean": 64.46847976012,
+        "std": 3.977229663951,
+        "lower_threshold": 61.56,
+        "upper_threshold": 67.58
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1"
+        ],
+        "sample_count": 3335,
+        "mean": 64.620428785607,
+        "std": 3.48638630982,
+        "lower_threshold": 62.14,
+        "upper_threshold": 67.15
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1"
+        ],
+        "sample_count": 3339,
+        "mean": 58.217954477388,
+        "std": 8.933958546618,
+        "lower_threshold": 52.14,
+        "upper_threshold": 64.73
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1"
+        ],
+        "sample_count": 3335,
+        "mean": 58.504473763118,
+        "std": 8.222612162813,
+        "lower_threshold": 53.645,
+        "upper_threshold": 64.56
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1"
+        ],
+        "sample_count": 3335,
+        "mean": 58.266698650675,
+        "std": 8.897418717568,
+        "lower_threshold": 52.225,
+        "upper_threshold": 64.66
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1"
+        ],
+        "sample_count": 3339,
+        "mean": 55.765372866128,
+        "std": 3.898517653598,
+        "lower_threshold": 53.09,
+        "upper_threshold": 58.42
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1"
+        ],
+        "sample_count": 3335,
+        "mean": 55.866935532234,
+        "std": 4.160740155912,
+        "lower_threshold": 53.0,
+        "upper_threshold": 58.725
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1"
+        ],
+        "sample_count": 3335,
+        "mean": 55.72847976012,
+        "std": 3.842922035747,
+        "lower_threshold": 53.07,
+        "upper_threshold": 58.42
+      }
+    ]
+  }
+}

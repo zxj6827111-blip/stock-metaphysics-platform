@@ -393,6 +393,30 @@ class TestEngineContract:
         assert req["variantMode"] == "variant_forward"
         assert req["asOfDate"] == "2024-11-15"
 
+    def test_batch_chart_stamps_each_context_in_input_order(self):
+        stub = _StubTransport(load_chart(CASE_NAMES[0]))
+        engine = ZiweiEngine(transport=stub)  # type: ignore[arg-type]
+        charts = engine.calculate_charts([
+            {
+                "context": EngineContext(stock_code="600519", as_of=datetime(2024, 11, 15, 14, 32)),
+                "birth_datetime": datetime(2001, 8, 27, 9, 30),
+                "as_of": datetime(2024, 11, 15, 14, 32),
+                "variant_mode": VariantMode.FORWARD,
+            },
+            {
+                "context": EngineContext(stock_code="000001", as_of=datetime(2025, 1, 2, 15, 0)),
+                "birth_datetime": datetime(1991, 4, 3, 15, 0),
+                "as_of": datetime(2025, 1, 2, 15, 0),
+                "variant_mode": VariantMode.FORWARD,
+            },
+        ])
+        assert len(stub.calls) == 1
+        assert len(stub.calls[0]) == 2
+        assert [chart.stock_code for chart in charts] == ["600519", "000001"]
+        assert [chart.as_of for chart in charts] == [
+            datetime(2024, 11, 15, 14, 32), datetime(2025, 1, 2, 15, 0),
+        ]
+
     def test_extract_factors_is_empty_by_design(self):
         """因子必须只有一条计算入口（src/factors/ziwei/），引擎不重复实现。"""
         engine = ZiweiEngine(transport=_StubTransport(load_chart(CASE_NAMES[0])))  # type: ignore[arg-type]
