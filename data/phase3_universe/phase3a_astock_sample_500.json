@@ -1,0 +1,2520 @@
+{
+  "universe_version": "v2-phase3a",
+  "seed": 42,
+  "stats": {
+    "total": 500,
+    "delisted": 333,
+    "active": 167,
+    "seed": 42,
+    "strata": 20,
+    "era_distribution": {
+      "pre2000": 198,
+      "2000s": 92,
+      "early2010s": 94,
+      "post2020": 57,
+      "late2010s": 59
+    }
+  },
+  "picks": [
+    {
+      "code": "000003",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000004",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000005",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000009",
+      "reason": "active",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000013",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000015",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000018",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000023",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000024",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000033",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000038",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000040",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000046",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000047",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000150",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:2000s"
+    },
+    {
+      "code": "000159",
+      "reason": "active",
+      "stratum": "szse_szse_main:2000s"
+    },
+    {
+      "code": "000333",
+      "reason": "active",
+      "stratum": "szse_szse_main:early2010s"
+    },
+    {
+      "code": "000405",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000406",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000411",
+      "reason": "active",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000412",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000413",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000416",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000418",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000502",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000508",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000511",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000515",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000522",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000527",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000535",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000540",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000542",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000549",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000556",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000562",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000569",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000571",
+      "reason": "active",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000578",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000583",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000584",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000585",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000587",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000588",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000590",
+      "reason": "active",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000594",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000602",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000606",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000611",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000613",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000616",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000618",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000621",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000622",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000627",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000638",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000653",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000655",
+      "reason": "active",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000658",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000660",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000662",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000666",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000667",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000671",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000673",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000675",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000687",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000689",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000693",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000699",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000730",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000732",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000748",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000757",
+      "reason": "active",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000760",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000763",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000765",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000769",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000780",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000787",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000805",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000806",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000807",
+      "reason": "active",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000812",
+      "reason": "active",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000817",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000823",
+      "reason": "active",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000827",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000832",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000835",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000836",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000851",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000861",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000866",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000906",
+      "reason": "active",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000916",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000918",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000931",
+      "reason": "active",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000932",
+      "reason": "active",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000939",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000956",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:pre2000"
+    },
+    {
+      "code": "000961",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:2000s"
+    },
+    {
+      "code": "000971",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:2000s"
+    },
+    {
+      "code": "000976",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:2000s"
+    },
+    {
+      "code": "000979",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:2000s"
+    },
+    {
+      "code": "000982",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:2000s"
+    },
+    {
+      "code": "000996",
+      "reason": "delisted",
+      "stratum": "szse_szse_main:2000s"
+    },
+    {
+      "code": "001210",
+      "reason": "active",
+      "stratum": "szse_szse_main:post2020"
+    },
+    {
+      "code": "001279",
+      "reason": "active",
+      "stratum": "szse_szse_main:post2020"
+    },
+    {
+      "code": "001280",
+      "reason": "active",
+      "stratum": "szse_szse_main:post2020"
+    },
+    {
+      "code": "001325",
+      "reason": "active",
+      "stratum": "szse_szse_main:post2020"
+    },
+    {
+      "code": "001979",
+      "reason": "active",
+      "stratum": "szse_szse_main:late2010s"
+    },
+    {
+      "code": "002002",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002003",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002013",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002018",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002061",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002070",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002071",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002086",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002087",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002089",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002099",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002113",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002118",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002143",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002145",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002147",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002162",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002220",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002231",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002236",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002246",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002260",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002272",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002275",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002280",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002288",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002308",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002325",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:2000s"
+    },
+    {
+      "code": "002336",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002341",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002359",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002386",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002410",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002411",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002415",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002417",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002433",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002435",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002437",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002447",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002450",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002464",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002473",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002477",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002493",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002499",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002502",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002503",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002504",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002505",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002509",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002539",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002604",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002608",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002610",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002618",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002619",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002621",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002624",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002629",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002664",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002665",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002674",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002680",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002682",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002684",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002699",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002711",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:early2010s"
+    },
+    {
+      "code": "002734",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002740",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002743",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002750",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002751",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002770",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002773",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002776",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002781",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002808",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002835",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002846",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002881",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002898",
+      "reason": "delisted",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "002912",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:late2010s"
+    },
+    {
+      "code": "003004",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:post2020"
+    },
+    {
+      "code": "003013",
+      "reason": "active",
+      "stratum": "szse_szse_sme_legacy:post2020"
+    },
+    {
+      "code": "300011",
+      "reason": "active",
+      "stratum": "szse_chinext:2000s"
+    },
+    {
+      "code": "300023",
+      "reason": "delisted",
+      "stratum": "szse_chinext:2000s"
+    },
+    {
+      "code": "300028",
+      "reason": "delisted",
+      "stratum": "szse_chinext:2000s"
+    },
+    {
+      "code": "300029",
+      "reason": "delisted",
+      "stratum": "szse_chinext:2000s"
+    },
+    {
+      "code": "300038",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300054",
+      "reason": "active",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300064",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300068",
+      "reason": "active",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300089",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300090",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300104",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300108",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300116",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300117",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300156",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300160",
+      "reason": "active",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300165",
+      "reason": "active",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300178",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300186",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300188",
+      "reason": "active",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300202",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300208",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300213",
+      "reason": "active",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300216",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300219",
+      "reason": "active",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300247",
+      "reason": "active",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300262",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300273",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300280",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300282",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300293",
+      "reason": "active",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300297",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300309",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300312",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300325",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300330",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300336",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300344",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300349",
+      "reason": "active",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300356",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300362",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300367",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300372",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300379",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300391",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300392",
+      "reason": "delisted",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300402",
+      "reason": "active",
+      "stratum": "szse_chinext:early2010s"
+    },
+    {
+      "code": "300431",
+      "reason": "delisted",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300443",
+      "reason": "active",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300495",
+      "reason": "delisted",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300519",
+      "reason": "active",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300526",
+      "reason": "delisted",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300551",
+      "reason": "active",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300576",
+      "reason": "active",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300618",
+      "reason": "active",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300621",
+      "reason": "active",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300630",
+      "reason": "delisted",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300652",
+      "reason": "active",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300673",
+      "reason": "active",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300709",
+      "reason": "active",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300742",
+      "reason": "delisted",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300753",
+      "reason": "active",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300760",
+      "reason": "active",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300796",
+      "reason": "active",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300799",
+      "reason": "delisted",
+      "stratum": "szse_chinext:late2010s"
+    },
+    {
+      "code": "300856",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "300902",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "300922",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "300955",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "300956",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "300960",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "300970",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301041",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301072",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301091",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301093",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301210",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301261",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301296",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301380",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301399",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301507",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301539",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301584",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301585",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "301680",
+      "reason": "active",
+      "stratum": "szse_chinext:post2020"
+    },
+    {
+      "code": "600001",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600002",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600003",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600005",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600022",
+      "reason": "active",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600065",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600068",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600069",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600070",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600074",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600077",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600083",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600086",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600087",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600090",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600091",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600092",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600093",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600100",
+      "reason": "active",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600102",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600112",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600122",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600128",
+      "reason": "active",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600139",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600145",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600146",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600175",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600177",
+      "reason": "active",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600181",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600190",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600193",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600200",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600205",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600209",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600213",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600220",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600225",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600240",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600242",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600247",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600253",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600256",
+      "reason": "active",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600260",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600262",
+      "reason": "active",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600263",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600270",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600275",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600277",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600284",
+      "reason": "active",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600286",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600290",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600291",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600296",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600297",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600306",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600311",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600317",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600321",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600343",
+      "reason": "active",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600355",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600357",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600360",
+      "reason": "active",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600377",
+      "reason": "active",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600385",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600387",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600393",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600401",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600421",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600432",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600462",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600466",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600472",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600485",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600532",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600553",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600555",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600565",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600575",
+      "reason": "active",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600591",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600599",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600607",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600608",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600614",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600615",
+      "reason": "active",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600625",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600627",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600631",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600632",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600634",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600636",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600646",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600647",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600652",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600656",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600659",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600661",
+      "reason": "active",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600669",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600670",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600671",
+      "reason": "active",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600672",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600677",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600680",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600687",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600695",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600696",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600700",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600701",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600705",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600709",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600723",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600747",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600752",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600762",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600766",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600767",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600768",
+      "reason": "active",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600772",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600777",
+      "reason": "active",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600781",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600786",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600788",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600793",
+      "reason": "active",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600799",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600804",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600806",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600811",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600813",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600819",
+      "reason": "active",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600823",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600825",
+      "reason": "active",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600832",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600836",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600837",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600840",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600842",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600852",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600856",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600870",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600873",
+      "reason": "active",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600878",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600890",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600891",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600896",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600898",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600899",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:pre2000"
+    },
+    {
+      "code": "600926",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "600978",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600991",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "600992",
+      "reason": "active",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "601015",
+      "reason": "active",
+      "stratum": "sse_sse_main:early2010s"
+    },
+    {
+      "code": "601016",
+      "reason": "active",
+      "stratum": "sse_sse_main:early2010s"
+    },
+    {
+      "code": "601028",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:early2010s"
+    },
+    {
+      "code": "601112",
+      "reason": "active",
+      "stratum": "sse_sse_main:post2020"
+    },
+    {
+      "code": "601127",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "601158",
+      "reason": "active",
+      "stratum": "sse_sse_main:early2010s"
+    },
+    {
+      "code": "601168",
+      "reason": "active",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "601258",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:early2010s"
+    },
+    {
+      "code": "601268",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:early2010s"
+    },
+    {
+      "code": "601299",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "601558",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:early2010s"
+    },
+    {
+      "code": "601989",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "601991",
+      "reason": "active",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "601995",
+      "reason": "active",
+      "stratum": "sse_sse_main:post2020"
+    },
+    {
+      "code": "601999",
+      "reason": "active",
+      "stratum": "sse_sse_main:2000s"
+    },
+    {
+      "code": "603003",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:early2010s"
+    },
+    {
+      "code": "603014",
+      "reason": "active",
+      "stratum": "sse_sse_main:post2020"
+    },
+    {
+      "code": "603032",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603051",
+      "reason": "active",
+      "stratum": "sse_sse_main:post2020"
+    },
+    {
+      "code": "603056",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603133",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603157",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603180",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603186",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603288",
+      "reason": "active",
+      "stratum": "sse_sse_main:early2010s"
+    },
+    {
+      "code": "603289",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603293",
+      "reason": "active",
+      "stratum": "sse_sse_main:post2020"
+    },
+    {
+      "code": "603321",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603326",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603329",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603356",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603388",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603530",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603555",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:early2010s"
+    },
+    {
+      "code": "603603",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603663",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603668",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603838",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603848",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603896",
+      "reason": "active",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603931",
+      "reason": "active",
+      "stratum": "sse_sse_main:post2020"
+    },
+    {
+      "code": "603963",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "603996",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:late2010s"
+    },
+    {
+      "code": "605006",
+      "reason": "active",
+      "stratum": "sse_sse_main:post2020"
+    },
+    {
+      "code": "605055",
+      "reason": "active",
+      "stratum": "sse_sse_main:post2020"
+    },
+    {
+      "code": "605081",
+      "reason": "delisted",
+      "stratum": "sse_sse_main:post2020"
+    },
+    {
+      "code": "605188",
+      "reason": "active",
+      "stratum": "sse_sse_main:post2020"
+    },
+    {
+      "code": "688007",
+      "reason": "active",
+      "stratum": "sse_star:late2010s"
+    },
+    {
+      "code": "688010",
+      "reason": "active",
+      "stratum": "sse_star:late2010s"
+    },
+    {
+      "code": "688086",
+      "reason": "delisted",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688131",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688146",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688173",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688253",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688266",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688287",
+      "reason": "delisted",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688315",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688337",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688347",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688362",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688395",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688418",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688448",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688555",
+      "reason": "delisted",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688559",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688570",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688578",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688589",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    },
+    {
+      "code": "688689",
+      "reason": "active",
+      "stratum": "sse_star:post2020"
+    }
+  ]
+}

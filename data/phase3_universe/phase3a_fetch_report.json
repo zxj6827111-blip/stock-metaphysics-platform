@@ -1,0 +1,510 @@
+{
+  "started_at": null,
+  "finished_at": "2026-09-19T17:19:54+0800",
+  "selection_size": 80,
+  "fetched": 80,
+  "reused": 20,
+  "failed": 0,
+  "details": [
+    {
+      "code": "600519",
+      "status": "reused",
+      "rows": 6008
+    },
+    {
+      "code": "000001",
+      "status": "reused",
+      "rows": 8538
+    },
+    {
+      "code": "300750",
+      "status": "reused",
+      "rows": 2011
+    },
+    {
+      "code": "688981",
+      "status": "reused",
+      "rows": 1495
+    },
+    {
+      "code": "600036",
+      "status": "reused",
+      "rows": 5865
+    },
+    {
+      "code": "000858",
+      "status": "reused",
+      "rows": 6752
+    },
+    {
+      "code": "601318",
+      "status": "reused",
+      "rows": 4690
+    },
+    {
+      "code": "002594",
+      "status": "reused",
+      "rows": 3688
+    },
+    {
+      "code": "600000",
+      "status": "reused",
+      "rows": 6393
+    },
+    {
+      "code": "601899",
+      "status": "reused",
+      "rows": 4430
+    },
+    {
+      "code": "300059",
+      "status": "reused",
+      "rows": 3946
+    },
+    {
+      "code": "600030",
+      "status": "reused",
+      "rows": 5659
+    },
+    {
+      "code": "601012",
+      "status": "reused",
+      "rows": 3471
+    },
+    {
+      "code": "000333",
+      "status": "reused",
+      "rows": 3099
+    },
+    {
+      "code": "600276",
+      "status": "reused",
+      "rows": 6243
+    },
+    {
+      "code": "601888",
+      "status": "reused",
+      "rows": 4050
+    },
+    {
+      "code": "002415",
+      "status": "reused",
+      "rows": 3909
+    },
+    {
+      "code": "600887",
+      "status": "reused",
+      "rows": 7301
+    },
+    {
+      "code": "601166",
+      "status": "reused",
+      "rows": 4745
+    },
+    {
+      "code": "000651",
+      "status": "reused",
+      "rows": 7014
+    },
+    {
+      "code": "600176",
+      "status": "ok",
+      "rows": 6526
+    },
+    {
+      "code": "600016",
+      "status": "ok",
+      "rows": 6182
+    },
+    {
+      "code": "600795",
+      "status": "ok",
+      "rows": 6983
+    },
+    {
+      "code": "600895",
+      "status": "ok",
+      "rows": 7320
+    },
+    {
+      "code": "601021",
+      "status": "ok",
+      "rows": 2812
+    },
+    {
+      "code": "601866",
+      "status": "ok",
+      "rows": 4444
+    },
+    {
+      "code": "601155",
+      "status": "ok",
+      "rows": 2613
+    },
+    {
+      "code": "600153",
+      "status": "ok",
+      "rows": 6560
+    },
+    {
+      "code": "603667",
+      "status": "ok",
+      "rows": 2337
+    },
+    {
+      "code": "603000",
+      "status": "ok",
+      "rows": 3500
+    },
+    {
+      "code": "603025",
+      "status": "ok",
+      "rows": 2740
+    },
+    {
+      "code": "603093",
+      "status": "ok",
+      "rows": 1711
+    },
+    {
+      "code": "601022",
+      "status": "ok",
+      "rows": 918
+    },
+    {
+      "code": "600461",
+      "status": "ok",
+      "rows": 5230
+    },
+    {
+      "code": "603220",
+      "status": "ok",
+      "rows": 1905
+    },
+    {
+      "code": "600307",
+      "status": "ok",
+      "rows": 6153
+    },
+    {
+      "code": "600654",
+      "status": "ok",
+      "rows": 8131
+    },
+    {
+      "code": "600729",
+      "status": "ok",
+      "rows": 6988
+    },
+    {
+      "code": "600305",
+      "status": "ok",
+      "rows": 6156
+    },
+    {
+      "code": "600325",
+      "status": "ok",
+      "rows": 5398
+    },
+    {
+      "code": "603229",
+      "status": "ok",
+      "rows": 2278
+    },
+    {
+      "code": "600230",
+      "status": "ok",
+      "rows": 6297
+    },
+    {
+      "code": "600073",
+      "status": "ok",
+      "rows": 6929
+    },
+    {
+      "code": "600569",
+      "status": "ok",
+      "rows": 5945
+    },
+    {
+      "code": "605300",
+      "status": "ok",
+      "rows": 1308
+    },
+    {
+      "code": "600101",
+      "status": "ok",
+      "rows": 7031
+    },
+    {
+      "code": "600830",
+      "status": "ok",
+      "rows": 7845
+    },
+    {
+      "code": "600622",
+      "status": "ok",
+      "rows": 8136
+    },
+    {
+      "code": "605189",
+      "status": "ok",
+      "rows": 1291
+    },
+    {
+      "code": "603527",
+      "status": "ok",
+      "rows": 2193
+    },
+    {
+      "code": "688002",
+      "status": "ok",
+      "rows": 1740
+    },
+    {
+      "code": "688548",
+      "status": "ok",
+      "rows": 752
+    },
+    {
+      "code": "688502",
+      "status": "ok",
+      "rows": 859
+    },
+    {
+      "code": "688106",
+      "status": "ok",
+      "rows": 1521
+    },
+    {
+      "code": "688112",
+      "status": "ok",
+      "rows": 1166
+    },
+    {
+      "code": "688699",
+      "status": "ok",
+      "rows": 1396
+    },
+    {
+      "code": "688439",
+      "status": "ok",
+      "rows": 986
+    },
+    {
+      "code": "688776",
+      "status": "ok",
+      "rows": 1225
+    },
+    {
+      "code": "688429",
+      "status": "ok",
+      "rows": 785
+    },
+    {
+      "code": "688636",
+      "status": "ok",
+      "rows": 1324
+    },
+    {
+      "code": "001389",
+      "status": "ok",
+      "rows": 600
+    },
+    {
+      "code": "000688",
+      "status": "ok",
+      "rows": 5428
+    },
+    {
+      "code": "001359",
+      "status": "ok",
+      "rows": 603
+    },
+    {
+      "code": "000685",
+      "status": "ok",
+      "rows": 7060
+    },
+    {
+      "code": "000901",
+      "status": "ok",
+      "rows": 6429
+    },
+    {
+      "code": "000848",
+      "status": "ok",
+      "rows": 6904
+    },
+    {
+      "code": "000813",
+      "status": "ok",
+      "rows": 6372
+    },
+    {
+      "code": "000915",
+      "status": "ok",
+      "rows": 6564
+    },
+    {
+      "code": "000520",
+      "status": "ok",
+      "rows": 7247
+    },
+    {
+      "code": "000576",
+      "status": "ok",
+      "rows": 7575
+    },
+    {
+      "code": "002460",
+      "status": "ok",
+      "rows": 3825
+    },
+    {
+      "code": "002948",
+      "status": "ok",
+      "rows": 1857
+    },
+    {
+      "code": "002153",
+      "status": "ok",
+      "rows": 4516
+    },
+    {
+      "code": "002611",
+      "status": "ok",
+      "rows": 3409
+    },
+    {
+      "code": "002310",
+      "status": "ok",
+      "rows": 3849
+    },
+    {
+      "code": "002922",
+      "status": "ok",
+      "rows": 2115
+    },
+    {
+      "code": "002351",
+      "status": "ok",
+      "rows": 4005
+    },
+    {
+      "code": "002075",
+      "status": "ok",
+      "rows": 3884
+    },
+    {
+      "code": "002068",
+      "status": "ok",
+      "rows": 4821
+    },
+    {
+      "code": "002314",
+      "status": "ok",
+      "rows": 3883
+    },
+    {
+      "code": "002301",
+      "status": "ok",
+      "rows": 3751
+    },
+    {
+      "code": "002811",
+      "status": "ok",
+      "rows": 2435
+    },
+    {
+      "code": "002453",
+      "status": "ok",
+      "rows": 3707
+    },
+    {
+      "code": "002623",
+      "status": "ok",
+      "rows": 3611
+    },
+    {
+      "code": "002687",
+      "status": "ok",
+      "rows": 3443
+    },
+    {
+      "code": "300450",
+      "status": "ok",
+      "rows": 2611
+    },
+    {
+      "code": "300684",
+      "status": "ok",
+      "rows": 2119
+    },
+    {
+      "code": "300975",
+      "status": "ok",
+      "rows": 1315
+    },
+    {
+      "code": "301292",
+      "status": "ok",
+      "rows": 779
+    },
+    {
+      "code": "301109",
+      "status": "ok",
+      "rows": 1069
+    },
+    {
+      "code": "300328",
+      "status": "ok",
+      "rows": 3428
+    },
+    {
+      "code": "300045",
+      "status": "ok",
+      "rows": 3994
+    },
+    {
+      "code": "301322",
+      "status": "ok",
+      "rows": 862
+    },
+    {
+      "code": "301408",
+      "status": "ok",
+      "rows": 865
+    },
+    {
+      "code": "300465",
+      "status": "ok",
+      "rows": 2656
+    },
+    {
+      "code": "300453",
+      "status": "ok",
+      "rows": 2751
+    },
+    {
+      "code": "300571",
+      "status": "ok",
+      "rows": 2369
+    },
+    {
+      "code": "300649",
+      "status": "ok",
+      "rows": 2275
+    },
+    {
+      "code": "301222",
+      "status": "ok",
+      "rows": 1102
+    },
+    {
+      "code": "300948",
+      "status": "ok",
+      "rows": 1348
+    }
+  ]
+}

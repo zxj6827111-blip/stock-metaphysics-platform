@@ -1,4 +1,4 @@
-"""ORM 模型 —— 业务表（Phase 1.1：17 张）。
+"""ORM 模型 —— 业务表（Phase 1.1：17 张；Phase 3A：+1 = 18 张）。
 
 表清单（对应 architecture §47 / two_session_plan §15）：
 
@@ -26,6 +26,8 @@
                                  与降级标记，合成行情产生的标签据此被研究
                                  状态机拦截）
     analysis_run                 分析运行索引
+    universe_memberships         Point-in-Time Universe 成员资格（Phase 3A 新增；
+                                 查询接口必须 as_of 语义，见 ``src/research/universe/``）
 """
 
 from __future__ import annotations
@@ -508,6 +510,51 @@ class AnalysisRunRow(UpdatedAtMixin, Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
+class UniverseMembershipRow(UpdatedAtMixin, Base):
+    """Point-in-Time Universe 成员资格（Phase 3A 新增）。
+
+    一条记录表示"股票 X 从 list_date 起可被研究，直到 delist_date（含）为止"。
+    ``delist_date`` 为 ``None`` 表示"截至本快照所知，仍在上市"——并不等价于永远上市。
+
+    契约要点（对照 GOAL §3A-1 / §3A-2）：
+
+    * ``list_date`` 与 ``delist_date`` 的**来源**必须写入 ``source``；
+      当前快照下全部来自 ``tencent_hfq_import``，
+      且退市股结构性不可得 → ``delist_date`` 目前**恒为 NULL** + 
+      ``delist_source="NOT_AVAILABLE_FROM_PROVIDER"``，
+      不得把 NULL 伪装成"永不退市"。
+    * 同一 ``stock_code`` 在同一 ``universe_version`` 下唯一；
+      不同 ``universe_version`` 允许并存，用于"同一口径重抓"或"口径修订"。
+    * 查询接口必须 ``as_of`` 语义：
+      ``list_date <= as_of`` 且（``delist_date IS NULL`` 或 ``as_of <= delist_date``）。
+    """
+
+    __tablename__ = "universe_memberships"
+    __table_args__ = (
+        UniqueConstraint(
+            "universe_version", "stock_code",
+            name="uq_universe_memberships_version_stock",
+        ),
+        Index("ix_universe_memberships_asof", "universe_version", "list_date", "delist_date"),
+        Index("ix_universe_memberships_stock", "stock_code", "universe_version"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    universe_version: Mapped[str] = mapped_column(String(32), index=True)
+    stock_code: Mapped[str] = mapped_column(String(16), index=True)
+    exchange: Mapped[str] = mapped_column(String(16), default="")
+    board: Mapped[str] = mapped_column(String(32), default="")
+
+    list_date: Mapped[date] = mapped_column(Date, index=True)
+    delist_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+
+    status: Mapped[str] = mapped_column(String(16), default="active")  # active / delisted / suspended_long
+    source: Mapped[str] = mapped_column(String(64), default="tencent_hfq_import")
+    source_snapshot: Mapped[str] = mapped_column(String(64), default="")
+    delist_source: Mapped[str] = mapped_column(String(64), default="NOT_AVAILABLE_FROM_PROVIDER")
+    notes: Mapped[str] = mapped_column(Text, default="")
+
+
 __all__ = [
     "StockMasterRow", "StockBirthProfileRow", "ExchangeSessionRow",
     "MarketBarDailyRow", "MarketFetchLogRow",
@@ -515,4 +562,5 @@ __all__ = [
     "FactorDefinitionRow", "FactorObservationRow",
     "ClassicalBookRow", "ClassicalEntryRow", "EvidenceLinkRow",
     "BacktestExperimentRow", "BacktestResultRow", "ForwardLabelRow", "AnalysisRunRow",
+    "UniverseMembershipRow",
 ]
