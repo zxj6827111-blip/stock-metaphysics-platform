@@ -193,14 +193,34 @@
 
 | 子阶段 | 状态 | 备注 / 卡点 |
 |---|---|---|
-| 3A | **DONE** | 见 §3A 下方"完成回填"。关键产物：`universe_memberships v2-phase3a`（500 只：333 退市 + 167 在市）、`docs/data-coverage-phase3.md`、ADR-0012 |
-| 3B | PENDING | 依赖 3A universe |
+| 3A | **DONE** (commit `17c3fbc`) | `universe_memberships v2-phase3a` 500 只 (333 退市 + 167 在市)；ADR-0012 切换主数据源 |
+| 3B | **DONE** (commit `c9fee4a`) | 4 birth model 注册（company_foundation 显式 UNAVAILABLE，无伪造）；500股×3模型 factor 对比 → `docs/birth-model-study.md` |
 | 3C | PENDING | 依赖 3A + 3B |
 | 3D | PENDING | 依赖 3A + 3B + 3C |
 | 3E | PENDING | 依赖 3A 行业表 |
 | 3F | PENDING | 依赖 3D |
 | 3G | PENDING | 可并行（只读调研） |
 | 3H | PENDING | 终章 |
+
+---
+
+## §3B 完成回填（2026-09-19）
+
+### 成果
+
+* `src/research/birth_models.py`：4 个 Birth Model（合同 ``listing_open / listing_close / ipo_approx / company_foundation``）
+* `scripts/phase3_generate_birth_profiles.py`：500 股 × 3 模型 → 1500 行 ``stock_birth_profile``
+* `scripts/phase3_birth_model_study.py`：500 股 × 3 模型 factor 抽取 + 区分度统计（耗时 ~7min）
+* `docs/birth-model-study.md`：研究报告
+* `data/phase3_universe/birth_model_factor_stats.csv`：291 行（97 因子 × 3 模型）
+
+### 关键判断（不在报告里下结论，仅记录事实）
+
+* Z_LIFE_006（身宫命同宫）**恒为 0**（500 × 3 = 1500 次全 0）→ iztro 结构性常量，非 birth model 能救
+* 中位数 unique_ratio ≈ 0.006（含义：每 500 股票只有 ~3 个唯一值）→ A 股术数因子整体**天然低区分度**
+* 三模型的 "Is factor discrimination sensitive?" → 答：no，宏观分布相似
+
+*创建于 2026-09-19；3A 完成于 2026-09-19；3B 完成于 2026-09-19*
 
 ---
 
