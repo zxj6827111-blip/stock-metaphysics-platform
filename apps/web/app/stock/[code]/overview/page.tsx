@@ -98,11 +98,15 @@ function OverviewInner() {
       const consensusView =
         consensusRes.status === "fulfilled"
           ? toConsensusView(consensusRes.value)
-          : overviewFixture.consensus;
+          : fixture
+            ? overviewFixture.consensus
+            : null;
       const conflictView =
         conflictRes.status === "fulfilled"
           ? toConflictView(conflictRes.value)
-          : overviewFixture.conflict;
+          : fixture
+            ? overviewFixture.conflict
+            : null;
 
       const dq = toDataQualityView(
         base.quality,
@@ -120,6 +124,7 @@ function OverviewInner() {
           backtestRes.status === "fulfilled" ? backtestRes.value : null,
           evidenceRes.status === "fulfilled" ? evidenceRes.value : null,
           dq,
+          fixture,
         ),
       );
       if (evidenceRes.status === "fulfilled") {
@@ -137,7 +142,11 @@ function OverviewInner() {
       setAnalysisId(aid);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-      if (fixture) setData(overviewFixture);
+      if (fixture) {
+        setData(overviewFixture);
+      } else {
+        setData(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -207,7 +216,7 @@ function OverviewInner() {
               disabled={!analysisId || exporting}
               onClick={() => void exportReport("markdown")}
               className="rounded border px-3 py-1 text-[12px] transition-opacity hover:opacity-80 disabled:opacity-40"
-              style={{ borderColor: "var(--color-line)", color: "var(--color-ink)" }}
+              style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}
             >
               {exporting ? "导出中…" : "导出 Markdown"}
             </button>
@@ -216,7 +225,7 @@ function OverviewInner() {
               disabled={!analysisId || exporting}
               onClick={() => void exportReport("html")}
               className="rounded border px-3 py-1 text-[12px] transition-opacity hover:opacity-80 disabled:opacity-40"
-              style={{ borderColor: "var(--color-line)", color: "var(--color-ink)" }}
+              style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}
             >
               导出 HTML
             </button>
@@ -324,36 +333,49 @@ function OverviewInner() {
                 action={{ label: "查看详情" }}
               />
               <div className="px-3 py-2">
-                <div className="mb-1 flex items-center gap-4 px-1">
-                  {data.timeWindow.series.map((s2) => (
-                    <span key={s2.key} className="flex items-center gap-1.5 text-[11.5px]">
-                      <span
-                        className="inline-block h-[3px] w-[14px] rounded-full"
-                        style={{ background: s2.color }}
-                      />
-                      <span style={{ color: "var(--color-ink-sub)" }}>{s2.name}</span>
-                    </span>
-                  ))}
-                  <span className="ml-3 flex items-center gap-1.5 text-[11.5px]">
-                    <span
-                      className="inline-block h-[10px] w-[14px] rounded-[2px]"
-                      style={{ background: "rgba(79,211,155,0.22)", border: "1px solid rgba(79,211,155,0.45)" }}
-                    />
-                    <span style={{ color: "var(--color-ink-sub)" }}>高共识区</span>
-                  </span>
-                  <span className="flex items-center gap-1.5 text-[11.5px]">
-                    <span
-                      className="inline-block h-[10px] w-[14px] rounded-[2px]"
-                      style={{ background: "rgba(176,124,214,0.22)", border: "1px solid rgba(176,124,214,0.45)" }}
-                    />
-                    <span style={{ color: "var(--color-ink-sub)" }}>高冲突区</span>
-                  </span>
-                </div>
-                <TimeWindowChart data={data.timeWindow} height={252} />
-                <p className="px-1 pb-2 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
-                  纵轴为术数研究指数（0-100 规则强度），非收益率预测。曲线为基于当前引擎分数的
-                  展示层平滑示意；正式时间窗口预测属 Phase 2。
-                </p>
+                {data.timeWindow.series.length > 0 ? (
+                  <>
+                    <div className="mb-1 flex items-center gap-4 px-1">
+                      {data.timeWindow.series.map((s2) => (
+                        <span key={s2.key} className="flex items-center gap-1.5 text-[11.5px]">
+                          <span
+                            className="inline-block h-[3px] w-[14px] rounded-full"
+                            style={{ background: s2.color }}
+                          />
+                          <span style={{ color: "var(--color-ink-sub)" }}>{s2.name}</span>
+                        </span>
+                      ))}
+                      <span className="ml-3 flex items-center gap-1.5 text-[11.5px]">
+                        <span
+                          className="inline-block h-[10px] w-[14px] rounded-[2px]"
+                          style={{ background: "rgba(79,211,155,0.22)", border: "1px solid rgba(79,211,155,0.45)" }}
+                        />
+                        <span style={{ color: "var(--color-ink-sub)" }}>高共识区</span>
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[11.5px]">
+                        <span
+                          className="inline-block h-[10px] w-[14px] rounded-[2px]"
+                          style={{ background: "rgba(176,124,214,0.22)", border: "1px solid rgba(176,124,214,0.45)" }}
+                        />
+                        <span style={{ color: "var(--color-ink-sub)" }}>高冲突区</span>
+                      </span>
+                    </div>
+                    <TimeWindowChart data={data.timeWindow} height={252} />
+                    <p className="px-1 pb-2 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                      纵轴为术数研究指数（0-100 规则强度），非收益率预测。曲线为基于当前引擎分数的
+                      展示层平滑示意；正式时间窗口预测属 Phase 2。
+                    </p>
+                  </>
+                ) : (
+                  <div className="flex h-[252px] flex-col items-center justify-center text-center">
+                    <p className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+                      未来时间窗口外推尚未运行（系统不提供伪造预测曲线）
+                    </p>
+                    <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
+                      正式时间序列外推与共振窗口分析将在 Phase 2 完整上线
+                    </p>
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -395,7 +417,7 @@ function OverviewInner() {
                     <DistributionChart bins={data.distribution} height={124} />
                   ) : (
                     <div className="py-6 text-center text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
-                      尚无历史验证数据
+                      尚无历史验证样本分布数据（不采用正态假设伪造分箱）
                     </div>
                   )}
                 </div>

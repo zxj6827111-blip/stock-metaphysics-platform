@@ -101,7 +101,7 @@ function ZiweiInner() {
             <ZiweiHoroscope chart={chart} />
             <div className="mt-2">
               <SectionNote>
-                小限层在 iztro 中**不提供流曜**，因此该层的星曜为空 —— 这是如实保留的缺失，
+                小限层在 iztro 中<strong>不提供流曜</strong>，因此该层的星曜为空 —— 这是如实保留的缺失，
                 不用其他层的星曜补全（见 docs/calculation-differences-phase2-ziwei.md D1）。
               </SectionNote>
             </div>

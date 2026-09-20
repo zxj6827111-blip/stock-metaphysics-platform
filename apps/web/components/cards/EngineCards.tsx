@@ -148,7 +148,28 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
   );
 }
 
-export function ConsensusCard({ consensus }: { consensus: ConsensusView }) {
+export function ConsensusCard({ consensus }: { consensus: ConsensusView | null }) {
+  if (!consensus) {
+    return (
+      <Card className="flex min-h-[186px] flex-col p-4" testId="consensus-card">
+        <div className="flex items-center gap-2">
+          <span className="smp-card-title-icon">
+            <IconTarget size={15} />
+          </span>
+          <span className="text-[14px] font-medium">多模型共识</span>
+        </div>
+        <div className="my-auto py-4 text-center">
+          <div className="text-[13px] font-medium" style={{ color: "var(--color-ink-muted)" }}>
+            共识服务未产生结论
+          </div>
+          <p className="mt-1.5 text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
+            模型输入存在缺失或计算降级，系统不提供虚构共识。
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   const tone =
     consensus.label.includes("POSITIVE")
       ? "up"
@@ -257,7 +278,28 @@ function MetaRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function ConflictCard({ conflict }: { conflict: ConflictView }) {
+export function ConflictCard({ conflict }: { conflict: ConflictView | null }) {
+  if (!conflict) {
+    return (
+      <Card className="flex min-h-[186px] flex-col p-4" testId="conflict-card">
+        <div className="flex items-center gap-2">
+          <span className="smp-card-title-icon">
+            <IconWarning size={15} />
+          </span>
+          <span className="text-[14px] font-medium">模型分歧监测</span>
+        </div>
+        <div className="my-auto py-4 text-center">
+          <div className="text-[13px] font-medium" style={{ color: "var(--color-ink-muted)" }}>
+            分歧检测未产生结果
+          </div>
+          <p className="mt-1.5 text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
+            冲突检测服务未返回，系统不假定一致或冲突。
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   if (!conflict.hasConflict) {
     return (
       <Card className="flex min-h-[186px] flex-col p-4" testId="conflict-card">

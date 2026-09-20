@@ -79,7 +79,9 @@ async function main() {
     page.on("pageerror", onPageError);
 
     await page.goto(url, { waitUntil: "load", timeout: 60000 });
-    await page.waitForSelector("[data-testid=page-title]", { timeout: 30000 }).catch(() => null);
+    await page.waitForSelector("[data-testid=page-title], [data-testid=home-title]", { timeout: 30000 }).catch(() => null);
+    // 等待加载中状态彻底脱离 DOM（达到终态稳定）
+    await page.locator("[data-testid=page-loading]").waitFor({ state: "detached", timeout: 15000 }).catch(() => null);
     // 等字体与 ECharts 渲染稳定
     await page.waitForTimeout(1400);
 
@@ -92,7 +94,7 @@ async function main() {
       fs.copyFileSync(refSrc, path.join(dir, "reference.png"));
     }
 
-    const title = await page.locator("[data-testid=page-title]").first().textContent().catch(() => null);
+    const title = await page.locator("[data-testid=page-title], [data-testid=home-title]").first().textContent().catch(() => null);
     const fixtureBanner = await page
       .locator("[data-testid=fixture-banner]")
       .count()
@@ -125,7 +127,7 @@ async function main() {
     for (const e of r.consoleErrors.slice(0, 4)) process.stdout.write(`      ${e}\n`);
   }
   process.stdout.write(`\n截图已保存到 ${OUT_ROOT}\n`);
-  if (CI && results.some((r) => r.consoleErrors.length)) process.exit(1);
+  if (CI && (results.some((r) => r.consoleErrors.length) || results.some((r) => !r.title))) process.exit(1);
 }
 
 main().catch((err) => {
