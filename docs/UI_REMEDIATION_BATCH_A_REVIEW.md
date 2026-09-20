@@ -87,13 +87,15 @@
 | `apps/web/lib/analysisStore.ts` | 强化 | 增加分析完成时自动入库会话历史；fixture 模式下非 600519 强阻断 |
 | `apps/web/lib/dataSource.ts` | 强化 | fixture 模式非 600519 强阻断；空态与非伪造数据逻辑保持 |
 | `apps/web/lib/fixture.ts` | 重构 | 完善时间窗口具体值（无 unknown 断言，availability 为 ok，补全 as_of） |
-| `apps/web/app/page.tsx` | 动态化 | 接入 `historyStore`，无记录展示诚实空态，有记录渲染真实卡片 |
+| `apps/web/lib/stockCatalog.ts` | **新建** | 通用股票基础清单与字典常量，解除底层 Store 对 UI 组件的反向依赖 |
+| `apps/web/app/page.tsx` | 动态化与合规 | 接入 `historyStore`，无记录展示诚实空态；正常模式无行情时不伪造正弦波动折线 |
 | `apps/web/app/stock/[code]/overview/page.tsx` | 隔离与重新计算 | 增加非 600519 fixture 隔离态；重新计算在 fixture 下 0 网络请求 |
 | `apps/web/app/stock/[code]/bazi/page.tsx` | 隔离 | 增加非 600519 fixture 隔离态 |
 | `apps/web/components/shell/ResearchPage.tsx` | 隔离 | 6 个子页面（黄历/紫微/时间窗口/回测/证据/冲突）统一支持非 600519 fixture 隔离态 |
-| `apps/web/components/stock/StockSearch.tsx` | 隔离 | fixture 模式下搜索建议仅使用本地数据，不发后端请求 |
-| `apps/web/components/stock/StockSwitchModal.tsx` | 隔离 | fixture 模式下切换标的仅使用本地数据，不发后端请求 |
-| `apps/web/scripts/capture-screenshots.mjs` | 健壮性 | 移除超时 swallow catch，等待超时抛出硬异常退出 |
+| `apps/web/components/stock/StockSearch.tsx` | 隔离与解耦 | fixture 模式下搜索建议仅使用本地数据；解耦引入 `stockCatalog` |
+| `apps/web/components/stock/StockSwitchModal.tsx` | 隔离与解耦 | fixture 模式下切换标的仅使用本地数据；解耦引入 `stockCatalog` |
+| `apps/web/components/stock/StockContextBar.tsx` | 解耦 | 解耦引入 `stockCatalog` |
+| `apps/web/scripts/capture-screenshots.mjs` | 健壮性 | 移除超时 swallow catch；增加 `document.fonts.ready` 字体解析等待 |
 | `apps/web/e2e/batch-a-remediation.spec.ts` | 扩充 | 由原 13 项扩充至 21 项（增加 5 大专项补验测试及 3 项标的切换测试） |
 | `docs/UI_REMEDIATION_BATCH_A_REVIEW.md` | 文档 | 完整记录补验过程、两类测试区别、测试数量与当前 Commit SHA |
 
@@ -103,7 +105,7 @@
 
 ### 1. 当前提交 SHA 状态
 - 工作分支：`codex/ui-remediation`
-- 最新提交 SHA：`be66532`（以及本次包含上述修改的工作树改动）
+- 最新提交 SHA：`2d4d5c8`
 - 后端 diff 检验：
   ```bash
   git diff d50a000 HEAD -- "src/**/*.py" "apps/api/**/*.py"
