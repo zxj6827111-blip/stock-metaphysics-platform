@@ -1,0 +1,47 @@
+# ---- Docker 构建上下文排除（缺失时上下文会到 3 GB+，构建极慢）----
+# 目的：镜像只包含**代码与必要资源**；数据一律通过卷/挂载提供，不进镜像。
+
+# Python 虚拟环境与缓存（镜像内自行安装依赖）
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+*.egg-info/
+
+# 前端依赖与构建产物（web 镜像在 apps/web 上下文内自行构建）
+node_modules/
+.next/
+out/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.playwright-mcp/
+
+# 数据：全部可由脚本重建，一律不进镜像
+data/*.sqlite3
+data/*.sqlite3-wal
+data/*.sqlite3-shm
+data/vendor/
+data/vendor_shipped/
+data/phase4_cache/
+data/phase3_universe/phase3d_cache/
+data/raw/
+data/normalized/
+data/factors/
+data/backtests/
+
+# 版本控制与编辑器
+.git/
+.gitignore
+.zcodeignore
+.vscode/
+.idea/
+*.log
+
+# 文档与报告（镜像不需要；需要归档时随代码仓库走）
+docs/
+doc/
