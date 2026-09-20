@@ -6,12 +6,15 @@
 本脚本做的事
 ------------
 1. 读全量面板（``merged_panel.pkl``）与重算面板（``recompute/merged_panel.pkl``）；
-2. 校验：重算的股票集合、日期网格、失败数（必须为 0）、每只股票行数不得减少；
+2. 校验：重算的股票集合、日期网格、失败数（必须为 0），以及**按 PIT 口径验算行数**
+   —— ``行数 == 9 × [list_date, delist_date] 内的 as_of 数``；
 3. 用重算行替换这些股票在旧面板里的全部行，写回 ``merged_panel.pkl``；
 4. 原始面板备份为 ``merged_panel_pre_resplice.pkl``，并落一份拼合报告。
 
-**预期行数会增加**：上市日修正后，老股在更早的 as_of 上才变得 PIT 可见，
-可用行数应当增加。行数**减少**才可疑，会被列为异常。
+行数**增加**与**减少**都可能正确：上市日改早 → 早期时点变为可用（增加）；
+上市日改晚（如北交所股票原值落在供应商数据起点）→ 早期时点不再可用（减少）。
+所以判据不是"只许增不许减"，而是"必须与 PIT 口径精确吻合"；
+低于应有值即判为疑似数据丢失并拒绝写入。
 """
 
 from __future__ import annotations
@@ -21,15 +24,49 @@ import pickle
 import shutil
 import sys
 from collections import Counter
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
+
+from sqlalchemy import select
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from src.db.base import get_session_factory  # noqa: E402
+from src.db.models import UniverseMembershipRow  # noqa: E402
+
 DEFAULT_BASE = ROOT / "data" / "phase4_cache"
 BACKUP_NAME = "merged_panel_pre_resplice.pkl"
 REPORT_NAME = "resplice_report.pkl"
+UNIVERSE_VERSION = "v4-full"
+#: 每个可用 (股票, as_of) 组合应有的行数 = 出生模型数(3) × 引擎数(3)。
+#: 该常数由 PIT 验算自行校验：取值错误会让精确吻合率立刻掉到接近 0。
+ROWS_PER_ELIGIBLE_DATE = 9
+
+
+def as_date(value: object) -> date:
+    """SQLite 的 Date 列经 raw 查询会以字符串返回；这里统一成 ``date``。"""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value))
+
+
+def expected_row_count(
+    listed: object, delisted: object, as_ofs: list[date],
+) -> int:
+    """按 PIT 口径算该股票应有的行数。
+
+    可用时点 = ``list_date <= as_of <= delist_date``（无退市日视为仍在市）。
+    与 ``load_universe`` 的资格判据保持一致。
+    """
+    start = as_date(listed)
+    end = as_date(delisted) if delisted else None
+    eligible = sum(
+        1 for when in as_ofs if when >= start and (end is None or when <= end)
+    )
+    return ROWS_PER_ELIGIBLE_DATE * eligible
 
 
 def load_panel(path: Path) -> dict:
@@ -81,21 +118,50 @@ def main() -> int:
     if failures:
         problems.append(f"重算存在失败：{failures}")
 
-    # --- 校验 4：每只股票行数不得减少 ---
+    # --- 校验 4：按 PIT 口径验算每只股票应有的行数 ---
+    # 行数增减都必须被规则解释：上市日改早 → 早期时点变为可用（行数增加）；
+    # 上市日改晚（如北交所股票原来落在供应商数据起点）→ 早期时点不再可用（行数减少）。
+    # 因此不能用"行数不得减少"这种粗判据，而要验算
+    # 行数 == 每可用时点行数 × [list_date, delist_date] 内的 as_of 数。
     before = per_code_counts([r for r in base_rows if str(r["stock_code"]) in replace_codes])
     after = per_code_counts(new_rows)
-    decreased = [
-        (code, before.get(code, 0), after.get(code, 0))
-        for code in sorted(replace_codes)
-        if after.get(code, 0) < before.get(code, 0)
-    ]
-    if decreased:
-        problems.append(f"行数减少的股票 {len(decreased)} 只（可疑）：{decreased[:5]}")
+    as_ofs = sorted({as_date(r["as_of"]) for r in new_rows})
+    with get_session_factory()() as db:
+        members = db.execute(
+            select(
+                UniverseMembershipRow.stock_code,
+                UniverseMembershipRow.list_date,
+                UniverseMembershipRow.delist_date,
+            ).where(
+                UniverseMembershipRow.universe_version == UNIVERSE_VERSION,
+                UniverseMembershipRow.stock_code.in_(sorted(replace_codes)),
+            )
+        ).all()
+    span = {code: (listed, delisted) for code, listed, delisted in members}
 
-    grew = sum(max(0, after.get(c, 0) - before.get(c, 0)) for c in replace_codes)
+    exact = 0
+    short: list[tuple] = []
+    for code in sorted(replace_codes):
+        listed, delisted = span.get(code, (None, None))
+        if listed is None:
+            short.append((code, "无 universe 行", 0, after.get(code, 0)))
+            continue
+        expected = expected_row_count(listed, delisted, as_ofs)
+        actual = after.get(code, 0)
+        if actual == expected:
+            exact += 1
+        elif actual < expected:
+            short.append((code, f"{as_date(listed)}~{delisted}", expected, actual))
+    if short:
+        problems.append(f"行数低于 PIT 应有值的股票 {len(short)} 只（疑似数据丢失）：{short[:5]}")
+
+    shrank = sum(1 for c in replace_codes if after.get(c, 0) < before.get(c, 0))
+    grew = sum(1 for c in replace_codes if after.get(c, 0) > before.get(c, 0))
     print(f"\n替换范围：{len(replace_codes)} 只")
-    print(f"  替换前这些股票共 {sum(before.values()):,} 行 → 重算后 {sum(after.values()):,} 行"
-          f"（+{grew:,}，来自上市日提前导致的 PIT 可见时点增加）")
+    print(f"  PIT 口径精确吻合：{exact}/{len(replace_codes)} 只"
+          f"（按 {ROWS_PER_ELIGIBLE_DATE} 行/可用时点 验算）")
+    print(f"  行数 旧 {sum(before.values()):,} → 新 {sum(after.values()):,}"
+          f"；其中增加 {grew} 只、减少 {shrank} 只")
     print(f"  未受影响股票：{len(base_codes - replace_codes)} 只，行数不变")
 
     if problems:
