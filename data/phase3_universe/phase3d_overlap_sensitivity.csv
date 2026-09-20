@@ -1,0 +1,16 @@
+hypothesis_id,object_id,birth_model,direction_source,panel,horizon,event_count,mean_excess_return_all,overlap_ratio,non_overlapping_event_count,mean_excess_return_non_overlapping,up_rate_all,up_rate_non_overlapping
+HYP-BZ-RAW-001,bazi_raw,listing_open_v1,raw,monthly_oos,20,9572,-0.011976,0.596218,6986,-0.019783,0.452085,0.445934
+HYP-BZ-RAW-001,bazi_raw,listing_close_v1,raw,monthly_oos,20,9482,-0.012255,0.601561,6902,-0.019502,0.452301,0.446456
+HYP-BZ-RAW-001,bazi_raw,ipo_approx_v1,raw,monthly_oos,20,9542,-0.011615,0.59411,6971,-0.019515,0.452331,0.445191
+HYP-BZ-CAL-001,bazi_calibrated,listing_open_v1,calibrated,monthly_oos,20,2834,-0.006091,0.368031,2347,-0.011128,0.472077,0.466045
+HYP-BZ-CAL-001,bazi_calibrated,listing_close_v1,calibrated,monthly_oos,20,3246,-0.007696,0.424214,2597,-0.013005,0.465359,0.464545
+HYP-BZ-CAL-001,bazi_calibrated,ipo_approx_v1,calibrated,monthly_oos,20,2805,-0.007035,0.384314,2304,-0.011349,0.47119,0.473492
+HYP-ZW-CAL-001,ziwei_calibrated,listing_open_v1,calibrated,monthly_oos,20,2082,-0.015512,0.419308,1677,-0.020193,0.445304,0.453401
+HYP-ZW-CAL-001,ziwei_calibrated,listing_close_v1,calibrated,monthly_oos,20,2228,-0.020967,0.439408,1773,-0.023939,0.425666,0.440931
+HYP-ZW-CAL-001,ziwei_calibrated,ipo_approx_v1,calibrated,monthly_oos,20,2334,-0.009532,0.449015,1846,-0.014752,0.444496,0.44546
+HYP-HL-CAL-001,huangli_calibrated,listing_open_v1,calibrated,monthly_oos,20,2578,-0.011749,0.065943,2501,-0.011638,0.454581,0.458757
+HYP-HL-CAL-001,huangli_calibrated,listing_close_v1,calibrated,monthly_oos,20,2474,-0.011326,0.08367,2380,-0.011065,0.460716,0.465017
+HYP-HL-CAL-001,huangli_calibrated,ipo_approx_v1,calibrated,monthly_oos,20,2588,-0.010925,0.061051,2514,-0.010014,0.462175,0.465831
+HYP-CON-ALL3-CAL-001,all_three_calibrated,listing_open_v1,calibrated,monthly_oos,20,208,-0.023332,0.057692,203,-0.02684,0.512315,0.51
+HYP-CON-ALL3-CAL-001,all_three_calibrated,listing_close_v1,calibrated,monthly_oos,20,224,-0.024137,0.026786,221,-0.025848,0.447964,0.449541
+HYP-CON-ALL3-CAL-001,all_three_calibrated,ipo_approx_v1,calibrated,monthly_oos,20,224,0.001133,0.044643,220,0.001127,0.545455,0.546296

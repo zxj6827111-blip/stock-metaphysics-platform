@@ -105,17 +105,54 @@
 
 ## 4. Phase 3D：Out-of-Sample Pipeline
 
-### 范围
-- Train 2010–2018 / Validation 2019–2022 / OOS 2023–2026（如果数据起始较晚则自动调整）
-- `WalkForwardResearch`：Train 2010–2014→Test 2015, Train 2010–2015→Test 2016 …
-- OOS 状态机：gate 条件 ≥ {足够事件数 / negative control 有效 / 方向一致 / OOS 优于 control / 显著 / effect size 非零 / 跨年稳定 / FDR 通过或可解释}
+### 范围（GOAL MODE §3D）
+- Train 2010–2018 / Validation 2019–2022 / OOS 2023–2026-08-14
+- `WalkForwardResearch`：扩窗 fold（Train 2010–2014→Test 2015 … Train through 2025→Test 2026）
+- OOS 状态机：GOAL §15 的十项条件
 - `oos_used` / `RESEARCH_REUSE_WARNING`
 
+### 实施记录（设计决策与理由）
+
+| 决策 | 选择 | 理由 |
+|---|---|---|
+| 采样步长 | **季度（主面板）** + 月度 OOS 子面板 | 季度网格下 20D/60D 持有窗口**天然不重叠**（相邻点相距约 63 个交易日），从设计上消除重叠伪样本；月度子面板专门用于量化"采样更密会怎样"（GOAL §13） |
+| 出生平移对照范围 | 仅 OOS 区间、±7 天 | 对照只在 gate 里用于 OOS 比较；采集成本与收益权衡后不在 TRAIN/Validation 重复采集，并在方法学中声明该限制 |
+| 平移对照的阈值 | 使用**真实 TRAIN 冻结阈值** | 平移面板未采集 TRAIN 区间；同一阈值语义下的反事实，已在 `oos-methodology.md` §7 披露 |
+| 冲突组合 | 预注册为 `exploratory`，**不套用单向 gate** | 冲突形态没有方向性预测；套用单向 gate 会诱导事后选方向。执行全部负对照 + 双侧 p 值，状态记 `EXPLORATORY_NOT_GATED` |
+| 事件登记 | 复用既有 `backtest_experiment` / `backtest_result`（`kind="oos"`） | GOAL §20「优先复用」；版本元数据放 `params_json`，**不新增表、不改 schema、不写 ADR** |
+| 标签 | 新增 `src/research/labels/horizon_returns.py` | AGENTS.md §6 要求标签计算只能放在 `src/research/labels/`；并统一 5/10/20/60D 的 ret 与 excess（原库只有 20D excess） |
+| 复权 | `raw × adj_factor`（TuShare 因子，两快照并集） | canonical 是 `composite_none`（不复权）；直接算收益会把除权当下跌。500 只中 308 只（退市股）只存在于第二个快照 |
+
+### 关键纪律（本阶段 P0）
+
+1. **cal-v1 在读取 OOS 标签前冻结**：fit 只允许 2010–2018；任何改动须新建 `cal-v2`。
+2. **Walk-forward 不得复用全 TRAIN 校准**：四道结构性闸门（内部按日期过滤 / layer 的
+   `fit_max_as_of` 断言 / transform 帧守卫 / 禁止 fold 使用 `cal-v1` 版本号），
+   并以 `calibration_fit_hash` 逐 fold 留痕。
+3. **假设预注册**：`config/phase3d_hypothesis_registry.yaml` 在读取 OOS 收益前写死
+   （`oos_labels_seen_at_registration: false`），18 个假设 × 3 个出生模型 = 54 个实验。
+4. **OOS 只用一次**：读取后 `oos_used=true` 写入实验登记；二次使用须新建版本并附
+   `RESEARCH_REUSE_WARNING`。
+
 ### 产出物
-- `src/research/oos/`
-- `docs/oos-methodology.md`
-- `docs/walk-forward-methodology.md`
-- `tests/research/test_oos_no_leak.py`
+
+- `src/research/oos/`（splits / calibration_freeze / gates / walk_forward / diagnostics / registry / runner）
+- `src/research/labels/horizon_returns.py`（多持有期标签统一入口）
+- `scripts/phase3d_collect_panel.py`、`scripts/phase3d_oos_pipeline.py`、`scripts/phase3d_write_report.py`、`scripts/phase3d_smoke.py`
+- `config/phase3d_hypothesis_registry.yaml`
+- `docs/oos-methodology.md`、`docs/walk-forward-methodology.md`、`docs/phase3d-oos-results.md`
+- `data/phase3_universe/phase3d_*.csv` / `phase3d_*.json`
+- 测试：`tests/research/test_oos_no_leak.py`（GOAL §23 全清单）、`test_oos_gates.py`、
+  `test_walk_forward.py`、`test_oos_runner.py`、`test_oos_diagnostics.py`、
+  `test_horizon_returns.py`、`test_oos_registry.py`
+
+### 顺带修复（Phase 3C 遗留的正确性问题）
+
+* `ResearchCalibrationLayer.transform` 用 DataFrame **索引标签**去索引 numpy **位置**数组：
+  输入来自 `.loc[mask]` 切片时会越界或**静默写错行**。已在 `transform` 入口
+  `reset_index(drop=True)` 修复，并在 `tests/research/test_calibration.py`
+  增加回归测试 `test_transform_is_position_safe_for_sliced_frames`。
+  Phase 3D 的 walk-forward 恰好会传入切片帧，因此该 bug 必须先修。
 
 ---
 
@@ -200,11 +237,63 @@
 | 3A | **DONE** (commit `17c3fbc`) | `universe_memberships v2-phase3a` 500 只 (333 退市 + 167 在市)；ADR-0012 切换主数据源 |
 | 3B | **DONE** (commit `c9fee4a`) | 4 birth model 注册（company_foundation 显式 UNAVAILABLE，无伪造）；500股×3模型 factor 对比 → `docs/birth-model-study.md` |
 | 3C | **DONE** (Phase 3C commit) | 500 股 × 3 birth model × 18 采样点；Factor 5814 行摘要、Opinion 153 行摘要；BAZI 原始正向率 94.0%–96.6%，TRAIN-only Calibration 正向率 25.5%–26.7%；无失败；行业切片显式 `POINT_IN_TIME_INDUSTRY_UNAVAILABLE` |
-| 3D | PENDING | 依赖 3A + 3B + 3C |
+| 3D | **DONE** (Phase 3D commit) | 固定 holdout + 扩窗 walk-forward；18 假设 × 3 出生模型 = 54 实验；**0 个 OOS 候选、0 个 SUPPORTED_OUT_OF_SAMPLE**；见下方 §3D 完成回填 |
 | 3E | PENDING | 依赖 3A 行业表 |
 | 3F | PENDING | 依赖 3D |
 | 3G | PENDING | 可并行（只读调研） |
 | 3H | PENDING | 终章 |
+
+---
+
+## §3D 完成回填（2026-09-20）
+
+### 真实运行规模（全部来自产物，可核对）
+
+| 项目 | 值 |
+|---|---|
+| 主面板 | 500 只（333 退市 + 167 在市）× 3 出生模型 × 3 引擎 × **68 个 as_of**（2010-01-01..2026-08-14，季度）= **175,734** 行观测，排盘失败 **0** |
+| 月度 OOS 子面板 | 45 个 as_of = 90,792 行（仅用于重叠敏感性） |
+| 出生平移对照面板 | ±7 天 × 16 个 as_of（仅 OOS） |
+| 标签 | 31,305 行；除权因子覆盖 **500/500** 只、未覆盖行 **0**；降级行情 **0** |
+| 固定 holdout 实验 | **54**（18 个预注册假设 × 3 出生模型），全部 `oos_used=true` |
+| Walk-forward | 12 条序列 × **12 个 fold** = 144 行；逐 fold `calibration_fit_hash` 互不相同 |
+| 负对照 | 每实验 5 类（随机事件位置 / 随机出生指派 / 随机模型方向 / 出生平移 ±7 天） |
+| 实验结果登记 | 54 条写入 `phase3d_experiment_registry.csv` + 既有 `backtest_experiment`（`kind="oos"`，无 schema 变更） |
+
+### 关键结果（如实记录，不美化）
+
+* **OOS 候选：0 个**；`SUPPORTED_OUT_OF_SAMPLE`：**0 个**（结构上不可能，FDR 属 3F）。
+  状态分布：`INCONCLUSIVE` 32 / `EXPLORATORY_NOT_GATED` 12 / `WEAK_EVIDENCE` 4 /
+  `INSUFFICIENT_SAMPLE` 3 / `INVALID_CONTROL` 2 / `NO_SIGNAL` 1。
+* **GOAL §19 三问**：Q1 **是**（原始 BAZI_POS 在 OOS 仍 93.1%–95.4% 近乎恒正）；
+  Q2 **是**（Jaccard 从 0.82–0.86 降到 0.11–0.14）；
+  Q3 **否**（校准后事件 OOS 平均超额仍为 −1.2%…−1.7%，单侧置换 p = 0.05–0.15，
+  无一达到预注册显著性门槛，且绝对收益为负）→
+  **Calibration improved discrimination, but did not create predictive information.**
+* **唯一显著为负的发现**：`huangli_calibrated` 事件集合在 OOS 显著弱于同数量随机集合
+  （下尾 p ≈ 0.005–0.03）。已按描述性结果输出，不表述为可交易信号。
+* **结构性发现**：黄历（`H_*`）方向是「日历开关」—— 每个 as_of 的命中率在
+  0.00–0.78 之间摆动（std 0.27），而八字 std 0.09、紫微 std 0.04。
+  这解释了为什么两类负对照给出相反结论：位置对照混合了日期构成，
+  逐日数量守恒对照（出生指派 / 随机方向）保留日期构成。
+  **协议未因此改动**（改协议＝看到结果后调参），但已列为 3F 的改进项。
+* **FDR 前瞻**：42 个正式 gate 实验中最小 p = 0.00498，BH 最小门槛 0.00119
+  → **0 个通过**。这是把正式解锁留给 3F 的实证理由。
+* **稳健性**：无任何实验出现单一股票依赖（top1 ≤ 19%、LOO 无符号翻转）；
+  主面板 20D/60D 天然非重叠（`overlap_ratio = 0`），月度子面板的重叠修正不改变结论。
+
+### 顺带修复的问题（Phase 3C 遗留正确性）
+
+* `ResearchCalibrationLayer.transform` 的**位置/标签索引错位**（切片输入会越界或静默写错行）
+  → 已在 `transform` 入口归一索引，并加回归测试。
+
+### 验证记录
+
+* 全量 pytest：见提交信息；Phase 3D 新增测试 69 项（7 个文件）。
+* 3D 定向 lint（`src/research/oos/`、`labels/horizon_returns.py`、4 个脚本、7 个测试文件）：**通过**。
+* 两次分析运行（缓存复用）状态分布完全一致 → 管线**确定性**。
+
+*创建于 2026-09-19；3A 完成于 2026-09-19；3B 完成于 2026-09-19；3C 完成于 2026-09-20；3D 完成于 2026-09-20*
 
 ---
 

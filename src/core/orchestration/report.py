@@ -30,6 +30,7 @@ STATUS_LABEL: dict[str, str] = {
     "INCONCLUSIVE": "结论不明确",
     "WEAK_EVIDENCE": "弱证据（仅样本内）",
     "SUPPORTED_IN_SAMPLE": "样本内支持（不等于样本外有效）",
+    "OOS_CANDIDATE_SUPPORTED": "样本外候选（未经 FDR 校正，不等于样本外验证通过）",
     "SUPPORTED_OUT_OF_SAMPLE": "样本外支持",
 }
 

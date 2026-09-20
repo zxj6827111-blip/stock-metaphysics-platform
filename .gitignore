@@ -44,3 +44,6 @@ resp_an.json
 .DS_Store
 Thumbs.db
 *.log
+
+# ---- Phase 3D 面板缓存（可由 scripts/phase3d_collect_panel.py 重新生成）----
+data/phase3_universe/phase3d_cache/

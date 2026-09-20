@@ -203,6 +203,11 @@ class ResearchCalibrationLayer:
         self._validate_common_columns(frame)
         self._reject_future_columns(frame)
         out = frame.copy(deep=True)
+        # 位置索引归一（Phase 3D 回归修复）：下面的分组结果用 numpy **位置**数组回填，
+        # 而 groupby().groups 给出的是 DataFrame **索引标签**。若输入来自
+        # ``.loc[mask]`` / ``query`` 这类切片（索引不是 0..n-1），两者会错位 ——
+        # 轻则 IndexError，重则把分位值写到错误的行上（静默错误）。
+        out = out.reset_index(drop=True)
         out["research_percentile"] = np.nan
         out["cross_sectional_percentile"] = np.nan
         out["historical_percentile"] = np.nan

@@ -1,0 +1,714 @@
+{
+  "hypothesis_registry": {
+    "registry_version": "phase3d-hypotheses-v1",
+    "frozen_at": "2026-09-20",
+    "oos_labels_seen_at_registration": false,
+    "hypothesis_count": 18,
+    "hypotheses": [
+      {
+        "hypothesis_id": "HYP-BZ-RAW-001",
+        "title": "原始八字方向为正 → 未来 20D 超额收益优于对照",
+        "object_id": "bazi_raw",
+        "engines": [
+          "bazi"
+        ],
+        "direction_source": "raw",
+        "logic": "single",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "Phase 2 的运行时口径（score >= 58 判为正向）。Phase 3C 已证其正向率 94%–96.6%， 即事件集合几乎等于整个面板；本假设保留原始口径以回答 GOAL §19 Q1/Q2， 并预期负对照会因 Jaccard 过高而失效（INVALID_CONTROL）。\n",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-BZ-CAL-001",
+        "title": "校准后八字正向（TRAIN P75 以上）→ 未来 20D 超额收益优于对照",
+        "object_id": "bazi_calibrated",
+        "engines": [
+          "bazi"
+        ],
+        "direction_source": "calibrated",
+        "logic": "single",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "GOAL §19 Q3 的核心：一旦用 TRAIN-only P25/P75 把正向率从 ~96% 降到 ~26%， 事件集合就具备了区分度，此时才能真实检验\"是否优于随机\"。\n",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-ZW-RAW-001",
+        "title": "原始紫微方向为正 → 未来 20D 超额收益优于对照",
+        "object_id": "ziwei_raw",
+        "engines": [
+          "ziwei"
+        ],
+        "direction_source": "raw",
+        "logic": "single",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-ZW-CAL-001",
+        "title": "校准后紫微正向 → 未来 20D 超额收益优于对照",
+        "object_id": "ziwei_calibrated",
+        "engines": [
+          "ziwei"
+        ],
+        "direction_source": "calibrated",
+        "logic": "single",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-HL-RAW-001",
+        "title": "原始黄历方向为正 → 未来 20D 超额收益优于对照",
+        "object_id": "huangli_raw",
+        "engines": [
+          "huangli"
+        ],
+        "direction_source": "raw",
+        "logic": "single",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "H_* 因子口径为「黄历 × 原局」（日干支五行与喜用神关系、与原局日支的刑冲合）， 因此黄历观点同样依赖出生盘，出生平移对照同样适用。\n",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-HL-CAL-001",
+        "title": "校准后黄历正向 → 未来 20D 超额收益优于对照",
+        "object_id": "huangli_calibrated",
+        "engines": [
+          "huangli"
+        ],
+        "direction_source": "calibrated",
+        "logic": "single",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-CON-BZ-ZW-RAW-001",
+        "title": "八字 + 紫微 原始同向为正 → 优于对照",
+        "object_id": "bazi_ziwei_raw",
+        "engines": [
+          "bazi",
+          "ziwei"
+        ],
+        "direction_source": "raw",
+        "logic": "all_positive",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-CON-BZ-ZW-CAL-001",
+        "title": "八字 + 紫微 校准同向为正 → 优于对照",
+        "object_id": "bazi_ziwei_calibrated",
+        "engines": [
+          "bazi",
+          "ziwei"
+        ],
+        "direction_source": "calibrated",
+        "logic": "all_positive",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "GOAL §21 HYP-CON-001：共振是否优于单引擎。",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-CON-BZ-HL-RAW-001",
+        "title": "八字 + 黄历 原始同向为正 → 优于对照",
+        "object_id": "bazi_huangli_raw",
+        "engines": [
+          "bazi",
+          "huangli"
+        ],
+        "direction_source": "raw",
+        "logic": "all_positive",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-CON-BZ-HL-CAL-001",
+        "title": "八字 + 黄历 校准同向为正 → 优于对照",
+        "object_id": "bazi_huangli_calibrated",
+        "engines": [
+          "bazi",
+          "huangli"
+        ],
+        "direction_source": "calibrated",
+        "logic": "all_positive",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-CON-ZW-HL-RAW-001",
+        "title": "紫微 + 黄历 原始同向为正 → 优于对照",
+        "object_id": "ziwei_huangli_raw",
+        "engines": [
+          "ziwei",
+          "huangli"
+        ],
+        "direction_source": "raw",
+        "logic": "all_positive",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-CON-ZW-HL-CAL-001",
+        "title": "紫微 + 黄历 校准同向为正 → 优于对照",
+        "object_id": "ziwei_huangli_calibrated",
+        "engines": [
+          "ziwei",
+          "huangli"
+        ],
+        "direction_source": "calibrated",
+        "logic": "all_positive",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-CON-ALL3-RAW-001",
+        "title": "三模型原始同时为正 → 优于对照",
+        "object_id": "all_three_raw",
+        "engines": [
+          "bazi",
+          "ziwei",
+          "huangli"
+        ],
+        "direction_source": "raw",
+        "logic": "all_positive",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-CON-ALL3-CAL-001",
+        "title": "三模型校准同时为正 → 优于对照",
+        "object_id": "all_three_calibrated",
+        "engines": [
+          "bazi",
+          "ziwei",
+          "huangli"
+        ],
+        "direction_source": "calibrated",
+        "logic": "all_positive",
+        "expected_direction": "positive",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": null,
+        "rationales": "GOAL §21 HYP-CON-002。",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-CFL-BZ-POS-ZW-NEG-CAL-001",
+        "title": "八字校准偏强 / 紫微校准偏弱（冲突）→ 描述性结果",
+        "object_id": "conflict_bazi_pos_ziwei_neg",
+        "engines": [
+          "bazi",
+          "ziwei"
+        ],
+        "direction_source": "calibrated",
+        "logic": "conflict",
+        "expected_direction": "exploratory",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": {
+          "positive": [
+            "bazi"
+          ],
+          "negative": [
+            "ziwei"
+          ]
+        },
+        "rationales": "",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-CFL-BZ-NEG-ZW-POS-CAL-001",
+        "title": "紫微校准偏强 / 八字校准偏弱（冲突）→ 描述性结果",
+        "object_id": "conflict_ziwei_pos_bazi_neg",
+        "engines": [
+          "bazi",
+          "ziwei"
+        ],
+        "direction_source": "calibrated",
+        "logic": "conflict",
+        "expected_direction": "exploratory",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": {
+          "positive": [
+            "ziwei"
+          ],
+          "negative": [
+            "bazi"
+          ]
+        },
+        "rationales": "",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-CFL-BZ-POS-HL-NEG-CAL-001",
+        "title": "八字校准偏强 / 黄历校准偏弱（冲突）→ 描述性结果",
+        "object_id": "conflict_bazi_pos_huangli_neg",
+        "engines": [
+          "bazi",
+          "huangli"
+        ],
+        "direction_source": "calibrated",
+        "logic": "conflict",
+        "expected_direction": "exploratory",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": {
+          "positive": [
+            "bazi"
+          ],
+          "negative": [
+            "huangli"
+          ]
+        },
+        "rationales": "",
+        "notes": ""
+      },
+      {
+        "hypothesis_id": "HYP-CFL-ZW-POS-HL-NEG-CAL-001",
+        "title": "紫微校准偏强 / 黄历校准偏弱（冲突）→ 描述性结果",
+        "object_id": "conflict_ziwei_pos_huangli_neg",
+        "engines": [
+          "ziwei",
+          "huangli"
+        ],
+        "direction_source": "calibrated",
+        "logic": "conflict",
+        "expected_direction": "exploratory",
+        "primary_horizon": 20,
+        "horizons": [
+          5,
+          10,
+          20,
+          60
+        ],
+        "birth_models": [
+          "listing_open_v1",
+          "listing_close_v1",
+          "ipo_approx_v1"
+        ],
+        "control_kinds": [
+          "random_event_position",
+          "random_birth_assignment",
+          "random_model_direction",
+          "shifted_birth_date_minus_7d",
+          "shifted_birth_date_plus_7d"
+        ],
+        "conflict": {
+          "positive": [
+            "ziwei"
+          ],
+          "negative": [
+            "huangli"
+          ]
+        },
+        "rationales": "",
+        "notes": ""
+      }
+    ],
+    "notes": [
+      "所有假设的主持有期为 20D；5/10/20/60D 全部报告，禁止只报告最好的一档。",
+      "出生模型（listing_open_v1 / listing_close_v1 / ipo_approx_v1）逐个研究，不合并。",
+      "ipo_approx_v1 的所有结果强制携带 IPO_APPROXIMATION_WARNING。",
+      "负对照按适用性选择：随机事件位置 / 随机出生指派 / 随机模型方向 / 出生日期 ±7 天平移。",
+      "conflict 组合为探索性（exploratory），不做单向 gate。"
+    ]
+  },
+  "registry_path": "config\\phase3d_hypothesis_registry.yaml",
+  "gate_thresholds": {
+    "gate_version": "phase3d-oos-gate-v1",
+    "min_oos_events": 100,
+    "min_validation_events": 60,
+    "max_control_jaccard": 0.9,
+    "min_abs_cohen_d": 0.02,
+    "alpha": 0.05,
+    "min_stable_years": 3,
+    "min_positive_year_ratio": 0.6,
+    "min_sign_consistency": 0.6,
+    "max_top1_contribution": 0.5,
+    "p_value_metric": "permutation_p_one_sided_random_event_position",
+    "max_status_phase3d": "OOS_CANDIDATE_SUPPORTED",
+    "fdr_deferred_to_phase": "3F"
+  },
+  "split": {
+    "split_version": "phase3-oos-v1",
+    "dataset_version": "phase3a_astockdata_cutoff_20260814",
+    "universe_version": "v2-phase3a",
+    "calibration_version": "cal-v1",
+    "label_version": "phase3d-hfq-adjfactor-v1",
+    "train_start": "2010-01-01",
+    "train_end": "2018-12-31",
+    "validation_start": "2019-01-01",
+    "validation_end": "2022-12-31",
+    "oos_start": "2023-01-01",
+    "oos_end": "2026-08-14",
+    "primary_horizon": 20,
+    "horizons": [
+      5,
+      10,
+      20,
+      60
+    ],
+    "sample_step_months": 3,
+    "as_of_hour": 15,
+    "oos_labels_seen": false,
+    "notes": [
+      "OOS 上界 = AStockData 快照截止日（2026-08-14），并非「研究结束」；任何早于该日的标签都存在，必须按预注册协议一次性读取。"
+    ]
+  },
+  "calibration_freeze": {
+    "freeze_version": "calibration-freeze-v1",
+    "calibration_version": "cal-v1",
+    "layer_version": "research-calibration-v1",
+    "fit_period": [
+      "2010-01-01",
+      "2018-12-31"
+    ],
+    "fit_scope": "TRAIN_ONLY",
+    "lower_quantile": 0.25,
+    "upper_quantile": 0.75,
+    "oos_labels_seen": false,
+    "frozen_at": "2026-09-20",
+    "notes": [
+      "Phase 3C 只审计了特征/Opinion 分布，未读取未来收益标签。",
+      "冻结内容：P25/P75 方向阈值、z-score 的均值/标准差、经验分位参考分布。",
+      "任何修改必须新建 cal-v2 并重定义 OOS 协议；不得静默覆盖 cal-v1。"
+    ]
+  }
+}

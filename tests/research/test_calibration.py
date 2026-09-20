@@ -107,3 +107,26 @@ class TestTrainOnlyLayer:
         assert set(out["calibration_status"]) == {"unavailable_constant_train"}
         assert out["calibrated_direction"].isna().all()
         assert out["z_score"].isna().all()
+
+    def test_transform_is_position_safe_for_sliced_frames(self):
+        """Phase 3D 回归：输入来自 ``.loc[mask]`` 切片（索引非 0..n-1）时不得错位。
+
+        修复前：内部用 numpy 位置数组回填分组结果，却拿到 DataFrame 索引标签，
+        结果是 IndexError（越界）或静默写错行。这里同时验证"数值正确"。
+        """
+        train = _frame()
+        layer = ResearchCalibrationLayer(
+            "opinion_score", ("engine", "birth_model"), fit_max_as_of=date(2018, 12, 31)
+        ).fit(train)
+        oos = pd.concat([
+            _frame().assign(partition="OOS", as_of=date(2023, 1, 1)),
+            _frame().assign(partition="OOS", as_of=date(2023, 2, 1)),
+        ], ignore_index=True)
+        tail = oos.loc[oos["as_of"] == date(2023, 2, 1)]  # 索引 4..7
+        transformed = layer.transform(tail)
+        assert len(transformed) == 4
+        assert transformed["calibrated_direction"].notna().all()
+        # 与整体（RangeIndex）转换的结果必须一致
+        whole = layer.transform(oos)
+        expected = whole.loc[whole["as_of"] == date(2023, 2, 1), "calibrated_direction"].tolist()
+        assert transformed["calibrated_direction"].tolist() == expected

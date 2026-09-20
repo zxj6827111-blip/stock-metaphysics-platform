@@ -1,0 +1,108 @@
+{
+  "generated_at": "2026-09-20T11:51:03",
+  "git_sha": "4a34555c1249800faa1a07480742119642e375ef",
+  "split": {
+    "split_version": "phase3-oos-v1",
+    "dataset_version": "phase3a_astockdata_cutoff_20260814",
+    "universe_version": "v2-phase3a",
+    "calibration_version": "cal-v1",
+    "label_version": "phase3d-hfq-adjfactor-v1",
+    "train_start": "2010-01-01",
+    "train_end": "2018-12-31",
+    "validation_start": "2019-01-01",
+    "validation_end": "2022-12-31",
+    "oos_start": "2023-01-01",
+    "oos_end": "2026-08-14",
+    "primary_horizon": 20,
+    "horizons": [
+      5,
+      10,
+      20,
+      60
+    ],
+    "sample_step_months": 3,
+    "as_of_hour": 15,
+    "oos_labels_seen": false,
+    "notes": [
+      "OOS 上界 = AStockData 快照截止日（2026-08-14），并非「研究结束」；任何早于该日的标签都存在，必须按预注册协议一次性读取。"
+    ]
+  },
+  "gate_thresholds": {
+    "gate_version": "phase3d-oos-gate-v1",
+    "min_oos_events": 100,
+    "min_validation_events": 60,
+    "max_control_jaccard": 0.9,
+    "min_abs_cohen_d": 0.02,
+    "alpha": 0.05,
+    "min_stable_years": 3,
+    "min_positive_year_ratio": 0.6,
+    "min_sign_consistency": 0.6,
+    "max_top1_contribution": 0.5,
+    "p_value_metric": "permutation_p_one_sided_random_event_position",
+    "max_status_phase3d": "OOS_CANDIDATE_SUPPORTED",
+    "fdr_deferred_to_phase": "3F"
+  },
+  "calibration": {
+    "calibration_version": "cal-v1",
+    "fit_scope": "TRAIN_ONLY",
+    "fit_max_as_of": "2018-10-01",
+    "train_end": "2018-12-31",
+    "fit_lag_days_vs_train_end": 91,
+    "fit_row_count": 96156,
+    "fit_group_count": 9,
+    "calibration_fit_hash": "7e9897570d3b5a28",
+    "oos_labels_seen": true
+  },
+  "labels": {
+    "label_version": "phase3d-hfq-adjfactor-v1",
+    "benchmark_code": "IDX000300",
+    "adj_snapshots": [
+      "tsfactor_20260731T221443_49624041",
+      "tsfactor_20260806T110553_91dc1a9e"
+    ],
+    "adj_factor_files": 5865,
+    "codes_with_adj": 500,
+    "codes_without_adj": 0,
+    "coverage_totals": {
+      "raw_rows": 1737363,
+      "matched_rows": 1660476,
+      "filled_rows": 76887,
+      "uncovered_rows": 0
+    },
+    "label_rows": 31305,
+    "degraded_codes": []
+  },
+  "universe_composition": {
+    "active": 167,
+    "delisted": 333
+  },
+  "panel": {
+    "main_rows": 175734,
+    "main_dates": 68,
+    "main_codes": 500,
+    "monthly_rows": 90792,
+    "monthly_dates": 45,
+    "shift_dates": 16,
+    "failures": {},
+    "engine_versions": {
+      "bazi": "smx-bazi-native-1.0.0",
+      "huangli": "huangli-engine-1.0.0",
+      "ziwei": "iztro-2.6.1+smx-1.0.0",
+      "factor_rule_version": "v1.1"
+    },
+    "ziwei_unavailable_reason": ""
+  },
+  "experiment_count": 54,
+  "hypothesis_count": 18,
+  "walkforward_fold_count": 12,
+  "walkforward_row_count": 144,
+  "status_counts": {
+    "INVALID_CONTROL": 2,
+    "INCONCLUSIVE": 32,
+    "WEAK_EVIDENCE": 4,
+    "NO_SIGNAL": 1,
+    "INSUFFICIENT_SAMPLE": 3,
+    "EXPLORATORY_NOT_GATED": 12
+  },
+  "elapsed_seconds": 171.9
+}

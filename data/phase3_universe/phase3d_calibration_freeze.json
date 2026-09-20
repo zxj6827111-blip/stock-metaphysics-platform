@@ -1,0 +1,165 @@
+{
+  "freeze": {
+    "freeze_version": "calibration-freeze-v1",
+    "calibration_version": "cal-v1",
+    "layer_version": "research-calibration-v1",
+    "fit_period": [
+      "2010-01-01",
+      "2018-12-31"
+    ],
+    "fit_scope": "TRAIN_ONLY",
+    "lower_quantile": 0.25,
+    "upper_quantile": 0.75,
+    "oos_labels_seen": false,
+    "frozen_at": "2026-09-20",
+    "notes": [
+      "Phase 3C 只审计了特征/Opinion 分布，未读取未来收益标签。",
+      "冻结内容：P25/P75 方向阈值、z-score 的均值/标准差、经验分位参考分布。",
+      "任何修改必须新建 cal-v2 并重定义 OOS 协议；不得静默覆盖 cal-v1。"
+    ]
+  },
+  "holdout_fit": {
+    "calibration_version": "cal-v1",
+    "fit_scope": "TRAIN_ONLY",
+    "fit_max_as_of": "2018-10-01",
+    "train_end": "2018-12-31",
+    "fit_lag_days_vs_train_end": 91,
+    "fit_row_count": 96156,
+    "fit_group_count": 9,
+    "calibration_fit_hash": "7e9897570d3b5a28",
+    "oos_labels_seen": true
+  },
+  "layer": {
+    "calibration_version": "cal-v1",
+    "fit_partition": "TRAIN",
+    "fit_max_as_of": "2018-12-31",
+    "value_col": "opinion_score",
+    "group_cols": [
+      "engine",
+      "birth_model"
+    ],
+    "lower_quantile": 0.25,
+    "upper_quantile": 0.75,
+    "group_count": 9,
+    "groups": [
+      {
+        "key": [
+          "bazi",
+          "ipo_approx_v1"
+        ],
+        "sample_count": 10684,
+        "mean": 64.680730999626,
+        "std": 3.610948755716,
+        "lower_threshold": 62.2,
+        "upper_threshold": 67.31
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_close_v1"
+        ],
+        "sample_count": 10684,
+        "mean": 64.738057843504,
+        "std": 3.743496299603,
+        "lower_threshold": 62.05,
+        "upper_threshold": 67.54
+      },
+      {
+        "key": [
+          "bazi",
+          "listing_open_v1"
+        ],
+        "sample_count": 10684,
+        "mean": 64.643359228753,
+        "std": 3.651354204523,
+        "lower_threshold": 62.16,
+        "upper_threshold": 67.2625
+      },
+      {
+        "key": [
+          "huangli",
+          "ipo_approx_v1"
+        ],
+        "sample_count": 10684,
+        "mean": 56.80843036316,
+        "std": 8.021728331168,
+        "lower_threshold": 51.52,
+        "upper_threshold": 62.385
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_close_v1"
+        ],
+        "sample_count": 10684,
+        "mean": 57.370259266192,
+        "std": 7.742487778207,
+        "lower_threshold": 52.45,
+        "upper_threshold": 62.69
+      },
+      {
+        "key": [
+          "huangli",
+          "listing_open_v1"
+        ],
+        "sample_count": 10684,
+        "mean": 56.841403032572,
+        "std": 7.997733853202,
+        "lower_threshold": 51.5975,
+        "upper_threshold": 62.37
+      },
+      {
+        "key": [
+          "ziwei",
+          "ipo_approx_v1"
+        ],
+        "sample_count": 10684,
+        "mean": 55.813522089105,
+        "std": 3.867045754119,
+        "lower_threshold": 53.1,
+        "upper_threshold": 58.52
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_close_v1"
+        ],
+        "sample_count": 10684,
+        "mean": 56.137554286784,
+        "std": 4.146783435356,
+        "lower_threshold": 53.31,
+        "upper_threshold": 59.07
+      },
+      {
+        "key": [
+          "ziwei",
+          "listing_open_v1"
+        ],
+        "sample_count": 10684,
+        "mean": 55.677855672033,
+        "std": 3.738575063018,
+        "lower_threshold": 53.08,
+        "upper_threshold": 58.31
+      }
+    ]
+  },
+  "label": {
+    "label_version": "phase3d-hfq-adjfactor-v1",
+    "benchmark_code": "IDX000300",
+    "adj_snapshots": [
+      "tsfactor_20260731T221443_49624041",
+      "tsfactor_20260806T110553_91dc1a9e"
+    ],
+    "adj_factor_files": 5865,
+    "codes_with_adj": 500,
+    "codes_without_adj": 0,
+    "coverage_totals": {
+      "raw_rows": 1737363,
+      "matched_rows": 1660476,
+      "filled_rows": 76887,
+      "uncovered_rows": 0
+    },
+    "label_rows": 31305,
+    "degraded_codes": []
+  }
+}

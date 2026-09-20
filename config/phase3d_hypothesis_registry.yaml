@@ -1,0 +1,353 @@
+# Phase 3D 假设预注册（GOAL §21）
+#
+# 冻结纪律：
+#   * 本文件在**读取任何 OOS 收益标签之前**写入并冻结。
+#   * 读取 OOS 结果之后不允许修改本文件的命中定义、方向、持有期、对照类型。
+#   * 若要新增/修改假设 → 新建 hypothesis_id（例如 -002），旧条目原样保留。
+#   * 事件定义只来自本文件；禁止自由搜索因子组合或临时挑选持有期。
+#
+# 方向（expected_direction）语义：
+#   positive     —— 预注册的单向预测：命中组未来超额收益 **优于** 对照。
+#                    只有这一类会进入 OOS 状态门（gates.py 的十项条件）。
+#   exploratory  —— 无方向性预注册（冲突组合）。仍然执行全部负对照与诊断，
+#                    但不套用单向 gate，结果以**双侧**描述统计给出，
+#                    状态记为 EXPLORATORY_NOT_GATED，不得解锁任何候选状态。
+
+registry_version: phase3d-hypotheses-v1
+frozen_at: "2026-09-20"
+oos_labels_seen_at_registration: false
+
+notes:
+  - "所有假设的主持有期为 20D；5/10/20/60D 全部报告，禁止只报告最好的一档。"
+  - "出生模型（listing_open_v1 / listing_close_v1 / ipo_approx_v1）逐个研究，不合并。"
+  - "ipo_approx_v1 的所有结果强制携带 IPO_APPROXIMATION_WARNING。"
+  - "负对照按适用性选择：随机事件位置 / 随机出生指派 / 随机模型方向 / 出生日期 ±7 天平移。"
+  - "conflict 组合为探索性（exploratory），不做单向 gate。"
+
+hypotheses:
+  # ---------------------------------------------------------------- 八字
+  - hypothesis_id: HYP-BZ-RAW-001
+    title: 原始八字方向为正 → 未来 20D 超额收益优于对照
+    object_id: bazi_raw
+    engines: [bazi]
+    direction_source: raw
+    logic: single
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+    rationale: >
+      Phase 2 的运行时口径（score >= 58 判为正向）。Phase 3C 已证其正向率 94%–96.6%，
+      即事件集合几乎等于整个面板；本假设保留原始口径以回答 GOAL §19 Q1/Q2，
+      并预期负对照会因 Jaccard 过高而失效（INVALID_CONTROL）。
+
+  - hypothesis_id: HYP-BZ-CAL-001
+    title: 校准后八字正向（TRAIN P75 以上）→ 未来 20D 超额收益优于对照
+    object_id: bazi_calibrated
+    engines: [bazi]
+    direction_source: calibrated
+    logic: single
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+    rationale: >
+      GOAL §19 Q3 的核心：一旦用 TRAIN-only P25/P75 把正向率从 ~96% 降到 ~26%，
+      事件集合就具备了区分度，此时才能真实检验"是否优于随机"。
+
+  # ---------------------------------------------------------------- 紫微
+  - hypothesis_id: HYP-ZW-RAW-001
+    title: 原始紫微方向为正 → 未来 20D 超额收益优于对照
+    object_id: ziwei_raw
+    engines: [ziwei]
+    direction_source: raw
+    logic: single
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+
+  - hypothesis_id: HYP-ZW-CAL-001
+    title: 校准后紫微正向 → 未来 20D 超额收益优于对照
+    object_id: ziwei_calibrated
+    engines: [ziwei]
+    direction_source: calibrated
+    logic: single
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+
+  # ---------------------------------------------------------------- 黄历
+  - hypothesis_id: HYP-HL-RAW-001
+    title: 原始黄历方向为正 → 未来 20D 超额收益优于对照
+    object_id: huangli_raw
+    engines: [huangli]
+    direction_source: raw
+    logic: single
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+    rationale: >
+      H_* 因子口径为「黄历 × 原局」（日干支五行与喜用神关系、与原局日支的刑冲合），
+      因此黄历观点同样依赖出生盘，出生平移对照同样适用。
+
+  - hypothesis_id: HYP-HL-CAL-001
+    title: 校准后黄历正向 → 未来 20D 超额收益优于对照
+    object_id: huangli_calibrated
+    engines: [huangli]
+    direction_source: calibrated
+    logic: single
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+
+  # ------------------------------------------------- 两两共振（raw + calibrated）
+  - hypothesis_id: HYP-CON-BZ-ZW-RAW-001
+    title: 八字 + 紫微 原始同向为正 → 优于对照
+    object_id: bazi_ziwei_raw
+    engines: [bazi, ziwei]
+    direction_source: raw
+    logic: all_positive
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+
+  - hypothesis_id: HYP-CON-BZ-ZW-CAL-001
+    title: 八字 + 紫微 校准同向为正 → 优于对照
+    object_id: bazi_ziwei_calibrated
+    engines: [bazi, ziwei]
+    direction_source: calibrated
+    logic: all_positive
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+    rationale: GOAL §21 HYP-CON-001：共振是否优于单引擎。
+
+  - hypothesis_id: HYP-CON-BZ-HL-RAW-001
+    title: 八字 + 黄历 原始同向为正 → 优于对照
+    object_id: bazi_huangli_raw
+    engines: [bazi, huangli]
+    direction_source: raw
+    logic: all_positive
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+
+  - hypothesis_id: HYP-CON-BZ-HL-CAL-001
+    title: 八字 + 黄历 校准同向为正 → 优于对照
+    object_id: bazi_huangli_calibrated
+    engines: [bazi, huangli]
+    direction_source: calibrated
+    logic: all_positive
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+
+  - hypothesis_id: HYP-CON-ZW-HL-RAW-001
+    title: 紫微 + 黄历 原始同向为正 → 优于对照
+    object_id: ziwei_huangli_raw
+    engines: [ziwei, huangli]
+    direction_source: raw
+    logic: all_positive
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+
+  - hypothesis_id: HYP-CON-ZW-HL-CAL-001
+    title: 紫微 + 黄历 校准同向为正 → 优于对照
+    object_id: ziwei_huangli_calibrated
+    engines: [ziwei, huangli]
+    direction_source: calibrated
+    logic: all_positive
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+
+  - hypothesis_id: HYP-CON-ALL3-RAW-001
+    title: 三模型原始同时为正 → 优于对照
+    object_id: all_three_raw
+    engines: [bazi, ziwei, huangli]
+    direction_source: raw
+    logic: all_positive
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+
+  - hypothesis_id: HYP-CON-ALL3-CAL-001
+    title: 三模型校准同时为正 → 优于对照
+    object_id: all_three_calibrated
+    engines: [bazi, ziwei, huangli]
+    direction_source: calibrated
+    logic: all_positive
+    expected_direction: positive
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+    rationale: GOAL §21 HYP-CON-002。
+
+  # --------------------------------------------- 预定义冲突组合（探索性，不做单向 gate）
+  - hypothesis_id: HYP-CFL-BZ-POS-ZW-NEG-CAL-001
+    title: 八字校准偏强 / 紫微校准偏弱（冲突）→ 描述性结果
+    object_id: conflict_bazi_pos_ziwei_neg
+    engines: [bazi, ziwei]
+    direction_source: calibrated
+    logic: conflict
+    conflict: {positive: [bazi], negative: [ziwei]}
+    expected_direction: exploratory
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+
+  - hypothesis_id: HYP-CFL-BZ-NEG-ZW-POS-CAL-001
+    title: 紫微校准偏强 / 八字校准偏弱（冲突）→ 描述性结果
+    object_id: conflict_ziwei_pos_bazi_neg
+    engines: [bazi, ziwei]
+    direction_source: calibrated
+    logic: conflict
+    conflict: {positive: [ziwei], negative: [bazi]}
+    expected_direction: exploratory
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+
+  - hypothesis_id: HYP-CFL-BZ-POS-HL-NEG-CAL-001
+    title: 八字校准偏强 / 黄历校准偏弱（冲突）→ 描述性结果
+    object_id: conflict_bazi_pos_huangli_neg
+    engines: [bazi, huangli]
+    direction_source: calibrated
+    logic: conflict
+    conflict: {positive: [bazi], negative: [huangli]}
+    expected_direction: exploratory
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
+
+  - hypothesis_id: HYP-CFL-ZW-POS-HL-NEG-CAL-001
+    title: 紫微校准偏强 / 黄历校准偏弱（冲突）→ 描述性结果
+    object_id: conflict_ziwei_pos_huangli_neg
+    engines: [ziwei, huangli]
+    direction_source: calibrated
+    logic: conflict
+    conflict: {positive: [ziwei], negative: [huangli]}
+    expected_direction: exploratory
+    primary_horizon: 20
+    horizons: [5, 10, 20, 60]
+    birth_models: [listing_open_v1, listing_close_v1, ipo_approx_v1]
+    control_kinds:
+      - random_event_position
+      - random_birth_assignment
+      - random_model_direction
+      - shifted_birth_date_minus_7d
+      - shifted_birth_date_plus_7d
