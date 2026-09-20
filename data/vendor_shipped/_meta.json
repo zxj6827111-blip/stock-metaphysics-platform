@@ -1,0 +1,12 @@
+{
+  "purpose": "随代码交付的退市股行情（NAS 部署用，避免重复下载）",
+  "source_manifest": "internal_delisted_complement_1d_20260814_b3c980d40194.json",
+  "dataset_id": "internal_delisted_complement_1d_20260814_b3c980d40194",
+  "codes": 333,
+  "rows": 1238152,
+  "date_range": [
+    "1990-12-19",
+    "2026-07-16"
+  ],
+  "note": "仅 OHLCV，**无估值字段** → 这些股票的 size/value 暴露为 NaN，不得用 0 冒充"
+}

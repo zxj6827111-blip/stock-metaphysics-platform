@@ -1,0 +1,120 @@
+# 股票玄学多模型研究平台 · NAS 隔离部署（compose 项目名 smp）
+#
+# 设计原则：与本机 docker-compose.yml 同构，但**完全隔离**：
+#   * 独立项目名 smp / 独立网络 smp-net / 独立命名卷
+#   * 端口避让 NAS 上已有服务（18001 stock-analyzer / 18642+19119 hermes /
+#     18789-18790 openclaw / 6379 redis）
+#   * 供应商原始数据以 :ro 只读挂载 —— 容器无法修改用户的数据
+#
+# 用法（在 deploy/nas 目录下）：
+#   cp .env.example .env && vi .env
+#   docker compose -f docker-compose.nas.yml config      # 语法校验
+#   docker compose -f docker-compose.nas.yml up -d --build
+#   docker compose -f docker-compose.nas.yml logs -f api
+
+name: smp
+
+services:
+  ziwei:
+    build:
+      context: ../../services/ziwei-service
+      dockerfile: Dockerfile
+    image: smp-ziwei:phase4
+    container_name: smp-ziwei
+    # 只给 compose 内部网络，不对外暴露
+    expose:
+      - "8100"
+    environment:
+      ZIWEI_HOST: 0.0.0.0
+      ZIWEI_PORT: "8100"
+      TZ: Asia/Shanghai
+    networks:
+      - smp-net
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    # 资源上限：不与 NAS 上其它服务抢资源（宿主机 16G）
+    mem_limit: 1g
+
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    image: smp-api:phase4
+    container_name: smp-api
+    ports:
+      - "${SMP_API_PORT:-18080}:8000"
+    environment:
+      SMP_DATABASE_URL: sqlite:////app/data/smp.sqlite3
+      SMP_DATA_DIR: /app/data
+      SMP_TIMEZONE: Asia/Shanghai
+      PYTHONUTF8: "1"
+      TZ: Asia/Shanghai
+      SMP_CORS_ORIGINS: '["http://localhost:13000","http://127.0.0.1:13000"]'
+      # 容器内没有 node → 紫微必须走常驻服务
+      SMP_ZIWEI_SERVICE_URL: http://ziwei:8100
+      # 全市场供应商仓库（本系统自己的卷；由 import-data.sh 构建）
+      SMP_VENDOR_DATA_DIR: /app/vendor
+      # 供应商原始包（**只读**挂载用户数据）
+      SMP_VENDOR_ROOT: /vendor/history
+      # 行情源：供应商 Parquet 仓库优先；AKShare 在本环境不可达，禁用以免静默降级
+      SMP_MARKET_PROVIDER: ${SMP_MARKET_PROVIDER:-vendor_parquet}
+      SMP_ALLOW_SYNTHETIC_MARKET_FALLBACK: "false"
+      # LLM 叙事（可选）：未配置时仅该功能降级
+      SMP_LLM_API_KEY: ${SMP_LLM_API_KEY:-}
+      SMP_LLM_BASE_URL: ${SMP_LLM_BASE_URL:-}
+    volumes:
+      - smp-data:/app/data
+      - smp-vendor:/app/vendor
+      # 用户数据：只读。`.env` 里的 SMP_VENDOR_HOST_PATH 指向真实路径
+      - ${SMP_VENDOR_HOST_PATH:-/vol1/1000/股票历史数据}:/vendor/history:ro
+    networks:
+      - smp-net
+    depends_on:
+      ziwei:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/v1/system/health')"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+      start_period: 25s
+    restart: unless-stopped
+    mem_limit: 6g
+
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+    image: smp-web:phase4
+    container_name: smp-web
+    ports:
+      - "${SMP_WEB_PORT:-13000}:3000"
+    environment:
+      # 浏览器 → Next rewrites → api 容器
+      SMP_API_BASE: http://api:8000
+      NEXT_PUBLIC_SMP_API_BASE: /api/backend
+      NODE_ENV: production
+      TZ: Asia/Shanghai
+    networks:
+      - smp-net
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 1g
+
+networks:
+  smp-net:
+    name: smp-net
+    driver: bridge
+
+volumes:
+  smp-data:
+    name: smp-data
+  smp-vendor:
+    name: smp-vendor

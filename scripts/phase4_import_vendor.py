@@ -56,12 +56,14 @@ from src.market.providers.vendor_zip_store import (  # noqa: E402
 OUT_DIR = ROOT / "data" / "vendor"
 SOURCE_VENDOR = "vendor_hfq"
 SOURCE_DELISTED = "astockdata_delisted"
-#: 退市股补丁 manifest（AStockData）
+#: 退市股补丁 manifest（AStockData；仅本机存在）
 DELISTED_MANIFEST = (
     Path(r"E:\AStockData")
     / "datasets/market_data/manifests"
     / "internal_delisted_complement_1d_20260814_b3c980d40194.json"
 )
+#: **随代码交付**的退市股 Parquet（NAS 上没有 AStockData，用这份补齐，不重复下载）
+SHIPPED_DELISTED_PARQUET = Path("data") / "vendor_shipped" / "delisted_bars.parquet"
 
 
 def log(message: str) -> None:
@@ -106,12 +108,31 @@ def import_vendor_bars(
 
 
 def import_delisted_bars(vendor_codes: set[str]) -> pd.DataFrame:
-    """把退市股补丁（仅 OHLCV）转成与供应商同构的长表，只保留供应商没有的代码。"""
-    from src.market.providers.astockdata_store import AStockDataBlobStore
+    r"""把退市股补丁（仅 OHLCV）转成与供应商同构的长表，只保留供应商没有的代码。
 
+    **两种来源，优先本机 blob，其次随代码交付的 Parquet**：
+
+    * 本机有 ``E:\AStockData`` → 从 blob 读（canonical，最新）；
+    * NAS 上没有 AStockData → 读 ``data/vendor_shipped/delisted_bars.parquet``
+      （同一份数据的 Parquet 快照，避免在 NAS 上重复下载）。
+    """
     if not DELISTED_MANIFEST.is_file():
-        log(f"退市股补丁 manifest 不存在，跳过：{DELISTED_MANIFEST}")
+        shipped = ROOT / SHIPPED_DELISTED_PARQUET
+        if shipped.is_file():
+            log(f"本机无 AStockData → 使用随代码交付的退市股 Parquet：{shipped}")
+            frame = pd.read_parquet(shipped)
+            frame["trade_date"] = pd.to_datetime(frame["trade_date"]).dt.date
+            kept = frame[~frame["stock_code"].isin(vendor_codes)]
+            log(
+                f"退市股（交付包）：保留 {kept['stock_code'].nunique()} 只 / "
+                f"{len(kept):,} 行，因供应商已有而剔除 "
+                f"{frame['stock_code'].nunique() - kept['stock_code'].nunique()} 只"
+            )
+            return kept.reset_index(drop=True)
+        log(f"退市股补丁不可用（manifest 与交付包都不存在），跳过：{DELISTED_MANIFEST}")
         return pd.DataFrame()
+
+    from src.market.providers.astockdata_store import AStockDataBlobStore
     store = AStockDataBlobStore.from_manifest(DELISTED_MANIFEST)
     frames: list[pd.DataFrame] = []
     skipped = 0
