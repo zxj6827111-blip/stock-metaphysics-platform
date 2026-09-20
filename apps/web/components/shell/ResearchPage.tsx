@@ -77,7 +77,7 @@ export function SectionNote({ children }: { children: ReactNode }) {
   return (
     <p
       className="rounded border px-3 py-2 text-[12px] leading-relaxed"
-      style={{ borderColor: "var(--color-line)", color: "var(--color-ink-muted)" }}
+      style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
     >
       {children}
     </p>

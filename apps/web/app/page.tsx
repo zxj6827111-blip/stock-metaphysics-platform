@@ -133,9 +133,15 @@ function HomeInner() {
   const params = useSearchParams();
   const fixture = params.get("fixture") === FIXTURE_QUERY_VALUE;
 
-  const [systemStatus, setSystemStatus] = useState(homeFixture.systemStatus);
-  const [statusText, setStatusText] = useState("数据正常");
-  const [dataStatus, setDataStatus] = useState<"ok" | "warn" | "bad">("ok");
+  const [systemStatus, setSystemStatus] = useState(
+    fixture ? homeFixture.systemStatus : [],
+  );
+  const [statusText, setStatusText] = useState(fixture ? "数据正常" : "正在检查");
+  const [dataStatus, setDataStatus] = useState<"ok" | "warn" | "bad">(fixture ? "ok" : "warn");
+  const [systemSummary, setSystemSummary] = useState(fixture ? "全部正常" : "检查中…");
+  const [systemSummaryColor, setSystemSummaryColor] = useState(
+    fixture ? "var(--color-down)" : "var(--color-ink-faint)",
+  );
 
   useEffect(() => {
     if (fixture) return;
@@ -144,25 +150,45 @@ function HomeInner() {
       try {
         const res = await api.get<ApiEnginesResponse>(endpoints.engineStatus());
         if (cancelled) return;
-        setSystemStatus(
-          res.engines
-            .filter((e) => ["bazi", "ziwei", "huangli"].includes(e.engine_id) || e.available)
-            .slice(0, 5)
-            .map((e) => ({
-              key: e.engine_id,
-              label: e.display_name,
-              state: e.available ? ("ok" as const) : ("off" as const),
-              note: e.available ? "运行正常" : "未启用（Phase 2）",
-              latency: e.available ? (e.engine_version.match(/(\d+\.\d+\.\d+)/)?.[1] ?? "—") : "—",
-            })),
-        );
+        const mapped = res.engines
+          .filter((e) => ["bazi", "ziwei", "huangli"].includes(e.engine_id) || e.available)
+          .slice(0, 5)
+          .map((e) => ({
+            key: e.engine_id,
+            label: e.display_name,
+            state: e.available ? ("ok" as const) : ("off" as const),
+            note: e.available ? "运行正常" : "未启用（Phase 2）",
+            latency: e.available ? (e.engine_version.match(/(\d+\.\d+\.\d+)/)?.[1] ?? "—") : "—",
+          }));
+        setSystemStatus(mapped);
         const degraded = res.market_provider === "synthetic_demo";
         setDataStatus(degraded ? "warn" : "ok");
         setStatusText(degraded ? "离线合成数据" : "数据正常");
+        const allOk = mapped.every((e) => e.state === "ok") && !degraded;
+        const hasOff = mapped.some((e) => e.state !== "ok") || degraded;
+        if (allOk) {
+          setSystemSummary("全部正常");
+          setSystemSummaryColor("var(--color-down)");
+        } else if (hasOff) {
+          setSystemSummary("部分降级/未启用");
+          setSystemSummaryColor("var(--color-gold)");
+        } else {
+          setSystemSummary("运行正常");
+          setSystemSummaryColor("var(--color-down)");
+        }
       } catch {
         if (cancelled) return;
         setDataStatus("bad");
         setStatusText("后端未连接");
+        setSystemSummary("后端未连接");
+        setSystemSummaryColor("var(--color-up)");
+        setSystemStatus([
+          { key: "bazi", label: "八字引擎", state: "off", note: "无法连接后端", latency: "—" },
+          { key: "ziwei", label: "紫微引擎", state: "off", note: "无法连接后端", latency: "—" },
+          { key: "huangli", label: "择日黄历", state: "off", note: "无法连接后端", latency: "—" },
+          { key: "market", label: "行情接入", state: "off", note: "无法连接后端", latency: "—" },
+          { key: "knowledge", label: "知识中心", state: "off", note: "无法连接后端", latency: "—" },
+        ]);
       }
     })();
     return () => {
@@ -170,7 +196,7 @@ function HomeInner() {
     };
   }, [fixture]);
 
-  const recent = homeFixture.recent;
+  const recent = fixture ? homeFixture.recent : [];
 
   return (
     <AppShell activeNav="home" dataStatus={dataStatus} statusText={statusText}>
@@ -275,13 +301,24 @@ function HomeInner() {
           <CardHeader
             icon={<IconDatabase size={14} />}
             title="最近分析"
-            action={{ label: "查看更多" }}
+            action={fixture ? { label: "查看更多" } : undefined}
           />
-          <div className="grid grid-cols-1 gap-3 p-3.5 md:grid-cols-3">
-            {recent.map((r) => (
-              <RecentCard key={r.code} item={r} />
-            ))}
-          </div>
+          {recent.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 p-3.5 md:grid-cols-3">
+              {recent.map((r) => (
+                <RecentCard key={r.code} item={r} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex h-[180px] flex-col items-center justify-center p-6 text-center" data-testid="recent-empty">
+              <p className="text-[13px]" style={{ color: "var(--color-ink-sub)" }}>
+                暂无最近分析记录
+              </p>
+              <p className="mt-1 text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                在上方搜索框输入股票代码即可发起分析
+              </p>
+            </div>
+          )}
         </Card>
 
         <Card testId="system-status">
@@ -289,8 +326,12 @@ function HomeInner() {
             icon={<IconTarget size={14} />}
             title="系统状态"
             right={
-              <span className="text-[11.5px]" style={{ color: "var(--color-down)" }}>
-                全部正常
+              <span
+                className="text-[11.5px]"
+                style={{ color: systemSummaryColor }}
+                data-testid="system-summary"
+              >
+                {systemSummary}
               </span>
             }
             action={{ label: "" }}
@@ -320,7 +361,7 @@ function HomeInner() {
                       background: ok ? "var(--color-down-bg)" : "transparent",
                     }}
                   >
-                    ✓
+                    {ok ? "✓" : "—"}
                   </span>
                   <span className="w-[104px] text-[12px]" style={{ color: ok ? "var(--color-ink-sub)" : "var(--color-ink-faint)" }}>
                     {s.note}

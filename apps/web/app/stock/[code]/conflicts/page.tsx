@@ -79,7 +79,7 @@ function ConflictsInner() {
           <div className="ml-auto max-w-[420px]">
             <SectionNote>
               {analysis?.consensus?.interpretation ??
-                "共识与历史有效性是两件事：方向一致度高**不代表**历史统计支持。"}
+                "共识与历史有效性是两件事：方向一致度高<strong>不代表</strong>历史统计支持。"}
             </SectionNote>
           </div>
         </div>
@@ -95,7 +95,7 @@ function ConflictsInner() {
               <div
                 key={key}
                 className="rounded border p-3"
-                style={{ borderColor: "var(--color-line)" }}
+                style={{ borderColor: "var(--color-border)" }}
                 data-testid={`opinion-${key}`}
               >
                 <div className="flex items-center justify-between">
@@ -162,7 +162,7 @@ function ConflictsInner() {
                   const row = c as Record<string, unknown>;
                   const reasons = (row.reasons as string[]) ?? [];
                   return (
-                    <tr key={`${i}-${String(row.engine)}`} style={{ borderTop: "1px solid var(--color-line)" }}>
+                    <tr key={`${i}-${String(row.engine)}`} style={{ borderTop: "1px solid var(--color-border)" }}>
                       <td className="py-1">{engineCn(String(row.engine))}</td>
                       <td style={{ color: DIR_TONE[String(row.direction)] ?? "var(--color-flat)" }}>
                         {String(row.direction_label ?? "")}
@@ -195,7 +195,7 @@ function ConflictsInner() {
             「历史类似冲突的后续表现」需要单独的历史统计。当前状态：
             <code>{JSON.stringify(conflict?.historical_conflict_stats ?? { status: "NOT_RUN" })}</code>
             <br />
-            未运行时，本页面**不会**给出任何「历史上冲突后如何」的说法 ——
+            未运行时，本页面<strong>不会</strong>给出任何「历史上冲突后如何」的说法 ——
             那属于研究结论，必须由 <code>POST /api/v1/research/consensus</code> 产出。
           </SectionNote>
         </div>

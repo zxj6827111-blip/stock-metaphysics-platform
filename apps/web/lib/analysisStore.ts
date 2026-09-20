@@ -19,6 +19,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, endpoints, type ApiMultiAnalysis } from "./api";
+import { isFixtureActive, multiAnalysisFixture } from "./fixture";
 
 const STORAGE_PREFIX = "smp-analysis:";
 const memory = new Map<string, ApiMultiAnalysis>();
@@ -37,8 +38,13 @@ function keyOf({ code, variant, asOf }: AnalysisKey): string {
 
 export async function loadMultiAnalysis(
   key: AnalysisKey,
-  opts: { persist?: boolean } = {},
+  opts: { persist?: boolean; isFixture?: boolean } = {},
 ): Promise<ApiMultiAnalysis> {
+  const isFix = opts.isFixture ?? isFixtureActive();
+  if (isFix) {
+    return multiAnalysisFixture;
+  }
+
   const k = keyOf(key);
   const hit = memory.get(k);
   if (hit) return hit;

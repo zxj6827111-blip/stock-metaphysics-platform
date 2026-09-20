@@ -11,7 +11,7 @@
  * 两区之间必须视觉分离，避免读者把"今日宜开市"当成"该股今天会上涨"。
  */
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 
 import { Card, CardHeader } from "@/components/cards/Card";
@@ -20,6 +20,7 @@ import { PageLoading, UnavailableBlock } from "@/components/shell/PageState";
 import { IconCalendar, IconBook, IconTrend } from "@/components/shell/Icons";
 import { api, endpoints } from "@/lib/api";
 import { useAnalysis } from "@/lib/analysisStore";
+import { FIXTURE_QUERY_VALUE, huangliFixture } from "@/lib/fixture";
 
 interface HuangliResponse {
   chart_id: string;
@@ -31,14 +32,21 @@ interface HuangliResponse {
 
 function HuangliInner() {
   const params = useParams<{ code: string }>();
+  const searchParams = useSearchParams();
+  const fixture = searchParams?.get("fixture") === FIXTURE_QUERY_VALUE;
   const code = params?.code ?? "600519";
   const { analysis, loading, error, reload } = useAnalysis(code);
 
-  const [hl, setHl] = useState<HuangliResponse | null>(null);
-  const [hlLoading, setHlLoading] = useState(false);
+  const [hl, setHl] = useState<HuangliResponse | null>(fixture ? (huangliFixture as unknown as HuangliResponse) : null);
+  const [hlLoading, setHlLoading] = useState(!fixture);
   const [hlError, setHlError] = useState<string | null>(null);
 
   const load = useCallback(async (analysisId: string) => {
+    if (fixture) {
+      setHl(huangliFixture as unknown as HuangliResponse);
+      setHlLoading(false);
+      return;
+    }
     setHlLoading(true);
     setHlError(null);
     try {
@@ -48,20 +56,65 @@ function HuangliInner() {
     } finally {
       setHlLoading(false);
     }
-  }, []);
+  }, [fixture]);
 
   useEffect(() => {
+    if (fixture) {
+      setHl(huangliFixture as unknown as HuangliResponse);
+      setHlLoading(false);
+      return;
+    }
     if (analysis?.analysis_id) void load(analysis.analysis_id);
-  }, [analysis?.analysis_id, load]);
+  }, [analysis?.analysis_id, fixture, load]);
 
   const h = (hl?.huangli ?? {}) as Record<string, unknown>;
-  const day = (h.day ?? h) as Record<string, unknown>;
-  const today = (h.today ?? day) as Record<string, unknown>;
+  const primary = (h.primary ?? h.today ?? h.day ?? h) as Record<string, unknown>;
 
   // 黄历相关因子（H_*）—— 与传统黄历数据分区展示
   const huangliFactors = (analysis?.factors?.observations ?? []).filter((o) =>
     o.factor_id.startsWith("H_"),
   );
+
+  const ganzhiText = primary.day_ganzhi
+    ? `${String(primary.day_ganzhi)} · 农历${String(primary.lunar_text ?? "")}`
+    : joinText(primary, ["ganzhi", "lunar", "lunar_text", "lunar_date"]);
+
+  const zodiacText = primary.zodiac
+    ? `${String(primary.zodiac)}年`
+    : joinText(primary, ["zodiac", "year_zodiac"]);
+
+  const nayinText = primary.day_nayin
+    ? String(primary.day_nayin)
+    : joinText(primary, ["nayin", "day_nayin"]);
+
+  const dutyText = primary.duty_officer
+    ? `值日：${String(primary.duty_officer)}日`
+    : joinText(primary, ["duty_officer", "zhi_shen", "jian_chu"]);
+
+  const tianShenText = primary.day_tian_shen
+    ? `${String(primary.day_tian_shen)}（${String(primary.day_tian_shen_type ?? "")}·${String(primary.day_tian_shen_luck ?? "")}）`
+    : joinText(primary, ["day_tian_shen", "tian_shen", "huang_dao", "tian_shen_type"]);
+
+  const chongText = primary.chong_desc
+    ? `冲${String(primary.chong_desc)}${primary.sha_direction ? ` 煞${String(primary.sha_direction)}` : ""}`
+    : joinText(primary, ["chong", "sha", "chong_sha"]);
+
+  const pengzuText = primary.pengzu_gan
+    ? `${String(primary.pengzu_gan)}；${String(primary.pengzu_zhi ?? "")}`
+    : joinText(primary, ["peng_zu", "pengzu"]);
+
+  const jishenText =
+    [
+      primary.cai_shen_direction ? `财神${String(primary.cai_shen_direction)}` : "",
+      primary.xi_shen_direction ? `喜神${String(primary.xi_shen_direction)}` : "",
+      primary.fu_shen_direction ? `福神${String(primary.fu_shen_direction)}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ") || joinText(primary, ["ji_shen_fang_wei", "cai_shen", "xi_shen", "fu_shen"]);
+
+  const jieqiText = primary.jieqi
+    ? String(primary.jieqi)
+    : joinText(primary, ["jieqi", "jie_qi"]);
 
   return (
     <ResearchPage
@@ -94,12 +147,12 @@ function HuangliInner() {
           ① 传统黄历数据（历法与通书口径）
         </div>
         <div className="mt-0.5 text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
-          这些字段来自 lunar-python 的通书口径，**不是**对股票收益的判断。
+          这些字段来自 lunar-python 的通书口径，<strong>不是</strong>对股票收益的判断。
           不同通书之间宜忌存在差异。
         </div>
       </div>
 
-      <Card>
+      <Card testId="traditional-huangli">
         <CardHeader
           icon={<IconCalendar size={15} />}
           title="今日黄历简要"
@@ -116,16 +169,49 @@ function HuangliInner() {
           </div>
         ) : null}
         {hl ? (
-          <div className="grid grid-cols-3 gap-3 text-[12.5px]" data-testid="huangli-fields">
-            <Field label="干支 / 农历" value={joinText(today, ["ganzhi", "lunar", "lunar_text", "lunar_date"])} />
-            <Field label="生肖" value={joinText(today, ["zodiac", "year_zodiac"])} />
-            <Field label="纳音" value={joinText(today, ["nayin", "day_nayin"])} />
-            <Field label="建除十二值" value={joinText(today, ["duty_officer", "zhi_shen", "jian_chu"])} />
-            <Field label="十二神 / 黄黑道" value={joinText(today, ["day_tian_shen", "tian_shen", "huang_dao", "tian_shen_type"])} />
-            <Field label="冲煞" value={joinText(today, ["chong", "sha", "chong_sha"])} />
-            <Field label="彭祖百忌" value={joinText(today, ["peng_zu", "pengzu"])} />
-            <Field label="吉神方位" value={joinText(today, ["ji_shen_fang_wei", "cai_shen", "xi_shen", "fu_shen"])} />
-            <Field label="节气" value={joinText(today, ["jieqi", "jie_qi"])} />
+          <div>
+            <div className="grid grid-cols-3 gap-3 text-[12.5px]" data-testid="huangli-fields">
+              <Field label="干支 / 农历" value={ganzhiText} />
+              <Field label="生肖" value={zodiacText} />
+              <Field label="纳音" value={nayinText} />
+              <Field label="建除十二值" value={dutyText} />
+              <Field label="十二神 / 黄黑道" value={tianShenText} />
+              <Field label="冲煞" value={chongText} />
+              <Field label="彭祖百忌" value={pengzuText} />
+              <Field label="吉神方位" value={jishenText} />
+              <Field label="节气" value={jieqiText} />
+            </div>
+
+            {Array.isArray(primary.day_yi) || Array.isArray(primary.day_ji) ? (
+              <div className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-2" data-testid="traditional-matters">
+                <div
+                  className="rounded border p-2.5"
+                  style={{ borderColor: "var(--color-border)", background: "rgba(79,211,155,0.04)" }}
+                >
+                  <div className="text-[11.5px] font-semibold" style={{ color: "var(--color-down)" }}>
+                    宜（通书事宜）
+                  </div>
+                  <div className="mt-1 text-[12px] leading-relaxed" style={{ color: "var(--color-ink-sub)" }}>
+                    {Array.isArray(primary.day_yi) && primary.day_yi.length
+                      ? primary.day_yi.join("、")
+                      : "无特定事宜"}
+                  </div>
+                </div>
+                <div
+                  className="rounded border p-2.5"
+                  style={{ borderColor: "var(--color-border)", background: "rgba(232,88,90,0.04)" }}
+                >
+                  <div className="text-[11.5px] font-semibold" style={{ color: "var(--color-up)" }}>
+                    忌（通书禁忌）
+                  </div>
+                  <div className="mt-1 text-[12px] leading-relaxed" style={{ color: "var(--color-ink-sub)" }}>
+                    {Array.isArray(primary.day_ji) && primary.day_ji.length
+                      ? primary.day_ji.join("、")
+                      : "诸事不忌"}
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : !hlLoading ? (
           <UnavailableBlock
@@ -136,7 +222,7 @@ function HuangliInner() {
         <div className="mt-2">
           <SectionNote>
             <b>注意：</b>「宜开市 / 忌动土」这类通书条目描述的是传统择日观念，
-            与证券价格没有任何已确认的因果关系。系统把它们作为**研究变量**，
+            与证券价格没有任何已确认的因果关系。系统把它们作为<strong>研究变量</strong>，
             其历史有效性由历史验证页回答。
           </SectionNote>
         </div>
@@ -152,7 +238,7 @@ function HuangliInner() {
           ② 与股票原局的关系（本项目研究映射）
         </div>
         <div className="mt-0.5 text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
-          以下因子把「当日干支 / 建除 / 黄黑道」与股票原局交叉，属于本项目的**研究变量**，
+          以下因子把「当日干支 / 建除 / 黄黑道」与股票原局交叉，属于本项目的<strong>研究变量</strong>，
           不是传统定论。
         </div>
       </div>
@@ -173,7 +259,7 @@ function HuangliInner() {
               </thead>
               <tbody>
                 {huangliFactors.map((f) => (
-                  <tr key={f.factor_id} style={{ borderTop: "1px solid var(--color-line)" }}>
+                  <tr key={f.factor_id} style={{ borderTop: "1px solid var(--color-border)" }}>
                     <td className="py-1">
                       <code>{f.factor_id}</code>
                     </td>
@@ -217,7 +303,7 @@ function HuangliInner() {
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded border p-2" style={{ borderColor: "var(--color-line)" }}>
+    <div className="rounded border p-2" style={{ borderColor: "var(--color-border)" }}>
       <div className="text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
         {label}
       </div>

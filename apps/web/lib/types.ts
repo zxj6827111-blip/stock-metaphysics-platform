@@ -198,8 +198,8 @@ export interface BaziPageData {
 export interface OverviewPageData {
   context: StockContext;
   engines: EngineCardView[];
-  consensus: ConsensusView;
-  conflict: ConflictView;
+  consensus: ConsensusView | null;
+  conflict: ConflictView | null;
   timeWindow: TimeWindowSeries;
   evidence: EvidenceCardView[];
   backtestMetrics: BacktestMetric[];

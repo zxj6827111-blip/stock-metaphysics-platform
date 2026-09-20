@@ -381,12 +381,15 @@ export function toBacktestMetrics(es: ApiEventStudy): BacktestMetric[] {
   ];
 }
 
-export function toDistribution(es: ApiEventStudy, bins = 9): DistributionBin[] {
+export function toDistribution(es: ApiEventStudy, bins = 9, isFixture = false): DistributionBin[] {
+  if (!isFixture) {
+    // 正常模式下不采用正态近似伪造分箱，诚实返回空，交由 UI 展示真实空态
+    return [];
+  }
   const h20 = es.horizons.find((h) => h.horizon === 20);
   const mean = h20?.mean_return ?? null;
   if (mean === null || !h20?.sample_count) return [];
-  // 后端事件研究返回的是汇总统计而非全量样本，此处按正态近似绘制分布示意，
-  // 并在图注中明确标注为"示意分布"，避免被误读为真实直方图。
+  // 演示/fixture 模式下按正态近似绘制分布示意，并在图注中明确标注为"示意分布"
   const sd = h20.std_return ?? 0.14;
   const edges = Array.from({ length: bins }, (_, i) => -0.3 + (i * 0.6) / bins);
   return edges.map((e) => {
@@ -498,11 +501,12 @@ export function buildOverview(
   code: string,
   ctx: StockContext,
   engines: EngineCardView[],
-  consensus: ConsensusView,
-  conflict: ConflictView,
+  consensus: ConsensusView | null,
+  conflict: ConflictView | null,
   backtest: ApiEventStudy | null,
   evidence: ApiEvidence | null,
   dataQuality: DataQualityView,
+  isFixture = false,
 ): OverviewPageData {
   const now = new Date();
   const dates: string[] = [];
@@ -511,7 +515,7 @@ export function buildOverview(
     dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
-  // 时间窗口：基于各引擎 20D 分数做平滑外推，属展示层示意，标注在 notes 中
+  // 时间窗口：基于各引擎 20D 分数做平滑外推，属演示层示意；仅在显式 fixture 模式下生成
   const mk = (base: number | null, color: string, key: string, name: string, phase: number) => ({
     key, name, color,
     values: dates.map((_, i) =>
@@ -529,10 +533,12 @@ export function buildOverview(
     conflict,
     timeWindow: {
       dates,
-      series: [
-        mk(baziScore, "var(--color-gold)", "bazi", "八字", 0),
-        mk(huangliScore, "#4fd39b", "huangli", "黄历", 1.1),
-      ],
+      series: isFixture
+        ? [
+            mk(baziScore, "var(--color-gold)", "bazi", "八字", 0),
+            mk(huangliScore, "#4fd39b", "huangli", "黄历", 1.1),
+          ]
+        : [],
       markers: [],
     },
     evidence: evidence
@@ -542,7 +548,7 @@ export function buildOverview(
         ]
       : [],
     backtestMetrics: backtest ? toBacktestMetrics(backtest) : [],
-    distribution: backtest ? toDistribution(backtest) : [],
+    distribution: backtest ? toDistribution(backtest, 9, isFixture) : [],
     backtestConclusion: backtest
       ? `${backtest.methodology}　样本数 ${backtest.event_count}，涉及 ${backtest.universe_size} 只股票。${
           backtest.event_count === 0
