@@ -15,7 +15,7 @@ import { PageHero } from "@/components/shell/TopBar";
 import { Card, CardHeader, Chip } from "@/components/cards/Card";
 import { MiniTrend } from "@/components/charts/Charts";
 import { StockSearch } from "@/components/stock/StockSearch";
-import { Astrolabe, MountainSilhouette } from "@/components/shell/Decorations";
+import { Astrolabe, MountainSilhouette, SealStamp } from "@/components/shell/Decorations";
 import {
   IconChart,
   IconArrowRight,
@@ -78,12 +78,12 @@ function RecentCard({ item }: { item: RecentAnalysisItem }) {
   );
 
   return (
-    <Card className="p-3.5" testId={`recent-${item.code}`}>
+    <Card className="p-3" testId={`recent-${item.code}`}>
       <div className="flex items-center gap-2">
-        <span className="smp-num text-[14px]" style={{ color: "var(--color-gold)" }}>
+        <span className="smp-num text-[13.5px] font-medium" style={{ color: "var(--color-gold)" }}>
           {item.code}
         </span>
-        <span className="text-[14px]" style={{ color: "var(--color-ink)" }}>
+        <span className="text-[13.5px] font-medium" style={{ color: "var(--color-ink)" }}>
           {item.name}
         </span>
         <span className="ml-auto">
@@ -91,35 +91,35 @@ function RecentCard({ item }: { item: RecentAnalysisItem }) {
         </span>
       </div>
 
-      <div className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
+      <div className="mt-1 flex items-center gap-2 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
         <span className="smp-num">{item.analyzedAt}</span>
       </div>
 
-      <div className="mt-2 flex items-end gap-2">
-        <span className="smp-num text-[22px] font-semibold leading-none" style={{ color: priceColor }}>
+      <div className="mt-1.5 flex items-end gap-2">
+        <span className="smp-num text-[21px] font-semibold leading-none" style={{ color: priceColor }}>
           {item.price}
         </span>
-        <span className="smp-num text-[12.5px]" style={{ color: priceColor }}>
+        <span className="smp-num text-[12px]" style={{ color: priceColor }}>
           {item.changePct}
         </span>
       </div>
 
       {item.price !== "—" ? (
-        <div className="mt-1.5">
-          <MiniTrend values={spark} tone={item.trend === "down" ? "down" : "up"} height={54} />
+        <div className="mt-1">
+          <MiniTrend values={spark} tone={item.trend === "down" ? "down" : "up"} height={44} />
         </div>
       ) : (
         <div
-          className="mt-2 flex h-[54px] items-center justify-center rounded border border-dashed text-[11.5px]"
+          className="mt-1 flex h-[44px] items-center justify-center rounded border border-dashed text-[11px]"
           style={{ borderColor: "var(--color-border)", color: "var(--color-ink-faint)" }}
         >
           暂无实时分时走势
         </div>
       )}
 
-      <div className="mt-1.5 flex items-center gap-4 border-t pt-2" style={{ borderColor: "var(--color-border)" }}>
+      <div className="mt-1.5 flex items-center gap-3 border-t pt-1.5" style={{ borderColor: "var(--color-border)" }}>
         {item.engines.map((e) => (
-          <span key={e.key} className="flex items-center gap-1 text-[11.5px]">
+          <span key={e.key} className="flex items-center gap-1 text-[11px]">
             <span style={{ color: "var(--color-ink-muted)" }}>{ENGINE_MINILABEL[e.key] ?? e.label}</span>
             <span
               style={{
@@ -221,70 +221,79 @@ function HomeInner() {
     <AppShell activeNav="home" dataStatus={dataStatus} statusText={statusText}>
       {/* Hero */}
       <section
-        className="relative mb-3 overflow-hidden rounded-[12px] border px-7 py-6"
+        className="relative mb-2.5 overflow-hidden rounded-[10px] border px-6 py-4"
         style={{
           borderColor: "var(--color-border)",
           background:
-            "radial-gradient(900px 320px at 82% 20%, rgba(212,184,122,0.10), transparent 60%), linear-gradient(180deg, rgba(16,31,43,0.72), rgba(10,21,31,0.72))",
+            "radial-gradient(420px 320px at calc(100% - 150px) 50%, rgba(212,184,122,0.12), transparent 70%), linear-gradient(180deg, rgba(16,31,43,0.85), rgba(9,19,28,0.92))",
         }}
       >
         <MountainSilhouette opacity={0.06} />
 
-        {/* 右侧精细矢量星盘 */}
+        {/* 右侧天体星盘与寄语 */}
         <Astrolabe
-          size={260}
+          size={270}
           glow={true}
-          className="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2 hidden xl:block"
+          className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 hidden xl:block"
         />
-
         <div
-          className="pointer-events-none absolute right-[320px] top-9 hidden text-right leading-[26px] tracking-[0.36em] xl:block"
-          style={{ color: "rgba(212,184,122,0.45)", fontSize: 13, fontFamily: "var(--font-serif-cn)" }}
-          aria-hidden="true"
+          className="pointer-events-none absolute right-8 bottom-2.5 hidden text-right text-[11px] tracking-[0.14em] xl:block"
+          style={{ color: "var(--color-ink-muted)" }}
         >
-          观天时
-          <br />
-          察地利
-          <br />
-          究人道
-          <br />
-          明真理
+          东方智慧 · 现代方法 · 更深入的市场认知
         </div>
 
-        <div className="relative max-w-[1000px]">
-          <h1
-            className="smp-serif-title text-[52px] font-bold leading-[1.12] tracking-[0.05em]"
-            style={{
-              color: "var(--color-gold-strong)",
-              fontFamily: "var(--font-serif-cn)",
-              textShadow: "0 3px 26px rgba(212,184,122,0.22)",
-            }}
-            data-testid="home-title"
-          >
-            股票玄学多模型研究平台
-          </h1>
-          <p className="mt-2.5 text-[13.5px] tracking-[0.16em]" style={{ color: "var(--color-ink-sub)" }}>
+        <div className="relative max-w-[880px]">
+          {/* 主标与竖排诗文 */}
+          <div className="flex items-center gap-4">
+            <h1
+              className="smp-serif-title smp-gold-shimmer text-[48px] font-bold leading-[1.08] tracking-[0.04em]"
+              style={{
+                color: "var(--color-gold-strong)",
+                fontFamily: "var(--font-serif-cn)",
+                textShadow: "0 3px 24px rgba(212,184,122,0.22)",
+              }}
+              data-testid="home-title"
+            >
+              股票玄学多模型研究平台
+            </h1>
+            <div className="hidden sm:flex items-center gap-2" style={{ fontFamily: "var(--font-serif-cn)" }}>
+              <div
+                className="flex gap-1.5 text-[11px] leading-[13px] tracking-[0.2em]"
+                style={{ writingMode: "vertical-rl", color: "rgba(212,184,122,0.65)" }}
+                aria-hidden="true"
+              >
+                <span>观天时</span>
+                <span>察地利</span>
+                <span>究人道</span>
+                <span>研规律</span>
+              </div>
+              <SealStamp text="玄" size={24} />
+            </div>
+          </div>
+
+          <p className="mt-1 text-[12.5px] tracking-[0.15em]" style={{ color: "var(--color-ink-sub)" }}>
             融贯东方智慧 · 结合现代量化 · 探索市场的多维可能
           </p>
 
           <div
-            className="mt-5 rounded-[10px] border px-5 py-4"
-            style={{ borderColor: "var(--color-border-strong)", background: "rgba(6,14,21,0.5)" }}
+            className="mt-3 rounded-[8px] border px-4 py-3"
+            style={{ borderColor: "var(--color-border-strong)", background: "rgba(6,14,21,0.65)" }}
           >
-            <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px]" style={{ color: "var(--color-ink-sub)" }}>
-              <IconSearch size={14} style={{ color: "var(--color-ink-muted)" }} />
+            <div className="mb-2 flex items-center gap-1.5 text-[12px]" style={{ color: "var(--color-ink-sub)" }}>
+              <IconSearch size={13} style={{ color: "var(--color-ink-muted)" }} />
               输入股票代码，查看八字、紫微、黄历与历史回测综合研究
             </div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <div className="min-w-0 flex-1">
                 <StockSearch variant="hero" defaultValue="600519" />
               </div>
-              <button type="button" className="smp-btn h-[52px] px-5" disabled title="Phase 2">
-                <IconGrid size={15} />
+              <button type="button" className="smp-btn h-[48px] px-4 text-[12px]" disabled title="Phase 2">
+                <IconGrid size={14} />
                 高级设置
               </button>
             </div>
-            <div className="mt-2.5 flex items-center gap-4 text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
+            <div className="mt-2 flex items-center gap-3.5 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
               <span>示例：</span>
               <span className="smp-num">600519 贵州茅台</span>
               <span className="smp-num">000001 平安银行</span>
@@ -292,17 +301,10 @@ function HomeInner() {
             </div>
           </div>
         </div>
-
-        <div
-          className="relative mt-4 text-right text-[11.5px] tracking-[0.14em]"
-          style={{ color: "var(--color-ink-faint)" }}
-        >
-          东方智慧 · 现代方法 · 更深入的认知
-        </div>
       </section>
 
       {/* 最近分析 + 系统状态 (2.1 : 1 比例) */}
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-2.5 xl:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
         <Card testId="recent-analysis">
           <CardHeader
             icon={<IconDatabase size={14} />}
@@ -310,13 +312,13 @@ function HomeInner() {
             action={fixture ? { label: "查看更多" } : undefined}
           />
           {recent.length > 0 ? (
-            <div className="grid grid-cols-1 gap-3 p-3.5 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2.5 p-3 md:grid-cols-3">
               {recent.map((r) => (
                 <RecentCard key={r.code} item={r} />
               ))}
             </div>
           ) : (
-            <div className="flex h-[180px] flex-col items-center justify-center p-6 text-center" data-testid="recent-empty">
+            <div className="flex h-[160px] flex-col items-center justify-center p-4 text-center" data-testid="recent-empty">
               <p className="text-[13px]" style={{ color: "var(--color-ink-sub)" }}>
                 暂无最近分析记录
               </p>
@@ -333,34 +335,34 @@ function HomeInner() {
             title="系统状态"
             right={
               <span
-                className="text-[11.5px]"
+                className="flex items-center gap-1 text-[11.5px]"
                 style={{ color: systemSummaryColor }}
                 data-testid="system-summary"
               >
                 {systemSummary}
+                <IconArrowRight size={11} />
               </span>
             }
-            action={{ label: "" }}
           />
-          <div className="px-3.5 py-2">
+          <div className="px-3 py-1.5">
             {systemStatus.map((s) => {
               const Icon = SYSTEM_ICONS[s.key] ?? IconTaiji;
               const ok = s.state === "ok";
               return (
                 <div
                   key={s.key}
-                  className="flex items-center gap-2.5 border-b py-[9px] last:border-b-0"
+                  className="flex items-center gap-2 border-b py-[6.5px] last:border-b-0"
                   style={{ borderColor: "rgba(30,52,68,0.55)" }}
                   data-testid={`system-${s.key}`}
                 >
                   <span style={{ color: ok ? "var(--color-gold-dim)" : "var(--color-ink-faint)" }}>
-                    <Icon size={15} />
+                    <Icon size={14} />
                   </span>
-                  <span className="text-[12.5px]" style={{ color: ok ? "var(--color-ink-sub)" : "var(--color-ink-faint)" }}>
+                  <span className="text-[12px]" style={{ color: ok ? "var(--color-ink-sub)" : "var(--color-ink-faint)" }}>
                     {s.label}
                   </span>
                   <span
-                    className="ml-auto flex h-[17px] w-[17px] items-center justify-center rounded-full"
+                    className="ml-auto flex h-[16px] w-[16px] items-center justify-center rounded-full"
                     style={{
                       color: ok ? "var(--color-down)" : "var(--color-ink-faint)",
                       border: `1px solid ${ok ? "rgba(79,211,155,0.5)" : "var(--color-border-strong)"}`,
@@ -369,10 +371,10 @@ function HomeInner() {
                   >
                     {ok ? "✓" : "—"}
                   </span>
-                  <span className="w-[104px] text-[12px]" style={{ color: ok ? "var(--color-ink-sub)" : "var(--color-ink-faint)" }}>
+                  <span className="w-[100px] text-[11.5px]" style={{ color: ok ? "var(--color-ink-sub)" : "var(--color-ink-faint)" }}>
                     {s.note}
                   </span>
-                  <span className="smp-num w-[46px] text-right text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
+                  <span className="smp-num w-[44px] text-right text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
                     {s.latency}
                   </span>
                 </div>
@@ -383,33 +385,33 @@ function HomeInner() {
       </div>
 
       {/* 平台能力 */}
-      <Card className="mt-3" testId="capabilities">
+      <Card className="mt-2.5" testId="capabilities">
         <CardHeader
           icon={<IconGrid size={14} />}
           title="平台能力"
           action={{ label: "探索更多研究可能" }}
         />
-        <div className="grid grid-cols-1 gap-3 p-3.5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2.5 p-3 md:grid-cols-2 xl:grid-cols-4">
           {homeFixture.capabilities.map((c) => {
             const Icon = CAP_ICONS[c.key] ?? IconLayers;
             const t = CAP_TONE[c.tone];
             return (
               <div
                 key={c.key}
-                className="flex items-center gap-3 rounded-[8px] border px-3.5 py-3.5"
+                className="flex items-center gap-3 rounded-[8px] border px-3 py-2.5"
                 style={{ borderColor: "var(--color-border)", background: t.bg }}
               >
                 <span
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
                   style={{ color: t.color, border: `1px solid ${t.color}55`, background: `${t.color}14` }}
                 >
-                  <Icon size={21} />
+                  <Icon size={19} />
                 </span>
                 <div className="min-w-0">
-                  <div className="text-[14px]" style={{ color: "var(--color-ink)" }}>
+                  <div className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
                     {c.title}
                   </div>
-                  <div className="mt-0.5 text-[11.5px] leading-[17px]" style={{ color: "var(--color-ink-muted)" }}>
+                  <div className="mt-0.5 text-[11px] leading-[15px]" style={{ color: "var(--color-ink-muted)" }}>
                     {c.desc}
                     <br />
                     {homeCapabilitySub[c.key] ?? ""}
@@ -420,11 +422,6 @@ function HomeInner() {
           })}
         </div>
       </Card>
-
-      <div className="mt-3 flex items-center justify-center gap-2 text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
-        <IconArrowRight size={13} />
-        本平台为研究实验系统，不构成任何投资建议；术数因子与股票收益的关系必须由历史数据检验。
-      </div>
     </AppShell>
   );
 }
