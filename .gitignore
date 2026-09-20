@@ -36,6 +36,8 @@ apps/web/artifacts/ui-review/*/reference.png
 artifacts/
 services/ziwei-service/node_modules/
 services/ziwei-service/dist/
+services/ziwei-reference-service/node_modules/
+services/ziwei-reference-service/package-lock.json
 
 # ---- 杂项 ----
 # 临时响应抓取文件（不属于项目交付物）

@@ -1,0 +1,25 @@
+﻿case_id,solar,hour,variant_mode,tags,lunar_date,chinese_date,production_ok,reference_ok,reference_error,matched_gender,gender_agreement,identical,different,field_count
+C01-1940s-forward,1940-03-15,9,forward,"year:1940s,hour:09",一九四〇年二月初七,庚辰 己卯 丁巳 乙巳,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",91,4,95
+C02-1952-classic,1952-04-09,4,forward,"reference:README,hour:04",一九五二年三月十五,壬辰 甲辰 乙酉 戊寅,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",91,4,95
+C03-1968-reverse,1968-07-22,14,reverse,"year:1960s,hour:14",一九六八年六月廿七,戊申 己未 癸巳 己未,True,True,,F,"{""F"": {""matched"": 24, ""considered"": 24}, ""M"": {""matched"": 4, ""considered"": 24}}",91,4,95
+C04-1978-newyear,1978-01-01,0,forward,"month:01,early_zi",一九七七年冬月廿二,丁巳 壬子 癸亥 壬子,True,True,,F,"{""F"": {""matched"": 24, ""considered"": 24}, ""M"": {""matched"": 4, ""considered"": 24}}",92,3,95
+C05-1988-leapish,1988-02-29,6,forward,leap_day_solar,一九八八年正月十三,戊辰 甲寅 甲寅 丁卯,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",91,4,95
+C06-1990-late-zi,1990-06-15,23,forward,"late_zi,hour:23",一九九〇年五月廿三,庚午 壬午 壬子 庚子,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",80,15,95
+C07-1990-early-zi,1990-06-16,0,forward,"early_zi,hour:00",一九九〇年五月廿四,庚午 壬午 壬子 庚子,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",92,3,95
+C08-1999-december,1999-12-31,21,reverse,"month:12,hour:21",一九九九年冬月廿四,己卯 丙子 丁巳 辛亥,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",92,3,95
+C09-2004-leap-month,2004-03-20,11,forward,leap_month,二〇〇四年二月三十,甲申 丁卯 戊戌 戊午,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",92,3,95
+C10-2012-leap-month,2012-05-20,17,forward,leap_month,二〇一二年四月三十,壬辰 乙巳 辛巳 丁酉,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",92,3,95
+C11-2017-leap-month,2017-08-01,3,forward,"leap_month,hour:03",二〇一七年闰六月初十,丁酉 丁未 庚申 戊寅,True,True,,F,"{""F"": {""matched"": 24, ""considered"": 24}, ""M"": {""matched"": 4, ""considered"": 24}}",92,3,95
+C12-2020-leap-month,2020-06-01,8,reverse,leap_month,二〇二〇年闰四月初十,庚子 辛巳 乙亥 庚辰,True,True,,F,"{""F"": {""matched"": 24, ""considered"": 24}, ""M"": {""matched"": 4, ""considered"": 24}}",91,4,95
+C13-2023-leap-month,2023-04-05,10,forward,leap_month,二〇二三年闰二月十五,癸卯 乙卯 癸巳 丁巳,True,True,,F,"{""F"": {""matched"": 24, ""considered"": 24}, ""M"": {""matched"": 4, ""considered"": 24}}",92,3,95
+C14-2023-spring-festival,2023-01-22,5,forward,lunar_new_year,二〇二三年正月初一,癸卯 甲寅 庚辰 己卯,True,True,,F,"{""F"": {""matched"": 24, ""considered"": 24}, ""M"": {""matched"": 4, ""considered"": 24}}",92,3,95
+C15-2024-chunjie,2024-02-10,19,reverse,lunar_new_year,二〇二四年正月初一,甲辰 丙寅 甲辰 甲戌,True,True,,F,"{""F"": {""matched"": 24, ""considered"": 24}, ""M"": {""matched"": 4, ""considered"": 24}}",93,2,95
+C16-2026-cutoff-year,2026-05-06,13,forward,year:2026,二〇二六年三月二十,丙午 壬辰 庚辰 癸未,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",92,3,95
+C17-1965-summer,1965-08-08,15,reverse,hour:15,一九六五年七月十二,乙巳 甲申 甲午 壬申,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",92,3,95
+C18-1975-autumn,1975-10-18,20,forward,month:10,一九七五年九月十四,乙卯 丙戌 丁酉 庚戌,True,True,,F,"{""F"": {""matched"": 24, ""considered"": 24}, ""M"": {""matched"": 4, ""considered"": 24}}",92,3,95
+C19-1985-winter,1985-12-05,22,reverse,hour:22,一九八五年十月廿四,乙丑 丁亥 戊寅 癸亥,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",92,3,95
+C20-1995-spring,1995-03-03,7,forward,month:03,一九九五年二月初三,乙亥 己卯 癸巳 丙辰,True,True,,F,"{""F"": {""matched"": 24, ""considered"": 24}, ""M"": {""matched"": 4, ""considered"": 24}}",93,2,95
+C21-2005-noon,2005-09-09,12,forward,hour:12,二〇〇五年八月初六,乙酉 乙酉 丙申 甲午,True,True,,F,"{""F"": {""matched"": 24, ""considered"": 24}, ""M"": {""matched"": 4, ""considered"": 24}}",93,2,95
+C22-2015-late-zi,2015-07-07,23,reverse,"late_zi,hour:23",二〇一五年五月廿二,乙未 壬午 乙酉 丙子,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",80,15,95
+C23-2021-early-zi,2021-11-11,0,forward,"early_zi,hour:00",二〇二一年十月初七,辛丑 己亥 癸亥 壬子,True,True,,F,"{""F"": {""matched"": 24, ""considered"": 24}, ""M"": {""matched"": 4, ""considered"": 24}}",93,2,95
+C24-2026-jan,2026-01-15,2,reverse,"month:01,hour:02",二〇二五年冬月廿七,乙巳 戊子 己丑 乙丑,True,True,,M,"{""F"": {""matched"": 4, ""considered"": 24}, ""M"": {""matched"": 24, ""considered"": 24}}",92,3,95
