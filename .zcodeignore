@@ -1,0 +1,78 @@
+# ---- Python ----
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.egg-info/
+
+# ---- 数据（不入库）----
+data/*.sqlite3
+data/*.sqlite3-wal
+data/*.sqlite3-shm
+data/*.duckdb
+data/raw/
+data/normalized/
+data/factors/
+data/backtests/
+
+# ---- 前端 ----
+apps/web/node_modules/
+apps/web/.next/
+apps/web/out/
+apps/web/next-env.d.ts
+apps/web/test-results/
+apps/web/playwright-report/
+*.tsbuildinfo
+
+# ---- 截图复刻产物（保留 notes.md，忽略大图）----
+apps/web/artifacts/ui-review/*/current.png
+apps/web/artifacts/ui-review/*/reference.png
+
+# ---- 生成产物（验收 JSON / 日志 / 截图）----
+# 这些是可重新生成的验证输出，不入库；文档在 docs/ 下。
+artifacts/
+services/ziwei-service/node_modules/
+services/ziwei-service/dist/
+
+# ---- 杂项 ----
+# 临时响应抓取文件（不属于项目交付物）
+resp_an.json
+.env
+.DS_Store
+Thumbs.db
+*.log
+
+# ---- Phase 3D 面板缓存（可由 scripts/phase3d_collect_panel.py 重新生成）----
+data/phase3_universe/phase3d_cache/
+
+# ===== ↑ 以上同步自 .gitignore（「从 .gitignore 同步」只重写以上部分）=====
+.git/
+.hg/
+.svn/
+node_modules/
+bower_components/
+jspm_packages/
+site-packages/
+venv/
+coverage/
+lcov-report/
+cmakefiles/
+cmake-build-*/
+bazel-*/
+pods/
+deriveddata/
+storybook-static/
+playwright-report/
+test-results/
+allure-results/
+allure-report/
+cdk.out/
+*.dist-info/
+eggs/
+pip-wheel-metadata/
+wheels/
+# ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
+# 自定义规则写在下方（本行提示可删除）
