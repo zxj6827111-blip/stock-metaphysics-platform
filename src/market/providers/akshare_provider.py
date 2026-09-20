@@ -476,6 +476,11 @@ def get_market_provider(*, offline: bool = False) -> MarketDataProvider:
       确定性合成数据源（仅用于联调/演示，研究结论禁止使用）。
     * ``SMP_MARKET_PROVIDER=offline``：离线真实导入源（data/import/），
       AKShare 网络不可用时完成真实数据研究的正式通道（P0-2 验收路径）。
+    * ``SMP_MARKET_PROVIDER=vendor_parquet``（Phase 4）：供应商全市场 Parquet 仓库
+      （6,104 只 + 逐日 PIT 估值）。**基准指数不在供应商仓库里**，因此基准查询
+      自动回退到 ``offline`` 通道（IDX000300 来自 data/import/）。
+      仓库不存在时**显式报错**，不静默退回 AKShare —— 后者在本环境不可达，
+      静默降级会让人误以为"数据加载失败是网络问题"。
     """
     if offline or settings.market_provider == "synthetic":
         return SyntheticMarketProvider()
@@ -483,4 +488,17 @@ def get_market_provider(*, offline: bool = False) -> MarketDataProvider:
         from src.market.providers.offline import OfflineMarketDataProvider
 
         return OfflineMarketDataProvider()
+    if settings.market_provider == "vendor_parquet":
+        from src.market.providers.offline import OfflineMarketDataProvider
+        from src.market.providers.vendor_parquet import (
+            VendorParquetProvider,
+            vendor_available,
+        )
+
+        if not vendor_available():
+            raise RuntimeError(
+                "SMP_MARKET_PROVIDER=vendor_parquet 但供应商 Parquet 仓库不存在。"
+                "请先运行 scripts/phase4_import_vendor.py（NAS 上用 import-data.sh）。"
+            )
+        return VendorParquetProvider(benchmark_fallback=OfflineMarketDataProvider())
     return AkshareMarketProvider()
