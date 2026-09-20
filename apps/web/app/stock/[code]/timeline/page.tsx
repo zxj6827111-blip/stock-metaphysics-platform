@@ -42,7 +42,7 @@ function TimelineInner() {
   const [twLoading, setTwLoading] = useState(false);
 
   const loadWindows = useCallback(async (analysisId: string) => {
-    if (isFixtureActive()) {
+    if (isFixtureActive() && code === "600519") {
       setMonths(timelineMonthsFixture);
       setWeeks(timelineWeeksFixture);
       setTwLoading(false);

@@ -38,9 +38,10 @@ function BaziInner() {
   const code = routeParams?.code ?? "600519";
   const search = useSearchParams();
   const fixture = search.get("fixture") === FIXTURE_QUERY_VALUE;
+  const isMoutaiFixture = fixture && code === "600519";
 
-  const [data, setData] = useState<BaziPageData | null>(fixture ? baziFixture : null);
-  const [loading, setLoading] = useState(!fixture);
+  const [data, setData] = useState<BaziPageData | null>(isMoutaiFixture ? baziFixture : null);
+  const [loading, setLoading] = useState(!isMoutaiFixture);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
   const [drawerData, setDrawerData] = useState<{
@@ -52,7 +53,7 @@ function BaziInner() {
   }>({ supporting: [], counter: [], neutral: [] });
 
   const load = useCallback(async () => {
-    if (fixture) return;
+    if (isMoutaiFixture) return;
     setLoading(true);
     setError(null);
     try {
@@ -80,7 +81,7 @@ function BaziInner() {
     } finally {
       setLoading(false);
     }
-  }, [code, fixture]);
+  }, [code, isMoutaiFixture]);
 
   useEffect(() => {
     void load();

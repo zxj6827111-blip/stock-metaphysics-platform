@@ -18,6 +18,7 @@ import {
   type ApiOpinion,
 } from "./api";
 import { WUXING_COLORS, EXCHANGE_CN } from "./fixture";
+import { KNOWN_STOCK_NAMES } from "@/components/stock/StockSwitchModal";
 import type {
   BacktestMetric,
   BaziPageData,
@@ -68,10 +69,10 @@ export function buildContext(
     stock: {
       code: s.stock_code,
       windCode: s.wind_code,
-      name: s.name || "—",
+      name: s.name || KNOWN_STOCK_NAMES[s.stock_code]?.name || "—",
       exchange: EXCHANGE_CN[s.exchange] ?? s.exchange,
       board: s.board,
-      listingDate: s.listing_date ?? "",
+      listingDate: s.listing_date || KNOWN_STOCK_NAMES[s.stock_code]?.listingDate || "",
       industry: s.industry,
     },
     birthProfile: {
@@ -609,10 +610,10 @@ export function buildContextFromMulti(analysis: ApiMultiAnalysis): StockContext 
     stock: {
       code: s.stock_code,
       windCode: s.wind_code,
-      name: s.name || "—",
+      name: s.name || KNOWN_STOCK_NAMES[s.stock_code]?.name || "—",
       exchange: EXCHANGE_CN[s.exchange] ?? s.exchange,
       board: s.board,
-      listingDate: s.listing_date ?? "",
+      listingDate: s.listing_date || KNOWN_STOCK_NAMES[s.stock_code]?.listingDate || "",
       industry: s.industry,
     },
     birthProfile: {

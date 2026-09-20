@@ -109,3 +109,69 @@ test.describe("批次 A：十页离线 Fixture 独立完整渲染验证", () => 
     });
   }
 });
+
+test.describe("标的切换与手动输入股票（如 002008）查询验证", () => {
+  test("点击「切换股票」按钮可打开快速切换弹窗", async ({ page }) => {
+    await page.goto(`/stock/600519/overview${FIXTURE}`);
+
+    const switchBtn = page.getByTestId("switch-stock-btn");
+    await expect(switchBtn).toBeVisible();
+    await expect(switchBtn).not.toBeDisabled();
+
+    // 点击打开弹窗
+    await switchBtn.click();
+    const modal = page.getByTestId("stock-switch-modal");
+    await expect(modal).toBeVisible();
+
+    // 弹窗内输入框可见
+    const input = page.getByTestId("stock-switch-input");
+    await expect(input).toBeVisible();
+
+    // 热门快捷标签包含 002008 大族激光
+    const quick002008 = page.getByTestId("quick-switch-002008");
+    await expect(quick002008).toBeVisible();
+    await expect(quick002008).toContainText("大族激光");
+
+    // 点击关闭按钮可关闭
+    await page.getByTestId("stock-switch-close").click();
+    await expect(modal).toHaveCount(0);
+  });
+
+  test("在黄历页切换股票至 002008，路径保持为 huangli 且正确解除茅台 fixture 锁", async ({ page }) => {
+    await page.goto(`/stock/600519/huangli${FIXTURE}`);
+
+    // 打开切换弹窗
+    await page.getByTestId("switch-stock-btn").click();
+    await expect(page.getByTestId("stock-switch-modal")).toBeVisible();
+
+    // 点击 002008 快捷标签
+    await page.getByTestId("quick-switch-002008").click();
+
+    // 验证跳转路径为 /stock/002008/huangli（自动保持了当前子功能 huangli，且解除了 ?fixture 锁）
+    await expect(page).toHaveURL(/\/stock\/002008\/huangli/);
+    await expect(page).not.toHaveURL(/fixture=ui-reference/);
+
+    // 上下文栏标的代码更新为 002008，名称显示大族激光
+    const contextBar = page.getByTestId("stock-context-bar");
+    await expect(contextBar).toBeVisible();
+    await expect(contextBar).toContainText("002008");
+    await expect(contextBar).toContainText("大族激光");
+  });
+
+  test("在搜索框手动输入 002008 可检索到大族激光", async ({ page }) => {
+    await page.goto(`/${FIXTURE}`);
+    const input = page.getByTestId("stock-search-input").first();
+    await input.click();
+    await input.fill("002008");
+
+    // 检查建议下拉项包含 002008 与大族激光
+    const suggestions = page.getByTestId("stock-search-suggestions");
+    await expect(suggestions).toBeVisible();
+    await expect(suggestions).toContainText("002008");
+    await expect(suggestions).toContainText("大族激光");
+
+    // 点击建议跳转至 /stock/002008/overview
+    await suggestions.getByText("大族激光").first().click();
+    await expect(page).toHaveURL(/\/stock\/002008\/overview/);
+  });
+});
