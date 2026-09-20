@@ -68,6 +68,96 @@ BENCHMARK_INDEXES: dict[str, str] = {
 }
 
 
+_LOCAL_CATALOG: dict[str, dict] | None = None
+
+
+def _get_local_catalog() -> dict[str, dict]:
+    global _LOCAL_CATALOG
+    if _LOCAL_CATALOG is not None:
+        return _LOCAL_CATALOG
+
+    catalog: dict[str, dict] = {}
+
+    # 1. BUILTIN_STOCKS (高优先级准确历史)
+    for s in BUILTIN_STOCKS:
+        catalog[s["stock_code"]] = dict(s)
+
+    # 2. data/import/stocks.csv
+    import csv
+    from pathlib import Path
+
+    stocks_csv = Path("data/import/stocks.csv")
+    if stocks_csv.exists():
+        try:
+            with open(stocks_csv, mode="r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    code = row.get("stock_code")
+                    if code and row.get("listing_date") and code not in catalog:
+                        catalog[code] = {
+                            "stock_code": code,
+                            "name": row.get("name", ""),
+                            "listing_date": row.get("listing_date"),
+                            "industry": row.get("industry", ""),
+                        }
+        except Exception:
+            pass
+
+    # 3. data/phase3_universe/sina_hs_a_snapshot.json (5564 只全市场名称快照)
+    sina_json = Path("data/phase3_universe/sina_hs_a_snapshot.json")
+    sina_names: dict[str, str] = {}
+    if sina_json.exists():
+        try:
+            import json
+
+            with open(sina_json, mode="r", encoding="utf-8") as f:
+                data = json.load(f)
+                for s in data.get("stocks", []):
+                    code = s.get("code")
+                    name = s.get("name")
+                    if code and name:
+                        sina_names[code] = name
+        except Exception:
+            pass
+
+    # 4. AStockDataBlobStore (5541 只本地挂载历史数据，提供权威首个交易日作为上市日)
+    try:
+        from src.market.providers.astockdata_store import AStockDataBlobStore
+
+        store = AStockDataBlobStore.latest_composite_none()
+        for sym, entry in store.manifest.symbols.items():
+            code = entry.stock_code
+            if code not in catalog or not catalog[code].get("listing_date"):
+                fd = str(entry.first_date)
+                listing_date = f"{fd[:4]}-{fd[4:6]}-{fd[6:8]}" if len(fd) == 8 else ""
+                name = sina_names.get(code, "") or catalog.get(code, {}).get("name", "")
+                catalog[code] = {
+                    "stock_code": code,
+                    "name": name,
+                    "listing_date": listing_date,
+                    "industry": catalog.get(code, {}).get("industry", ""),
+                }
+            elif code in sina_names and not catalog[code].get("name"):
+                catalog[code]["name"] = sina_names[code]
+    except Exception:
+        pass
+
+    # 补充新浪快照中的其余股票
+    for code, name in sina_names.items():
+        if code in catalog and not catalog[code].get("name"):
+            catalog[code]["name"] = name
+        elif code not in catalog:
+            catalog[code] = {
+                "stock_code": code,
+                "name": name,
+                "listing_date": None,
+                "industry": "",
+            }
+
+    _LOCAL_CATALOG = catalog
+    return _LOCAL_CATALOG
+
+
 class AkshareMarketProvider(MarketDataProvider):
     """AKShare 适配器。"""
 
@@ -90,6 +180,16 @@ class AkshareMarketProvider(MarketDataProvider):
         if not query:
             return []
 
+        # 优先检索本地 5800+ 标的名册（0ms 响应，避免外网东财请求超时阻塞）
+        catalog = _get_local_catalog()
+        lowered = query.lower()
+        matches = [
+            s for s in catalog.values()
+            if lowered in s["stock_code"] or (s.get("name") and lowered in s["name"].lower())
+        ][:limit]
+        if matches:
+            return [self._dict_to_stock(m) for m in matches]
+
         try:
             df = self._call_with_retry("stock_zh_a_spot_em", lambda ak: ak.stock_zh_a_spot_em())
             if df is not None and len(df):
@@ -104,15 +204,6 @@ class AkshareMarketProvider(MarketDataProvider):
         except Exception as exc:  # noqa: BLE001
             self._last_error = f"{type(exc).__name__}: {exc}"
 
-        # 兜底：内置清单 + 代码可解析即返回
-        lowered = query.lower()
-        matches = [
-            s for s in BUILTIN_STOCKS
-            if lowered in s["stock_code"] or lowered in s["name"]
-        ][:limit]
-        if matches:
-            return [self._dict_to_stock(m) for m in matches]
-
         try:
             code = codes.normalize_code(query)
         except ValueError:
@@ -125,7 +216,18 @@ class AkshareMarketProvider(MarketDataProvider):
     def get_stock(self, code: str) -> StockMaster:
         code, exchange, board, wind = codes.parse(code)
 
-        # 1) 先尝试真实数据源
+        # 1) 优先查验本地资料库（含 AStockData 与全市场名册）
+        catalog = _get_local_catalog()
+        if code in catalog and catalog[code].get("listing_date"):
+            meta = catalog[code]
+            stock = self._dict_to_stock(meta)
+            stock.wind_code = wind
+            stock.data_quality.grade = "A" if meta.get("name") else "B"
+            stock.data_quality.score = 0.95 if meta.get("name") else 0.8
+            stock.source = SourceRef(source="local_catalog", extra={"matched": True})
+            return stock
+
+        # 2) 尝试真实数据源
         try:
             info = self._call_with_retry("stock_individual_info_em", lambda ak: ak.stock_individual_info_em(symbol=code))
             stock = self._info_frame_to_stock(code, exchange, board, wind, info)
@@ -134,31 +236,18 @@ class AkshareMarketProvider(MarketDataProvider):
         except Exception as exc:  # noqa: BLE001
             self._last_error = f"{type(exc).__name__}: {exc}"
 
-        # 2) 内置清单兜底（明确标注来源降级）
-        for meta in BUILTIN_STOCKS:
-            if meta["stock_code"] == code:
-                stock = self._dict_to_stock(meta)
-                stock.wind_code = wind
-                stock.data_quality.grade = "B"
-                stock.data_quality.score = 0.75
-                stock.data_quality.notes.append(
-                    "AKShare 实时接口不可用，使用内置股票资料兜底（来源已降级）"
-                )
-                stock.source = SourceRef(source="builtin_fallback", extra={"error": self._last_error[:200]})
-                return stock
-
         # 3) 代码可解析但无资料 —— 返回最小可用对象并降级，而非直接报错
         if ex_value(exchange) != "UNKNOWN":
             return StockMaster(
                 stock_code=code,
                 wind_code=wind,
-                name="",
+                name=catalog.get(code, {}).get("name", ""),
                 exchange=exchange,
                 board=board,
                 data_quality={
                     "grade": "D",
                     "score": 0.3,
-                    "notes": ["无法获取股票名称与上市日期；分析可继续但结论不可靠"],
+                    "notes": ["无法获取股票上市日期；分析可继续但结论不可靠"],
                 },
                 source=SourceRef(source="code_prefix_only", extra={"error": self._last_error[:200]}),
             )
