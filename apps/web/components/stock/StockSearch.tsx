@@ -14,7 +14,7 @@ import { endpoints, api, type ApiStockSearchResponse } from "@/lib/api";
 import { FIXTURE_QUERY_VALUE } from "@/lib/fixture";
 import { IconArrowRight, IconClose, IconSearch } from "../shell/Icons";
 
-import { KNOWN_STOCK_NAMES } from "./StockSwitchModal";
+import { KNOWN_STOCK_NAMES } from "@/lib/stockCatalog";
 
 interface Suggestion {
   code: string;

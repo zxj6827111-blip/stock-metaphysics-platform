@@ -103,9 +103,18 @@ function RecentCard({ item }: { item: RecentAnalysisItem }) {
         </span>
       </div>
 
-      <div className="mt-1.5">
-        <MiniTrend values={spark} tone={item.trend === "down" ? "down" : "up"} height={54} />
-      </div>
+      {item.price !== "—" ? (
+        <div className="mt-1.5">
+          <MiniTrend values={spark} tone={item.trend === "down" ? "down" : "up"} height={54} />
+        </div>
+      ) : (
+        <div
+          className="mt-2 flex h-[54px] items-center justify-center rounded border border-dashed text-[11.5px]"
+          style={{ borderColor: "var(--color-border)", color: "var(--color-ink-faint)" }}
+        >
+          暂无实时分时走势
+        </div>
+      )}
 
       <div className="mt-1.5 flex items-center gap-4 border-t pt-2" style={{ borderColor: "var(--color-border)" }}>
         {item.engines.map((e) => (

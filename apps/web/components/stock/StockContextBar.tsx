@@ -14,7 +14,8 @@ import { useState } from "react";
 import type { StockContext } from "@/lib/types";
 import { FIXTURE_QUERY_VALUE } from "@/lib/fixture";
 import { IconClock, IconExport, IconRefresh, IconStar, IconTaiji } from "../shell/Icons";
-import { StockSwitchModal, KNOWN_STOCK_NAMES } from "./StockSwitchModal";
+import { StockSwitchModal } from "./StockSwitchModal";
+import { KNOWN_STOCK_NAMES } from "@/lib/stockCatalog";
 
 export function StockContextBar({
   context,
