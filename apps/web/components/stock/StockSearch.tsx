@@ -74,9 +74,23 @@ export function StockSearch({
         (s) => s.code.includes(t) || s.name.includes(t),
       );
 
-      // 如果是 fixture 模式且本地精确匹配到了常用演示标的
-      if (fixture && localHits.length > 0) {
-        setItems(localHits);
+      // 如果处于 fixture 模式，完全基于本地清单，禁止向后端发起网络请求
+      if (fixture) {
+        if (localHits.length > 0) {
+          setItems(localHits);
+        } else if (/^\d{6}$/.test(trimmed)) {
+          const known = KNOWN_STOCK_NAMES[trimmed];
+          setItems([
+            {
+              code: trimmed,
+              name: known?.name || "A股标的",
+              exchange: trimmed.startsWith("6") || trimmed.startsWith("9") ? "SSE" : "SZSE",
+              listingDate: known?.listingDate || "",
+            },
+          ]);
+        } else {
+          setItems([]);
+        }
         return;
       }
 

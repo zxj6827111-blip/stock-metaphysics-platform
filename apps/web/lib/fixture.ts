@@ -496,6 +496,7 @@ export const ziweiReverseFixture = rawZiweiReverse as unknown as ApiZiweiChart;
 
 export const multiAnalysisFixture: ApiMultiAnalysis = {
   ...(rawAnalyze as unknown as ApiMultiAnalysis),
+  as_of: "2024-11-15 14:32:00",
   ziwei_charts: {
     forward: ziweiForwardFixture,
     reverse: ziweiReverseFixture,
@@ -776,6 +777,75 @@ export const evidenceFixture: ApiEvidence = {
   disclaimer: "古籍条文只说明传统术数文献论述，不构成对证券资产未来收益率或涨跌的任何预测或保证。",
 };
 
+function createTimelineOpinion(
+  engine: "bazi" | "ziwei" | "huangli",
+  direction: number,
+  score: number,
+  note: string,
+  reasons: { text: string; factor_ids: string[] }[],
+): ApiOpinion {
+  return {
+    engine,
+    engine_version:
+      engine === "bazi"
+        ? "smx-bazi-native-1.0.0"
+        : engine === "ziwei"
+          ? "smx-ziwei-native-1.0.0"
+          : "huangli-engine-1.0.0",
+    availability: "ok",
+    direction,
+    score,
+    confidence: 0.8,
+    top_positive_reasons: direction > 0 ? reasons : [],
+    top_negative_reasons: direction < 0 ? reasons : [],
+    factor_ids: reasons.flatMap((r) => r.factor_ids),
+    note,
+  };
+}
+
+function createTimelineConsensus(
+  label: string,
+  label_cn: string,
+  agreement: string,
+  directions: Record<string, number>,
+  note: string,
+): ApiConsensus {
+  return {
+    display_only: true,
+    label,
+    label_cn,
+    agreement,
+    historical_validity: "中等",
+    data_quality: "A",
+    directions,
+    participating_engines: Object.keys(directions),
+    unavailable_engines: [],
+    mean_score: 75.0,
+    note,
+    agreement_score: agreement === "高" ? 0.9 : 0.6,
+    available_engine_count: 3,
+  };
+}
+
+function createTimelineConflict(
+  has_conflict: boolean,
+  directions: Record<string, number>,
+  severity = "none",
+  conflicting_engines: string[] = [],
+  reasons: string[] = [],
+): ApiConflict {
+  return {
+    display_only: true,
+    has_conflict,
+    severity,
+    conflicting_engines,
+    directions,
+    reasons,
+    note: has_conflict ? "多模型在当前周期存在方向分歧" : "无显著冲突",
+    conflict_level: has_conflict ? "minor" : "none",
+  };
+}
+
 export const timelineMonthsFixture: ApiTimelineMonths = {
   analysis_id: "AN-20241115143200-600519-987e89",
   stock_code: "600519",
@@ -788,11 +858,23 @@ export const timelineMonthsFixture: ApiTimelineMonths = {
       month_index: 1,
       start_date: "2024-11-01",
       end_date: "2024-11-30",
-      bazi: { direction: 1, score: 78 } as unknown as ApiOpinion,
-      ziwei: { direction: 1, score: 72 } as unknown as ApiOpinion,
-      huangli: { direction: 1, score: 74 } as unknown as ApiOpinion,
-      consensus: { label: "POSITIVE", label_cn: "正向共振", agreement: "高" } as unknown as ApiConsensus,
-      conflict: { has_conflict: false } as unknown as ApiConflict,
+      bazi: createTimelineOpinion("bazi", 1, 78, "食神生财，流月顺畅", [
+        { text: "月柱印比生扶", factor_ids: ["B_MONTH_001"] },
+      ]),
+      ziwei: createTimelineOpinion("ziwei", 1, 72, "天府坐命，三合生旺", [
+        { text: "天府在命宫化吉", factor_ids: ["Z_PALACE_001"] },
+      ]),
+      huangli: createTimelineOpinion("huangli", 1, 74, "建除成日，天德吉星", [
+        { text: "成日利于拓展", factor_ids: ["H_DAY_001"] },
+      ]),
+      consensus: createTimelineConsensus(
+        "POSITIVE",
+        "正向共振",
+        "高",
+        { bazi: 1, ziwei: 1, huangli: 1 },
+        "三模型同向偏强",
+      ),
+      conflict: createTimelineConflict(false, { bazi: 1, ziwei: 1, huangli: 1 }),
       research_status: "VALIDATED",
       trading_days: 21,
       sample_dates: ["2024-11-01", "2024-11-15"],
@@ -803,11 +885,23 @@ export const timelineMonthsFixture: ApiTimelineMonths = {
       month_index: 2,
       start_date: "2024-12-01",
       end_date: "2024-12-31",
-      bazi: { direction: 1, score: 76 } as unknown as ApiOpinion,
-      ziwei: { direction: 0, score: 62 } as unknown as ApiOpinion,
-      huangli: { direction: 1, score: 70 } as unknown as ApiOpinion,
-      consensus: { label: "MODERATE", label_cn: "温和偏强", agreement: "中" } as unknown as ApiConsensus,
-      conflict: { has_conflict: false } as unknown as ApiConflict,
+      bazi: createTimelineOpinion("bazi", 1, 76, "正印生身，格局稳定", [
+        { text: "冬令金水相生", factor_ids: ["B_MONTH_002"] },
+      ]),
+      ziwei: createTimelineOpinion("ziwei", 0, 62, "星曜平位，防暗耗", [
+        { text: "擎羊对冲财帛", factor_ids: ["Z_SHA_001"] },
+      ]),
+      huangli: createTimelineOpinion("huangli", 1, 70, "开日明堂，适宜守正", [
+        { text: "吉神偏东有利", factor_ids: ["H_DAY_002"] },
+      ]),
+      consensus: createTimelineConsensus(
+        "MODERATE",
+        "温和偏强",
+        "中",
+        { bazi: 1, ziwei: 0, huangli: 1 },
+        "八字与黄历偏强，紫微中性",
+      ),
+      conflict: createTimelineConflict(false, { bazi: 1, ziwei: 0, huangli: 1 }),
       research_status: "VALIDATED",
       trading_days: 22,
       sample_dates: ["2024-12-02", "2024-12-16"],
@@ -818,11 +912,29 @@ export const timelineMonthsFixture: ApiTimelineMonths = {
       month_index: 3,
       start_date: "2025-01-01",
       end_date: "2025-01-31",
-      bazi: { direction: 0, score: 58 } as unknown as ApiOpinion,
-      ziwei: { direction: 1, score: 75 } as unknown as ApiOpinion,
-      huangli: { direction: 0, score: 56 } as unknown as ApiOpinion,
-      consensus: { label: "MIXED", label_cn: "中性观察", agreement: "中" } as unknown as ApiConsensus,
-      conflict: { has_conflict: true } as unknown as ApiConflict,
+      bazi: createTimelineOpinion("bazi", 0, 58, "气机交接，中性观察", [
+        { text: "丑未相刑需谨慎", factor_ids: ["B_CLASH_001"] },
+      ]),
+      ziwei: createTimelineOpinion("ziwei", 1, 75, "武曲化禄，财帛转强", [
+        { text: "财帛禄存加会", factor_ids: ["Z_PALACE_002"] },
+      ]),
+      huangli: createTimelineOpinion("huangli", 0, 56, "闭日闭塞，静候变化", [
+        { text: "白虎临门防波动", factor_ids: ["H_DAY_003"] },
+      ]),
+      consensus: createTimelineConsensus(
+        "MIXED",
+        "中性观察",
+        "中",
+        { bazi: 0, ziwei: 1, huangli: 0 },
+        "多模型意见分化",
+      ),
+      conflict: createTimelineConflict(
+        true,
+        { bazi: 0, ziwei: 1, huangli: 0 },
+        "minor",
+        ["ziwei", "bazi"],
+        ["紫微偏多而八字偏平"],
+      ),
       research_status: "VALIDATED",
       trading_days: 18,
       sample_dates: ["2025-01-02", "2025-01-15"],
@@ -833,11 +945,23 @@ export const timelineMonthsFixture: ApiTimelineMonths = {
       month_index: 4,
       start_date: "2025-02-01",
       end_date: "2025-02-28",
-      bazi: { direction: 1, score: 82 } as unknown as ApiOpinion,
-      ziwei: { direction: 1, score: 80 } as unknown as ApiOpinion,
-      huangli: { direction: 1, score: 76 } as unknown as ApiOpinion,
-      consensus: { label: "STRONG", label_cn: "强烈共振", agreement: "高" } as unknown as ApiConsensus,
-      conflict: { has_conflict: false } as unknown as ApiConflict,
+      bazi: createTimelineOpinion("bazi", 1, 82, "木火通明，食伤吐秀", [
+        { text: "寅申相生有情", factor_ids: ["B_MONTH_003"] },
+      ]),
+      ziwei: createTimelineOpinion("ziwei", 1, 80, "左右同宫，三方聚吉", [
+        { text: "吉化会合身宫", factor_ids: ["Z_PALACE_003"] },
+      ]),
+      huangli: createTimelineOpinion("huangli", 1, 76, "满日金匮，诸事大吉", [
+        { text: "日值金匮黄道", factor_ids: ["H_DAY_004"] },
+      ]),
+      consensus: createTimelineConsensus(
+        "STRONG",
+        "强烈共振",
+        "高",
+        { bazi: 1, ziwei: 1, huangli: 1 },
+        "三模型高度共振",
+      ),
+      conflict: createTimelineConflict(false, { bazi: 1, ziwei: 1, huangli: 1 }),
       research_status: "VALIDATED",
       trading_days: 15,
       sample_dates: ["2025-02-03", "2025-02-17"],

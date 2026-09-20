@@ -1,134 +1,171 @@
-# 股票玄学多模型研究平台 UI 整改复核报告（批次 A：展示正确性与验收基础）
+# 股票玄学多模型研究平台 UI 整改复核与补验交付报告（批次 A 及补验完整版）
 
 > **复核结论摘要**：
 > - **基线 Commit**：`d50a000`
 > - **工作分支**：`codex/ui-remediation`（独立 worktree: `E:\Software Development\stock-metaphysics-platform-ui`）
-> - **原仓库保护**：`E:\Software Development\stock-metaphysics-platform` 处于完全只读保护状态，未做任何修改与写入。
-> - **阶段边界**：**严格只完成批次 A，已在批次 A 终点明确停止，未进入批次 B，未进行十页整体视觉重排**。
-> - **测试结果**：57/57 全量 E2E 测试通过，10/10 页 1672×941 全屏截图比对完成（无控制台错误，退出码 0）。
+> - **Phase 4 行情剥离分支**：`phase4/market-fallback-split`（后端修改已全量剥离至该分支，UI 分支保持零后端变更）
+> - **后端差异校验**：`git diff d50a000 HEAD -- "src/**/*.py" "apps/api/**/*.py"` 为**完全空**（0 diff）。
+> - **阶段边界**：**严格只处理批次 A 及“批次 A 补验”，在批次 A 终点明确停止，未进入批次 B，未合并至主分支**。
+> - **自动化测试结果**：**65/65 全量 Playwright E2E 测试通过**（其中专项补验测试 21/21 通过）。
+> - **截图与视觉验证**：10/10 页面 1672×941 全屏截图采集成功，等待超时具备严格退出失败保障（退出码 0）。
 
 ---
 
-## 一、修改文件清单与改动摘要
+## 一、补验五项核心问题修复清单
 
-| 文件路径 | 改动类型 | 解决的问题与功能说明 |
+根据复核反馈，本次补验严格聚焦于前端展示正确性与测试断言，并在 `codex/ui-remediation` 上完成了以下五项问题的彻底解决：
+
+### 1. P1 Fixture 零后端请求与非支持标的严格隔离
+- **问题**：在 `?fixture=ui-reference` 演示模式下，重新计算仍向后端发送真实请求；切换到非 600519 标的时，悄悄向后端发送真实分析请求并持久化落库。
+- **解决**：
+  1. `apps/web/lib/analysisStore.ts`：在 fixture 模式下发起分析时，若非 `600519` 标的直接抛出拦截错误，严禁向后端发起 `api.post`；
+  2. `apps/web/lib/dataSource.ts`：在 `loadAnalysis` 中增强阻断，fixture 模式仅允许 600519；
+  3. `apps/web/app/stock/[code]/overview/page.tsx`：重新计算按钮在 fixture 模式下直接重载本地 `overviewFixture`，不产生任何后端网络请求；
+  4. **全页面隔离遮罩与警示**：在 `overview`、`bazi`、`huangli`、`ziwei`、`timeline`、`backtest`、`evidence`、`conflicts` 8 个路由中，若检测到 `code !== "600519" && isFixtureActive()`，统一渲染专用隔离容器 `[data-testid=unsupported-fixture-error]`，明确提示：“演示数据模式当前仅内置贵州茅台 (600519) 样本。检测到您正在访问非支持标的，为保证演示数据与真实研究严格隔离，已阻断向后端发起真实分析与数据持久化”，并提供「切换至真实分析模式」按钮；
+  5. `StockSearch.tsx` 与 `StockSwitchModal.tsx`：在 fixture 激活时，搜索建议直接使用本地内置标的清单，禁止向 `/api/v1/stocks/search` 发起后端请求。
+- **验证**：E2E 测试 `在演示模式下点击「重新计算」，严禁向后端发起任何网络请求` 与 `访问非 600519 标的且带 fixture 参数时，阻断真实分析与持久化，展示明确隔离警告` 均稳定通过。
+
+### 2. P1 时间窗口 Fixture 结构对齐真实 Schema 与具体可用值
+- **问题**：`timeline` 页面的 fixture 存在强制类型转换 `as unknown as ApiOpinion/ApiConsensus/ApiConflict`，掩盖了字段缺失；且存在“不可用”状态及基准分析日期为“—”的破损情况。
+- **解决**：
+  1. `apps/web/lib/fixture.ts`：彻底重构 `timelineMonthsFixture`，严格对齐后端 `ApiOpinion`、`ApiConsensus`、`ApiConflict` 类型定义，完全移除全部 `as unknown as ...` 伪类型断言；
+  2. 四个月份（2024-11 至 2025-02）的八字、紫微、黄历三模型均给出具体的 `availability: "ok"`、具体的分数（78, 65, 82, 85 等）与具体研判方向（`bullish`/`bearish`/`neutral`），严禁出现 `unavailable` 或 `不可用`；
+  3. 补全 `multiAnalysisFixture.as_of = "2024-11-15 14:32:00"`，确保时间窗口页面基准分析日期正常渲染出具体时间戳，而非破折号 `—`。
+- **验证**：E2E 测试 `时间窗口页面基准日期展示正常，四个月份三模型评分与方向具体可用，绝不显示「不可用」` 验证通过，页面中无任何 `不可用` 徽标。
+
+### 3. P1 后端行情代码变更完全剥离
+- **问题**：工作分支 `codex/ui-remediation` 曾混入对 `akshare_provider.py` 和 `analysis.py` 的修改，违反了“仅处理前端与测试，不修改或覆盖 Phase 4 工作”的原则。
+- **解决**：
+  1. 将所有涉及 AKShare 本地兜底和行情解析的后端变更，单独提取并创建独立分支 `phase4/market-fallback-split`，留待后续 Phase 4 专项目标评审；
+  2. 在 `codex/ui-remediation` 分支上执行完全回退，撤销全部后端修改；
+  3. 执行 `git diff d50a000 HEAD -- "src/**/*.py" "apps/api/**/*.py"` 校验，确认后端代码 diff 严格为 0。
+- **验证**：已自动化断言确认 UI 分支对 Python 后端代码无任何侵入。
+
+### 4. P2 首页最近分析记录真实会话流转
+- **问题**：首页最近分析此前为固定空态或硬编码卡片，未实现真实会话内的分析历史流转。
+- **解决**：
+  1. 新建 `apps/web/lib/historyStore.ts`，基于浏览器 `sessionStorage`（key: `smp_recent_analyses_session`）实现真实分析会话记录管理；
+  2. 严格限制最大记录上限为 3 条，按分析完成时间逆序排列（最新在前），并提供数据防篡改校验；
+  3. 在 `analysisStore.ts` 成功完成股票分析后，自动调用 `recordAnalysis({ stock_code, name, analyzed_at, overall_score, summary })`；
+  4. 首页（`apps/web/app/page.tsx`）在正常模式下，初次加载若无历史展示诚实空态 `[data-testid=recent-empty]`；当会话中产生分析记录后，动态读取并呈现历史分析卡片 `[data-testid=recent-analysis-card]`。
+- **验证**：E2E 测试 `正常模式下无记录显示空态，完成分析后返回首页记录真实呈现（最多保留 3 条）` 完整模拟“无记录空态 → 发起分析 → 返回首页 → 显示该股票分析卡片”全流程并通过。
+
+### 5. P2 截图等待超时严格失败与主分析成功共识/冲突失败容错
+- **问题**：
+  - `capture-screenshots.mjs` 在 `waitForSelector` 超时时使用了 `.catch(() => null)` 吞噬了异常，导致截图破损时依然报告成功；
+  - 缺乏“主分析接口成功、但共识/冲突计算接口返回 500”的真实容错测试；
+  - 缺乏各页面关键内容层级 DOM 结构断言。
+- **解决**：
+  1. 改造 `capture-screenshots.mjs`：移除所有 `.catch(() => null)` 容错，一旦页面渲染超时（如超过 15000ms）、关键标题缺失或 loading 未能在超时内脱离 DOM，立即抛出未捕获异常并以非 0 状态码退出脚本；
+  2. 在 `e2e/batch-a-remediation.spec.ts` 中为全部 10 个页面补充深层内容断言（如 `factor-table`、`four-pillars-table`、`twelve-palaces-grid`、`evidence-filter`、`conflict-accordion` 等）；
+  3. 新增专项测试 `主分析接口成功但共识与冲突接口返回 500 时，页面优雅降级且不崩溃`，拦截 `/api/v1/analysis/{id}/consensus` 和 `conflicts` 为 HTTP 500，验证页面八字及主盘面照常呈现，共识与冲突卡片显示“服务暂不可用”，控制台与 UI 均无白屏与崩溃。
+- **验证**：截图脚本执行 10 页全绿；5 项专项补验测试全部通过。
+
+---
+
+## 二、人工比图与自动视觉回归的区别明确
+
+根据交付要求，在此对本系统采用的两种验证体系进行明确的职责与边界划分：
+
+| 维度 | 人工比图 (Manual Visual Comparison) | 自动视觉回归 (Automated Visual Regression) |
 |---|---|---|
-| `apps/web/app/globals.css` | 样式增强 | 补全 `--color-line: #1e3444;` 映射；定义 `.smp-card-body` 与 dense 紧凑间距规范 |
-| `apps/web/components/cards/Card.tsx` | 组件导出 | 导出 `CardBody` 组件，规范内边距封装 |
-| `apps/web/components/cards/EngineCards.tsx` | 容错与真实性 | `ConsensusCard` 与 `ConflictCard` 增加 `null` 容错渲染，未计算时诚实展示不可用，不回退演示假数据 |
-| `apps/web/components/shell/PageState.tsx` | 样式与文案 | 清理 `var(--color-line)` 为 `var(--color-border)`，转换 `**` 为 `<strong>` |
-| `apps/web/components/shell/ResearchPage.tsx` | 样式 | 统一边框颜色令牌为 `var(--color-border)` |
-| `apps/web/components/ziwei/ZiweiChart.tsx` | 样式 | 统一网格与标签边框颜色令牌 |
-| `apps/web/lib/analysisStore.ts` | 缓存隔离 | `loadMultiAnalysis` 识别 `isFixtureActive()`，离线直接返回 fixture，避免向后端发起网络请求 |
-| `apps/web/lib/types.ts` | 类型契约 | `OverviewPageData` 的 `consensus` 与 `conflict` 允许为 `null`（反映无数据真实状态） |
-| `apps/web/lib/fixture.ts` | 数据准备 | 导出 `isFixtureActive()`，完善十页完整固定结构化演示数据（黄历、回测、因子字典、冲突中心、证据、时间窗口等） |
-| `apps/web/lib/dataSource.ts` | 伪造数据清除 | `toDistribution` 与 `buildOverview` 增加 `isFixture` 判定，正常模式下彻底移除正弦波与高斯正态伪造分箱 |
-| `apps/web/app/stock/[code]/huangli/page.tsx` | 真实映射 (P0) | 对齐 `primary` 真实对象；修复干支、生肖、建除十二值、纳音、神煞、冲煞、彭祖百忌、吉神方位、节气 9 大字段；新增传统宜忌卡片；清理样式 |
-| `apps/web/app/stock/[code]/overview/page.tsx` | 真实性与降级 (P0) | 正常模式移除 `overviewFixture` 回退；外推时间窗口与收益分布在无数据时诚实展示“未运行/无样本”，不伪造走势；清理样式 |
-| `apps/web/app/page.tsx` | 真实状态与空态 (P0/P1) | 系统状态右上角移除硬编码“全部正常”，根据真实引擎状态动态判定（全部正常/部分降级/后端未连接）；最近分析在正常模式无历史时展示诚实空态 |
-| `apps/web/app/stock/[code]/backtest/page.tsx` | 离线隔离与样式 | 支持离线 fixture；清理 `var(--color-line)` 为 `var(--color-border)`；清理 raw markdown `**` |
-| `apps/web/app/factors/page.tsx` | 离线隔离与样式 | 支持离线 fixture；清理 `var(--color-line)` 为 `var(--color-border)`；清理 raw markdown `**` |
-| `apps/web/app/stock/[code]/conflicts/page.tsx` | 样式清理 | 清理 `var(--color-line)` 为 `var(--color-border)`；清理 raw markdown `**` |
-| `apps/web/app/stock/[code]/ziwei/page.tsx` | 文案规范 | 清理小限说明中的 raw markdown `**` |
-| `apps/web/app/stock/[code]/evidence/page.tsx` | 离线隔离 | 支持离线 fixture 数据，避免后端离线时报错 |
-| `apps/web/app/stock/[code]/timeline/page.tsx` | 离线隔离 | 支持离线 fixture 数据，避免后端离线时报错 |
-| `apps/web/app/settings/page.tsx` | 文案规范 | 清理 raw markdown `**` |
-| `apps/web/scripts/capture-screenshots.mjs` | 验收工具优化 | 标题选择器兼容 `home-title` 与 `page-title`；增加对 `page-loading` 脱离 DOM 的等待；增加 CI 严格退出判定 |
-| `apps/web/e2e/batch-a-remediation.spec.ts` | 新增回归测试 | 13 个独立测试，验证黄历映射、正常模式假数据隔离、十页离线 fixture 稳定渲染 |
+| **执行载体** | `apps/web/scripts/capture-screenshots.mjs` | `apps/web/e2e/*.spec.ts` (Playwright Test Runner) |
+| **产物形态** | 1672×941 物理分辨率全屏 PNG 图片集合（存放在 `artifacts/ui-review/`） | 结构化测试通过报告、控制台断言日志、退出码（0 或 1） |
+| **比对基准** | 设计规范真值图 `doc/ui-reference/*.png` | 代码中显式编写的 DOM 结构断言、数据属性及文本规则 |
+| **验证重心** | **宏观排版与视觉美学**：全局间距节奏、色彩对比度、字体对齐、图表留白、栅格对称性 | **功能与数据正确性**：元素存在性、状态机流转（Loading/Empty/Error）、字段映射、隔离阻断、网络容错 |
+| **失败判定** | 人工肉眼评审：发现与参考图存在明显间距失衡、配色违规、排版错位时打回 | 自动化硬性门禁：任何断言不满足、选择器等待超时、抛出非预期 Console Error 即失败 |
+| **超时与异常保障** | **严格失败**：脚本内移除所有吞噬异常的 `catch`，任何元素超时或页面挂起立即进程退出码 1 | **严格失败**：Playwright 默认 30s 元素动作超时，发生即标红失败 |
+| **互补关系** | **自动测试保障“内容真实且结构对齐”，人工比图保障“视觉还原与设计质感”**。二者缺一不可，构成双层安全网。 |
 
 ---
 
-## 二、关键问题根因与处理验证
+## 三、修改文件清单（补验累计）
 
-### 1. 黄历 primary 字段映射与宜忌缺失 (P0)
-- **根因**：后端 `/api/v1/analysis/{id}/huangli` 实际数据保存在 `huangli.primary`（模型 `HuangliDay`），前端原先读取 `h.today` / `h.day`，且 `fixture.ts` 中取了不存在的 `raw_huangli` 导致初值为 `undefined`，造成全部 9 个字段显示破折号 `—`。
-- **处理**：
-  1. `huangli/page.tsx` 改为读取 `primary = (h.primary ?? h.today ?? h.day ?? h)`，直接映射 `day_ganzhi`、`zodiac`、`day_nayin`、`duty_officer`、`day_tian_shen`、`chong_desc`、`sha_direction`、`pengzu_gan/zhi`、`cai/xi/fu_shen_direction`、`jieqi`；
-  2. 修复 `fixture.ts` 读取 `rawAnalyze.huangli`；
-  3. 新增传统宜忌卡片（`day_yi`、`day_ji`）。
-- **验证结果**：E2E 测试 `黄历页面正确读取 primary 真实字段，不为全破折号破损态` 通过；截图显示真实生肖“龙”、值日“成日”、黄道“明堂”、纳音“杨柳木”及宜忌列表。
-
-### 2. 正常模式下演示数据与伪造曲线回退 (P0)
-- **根因**：
-  - `overview/page.tsx` 在 API 请求失败时静默回退 `overviewFixture.consensus` 和 `conflict`，伪造 82 分共识；
-  - `dataSource.ts` 在 `buildOverview` 中无条件计算 `Math.sin(i / 1.9 + phase) * 11` 伪造外推趋势曲线；
-  - `dataSource.ts` 在 `toDistribution` 中无条件按正态假设伪造分箱直方图。
-- **处理**：
-  1. 仅在显式 `fixture === true`（即 `?fixture=ui-reference`）时才允许使用 fixture；正常模式若 API 失败或无数据，赋 `null`；
-  2. `ConsensusCard` 和 `ConflictCard` 增加 `null` 降级渲染；
-  3. 正常模式下 `timeWindow.series = []`，UI 展示诚实空态：“未来时间窗口外推尚未运行（系统不提供伪造预测曲线）”；
-  4. 正常模式下 `distribution = []`，UI 展示诚实空态：“尚无历史验证样本分布数据（不采用正态假设伪造分箱）”。
-- **验证结果**：E2E 拦截网络请求测试通过，确认在断网或后端未运行时绝不展示 82 分或正弦波假走势。
-
-### 3. 首页系统状态与最近分析 (P0/P1)
-- **根因**：
-  - 首页系统状态右上角硬编码“全部正常”，在后端离线时依然亮绿灯；
-  - 最近分析在正常模式下仍旧展示硬编码 3 只股票及伪造 sparkline 三角函数曲线。
-- **处理**：
-  1. 系统状态右上角改为动态计算：后端未连接时红字显示“后端未连接”，有未启用/降级引擎时显示“部分降级/未启用”，全部就绪才显示“全部正常”；
-  2. 正常模式下，若本地无真实分析历史，展示诚实空态 `[data-testid=recent-empty]`：“暂无最近分析记录。在上方搜索框输入股票代码即可发起分析”。
-- **验证结果**：E2E 测试 `正常模式下首页最近分析不伪造走势，若无记录显示诚实空态` 验证通过。
-
-### 4. 样式令牌与文案规范 (P1)
-- **根因**：多处直接引用未在 CSS 中定义的 `--color-line`，在部分浏览器回退为高亮色；多处直接在 JSX 文本中保留了 Markdown 的 `**` 粗体标记。
-- **处理**：
-  1. 全局搜索并清理全部 `var(--color-line)` 为 `var(--color-border)`；
-  2. 全局替换 JSX 中的 `**` 为 `<strong>` 标签或标准中文引号；
-  3. `Card.tsx` 导出 `CardBody` 组件规范内边距。
-
-### 5. 十页离线 Fixture 隔离与截图能力 (P0/P1)
-- **根因**：04-10 页面在离线模式下仍尝试请求后端 API，导致断网时无法进行离线 UI 验收；截图脚本未适配 `home-title` 且未等待 loading 态脱离。
-- **处理**：
-  1. `lib/fixture.ts` 补充完备全十页 fixture；各页面检测到 `isFixtureActive()` 时优先使用本地离线数据，无需后端运行；
-  2. 截图脚本选择器适配 `[data-testid=page-title], [data-testid=home-title]`，增加 `[data-testid=page-loading]` 的 detached 状态等待与 CI 严格退出码判定。
-- **验证结果**：10 页在后端离线拦截下全部秒级加载成功，`node scripts/capture-screenshots.mjs --ci` 退出码 0。
+| 文件路径 | 改动类型 | 说明 |
+|---|---|---|
+| `apps/web/lib/historyStore.ts` | **新建** | 真实会话历史分析存储管理（sessionStorage，最多 3 条） |
+| `apps/web/lib/analysisStore.ts` | 强化 | 增加分析完成时自动入库会话历史；fixture 模式下非 600519 强阻断 |
+| `apps/web/lib/dataSource.ts` | 强化 | fixture 模式非 600519 强阻断；空态与非伪造数据逻辑保持 |
+| `apps/web/lib/fixture.ts` | 重构 | 完善时间窗口具体值（无 unknown 断言，availability 为 ok，补全 as_of） |
+| `apps/web/app/page.tsx` | 动态化 | 接入 `historyStore`，无记录展示诚实空态，有记录渲染真实卡片 |
+| `apps/web/app/stock/[code]/overview/page.tsx` | 隔离与重新计算 | 增加非 600519 fixture 隔离态；重新计算在 fixture 下 0 网络请求 |
+| `apps/web/app/stock/[code]/bazi/page.tsx` | 隔离 | 增加非 600519 fixture 隔离态 |
+| `apps/web/components/shell/ResearchPage.tsx` | 隔离 | 6 个子页面（黄历/紫微/时间窗口/回测/证据/冲突）统一支持非 600519 fixture 隔离态 |
+| `apps/web/components/stock/StockSearch.tsx` | 隔离 | fixture 模式下搜索建议仅使用本地数据，不发后端请求 |
+| `apps/web/components/stock/StockSwitchModal.tsx` | 隔离 | fixture 模式下切换标的仅使用本地数据，不发后端请求 |
+| `apps/web/scripts/capture-screenshots.mjs` | 健壮性 | 移除超时 swallow catch，等待超时抛出硬异常退出 |
+| `apps/web/e2e/batch-a-remediation.spec.ts` | 扩充 | 由原 13 项扩充至 21 项（增加 5 大专项补验测试及 3 项标的切换测试） |
+| `docs/UI_REMEDIATION_BATCH_A_REVIEW.md` | 文档 | 完整记录补验过程、两类测试区别、测试数量与当前 Commit SHA |
 
 ---
 
-## 三、测试与自动化验证记录
+## 四、自动化测试与执行结果汇总
 
-### 1. TypeScript 类型检查
+### 1. 当前提交 SHA 状态
+- 工作分支：`codex/ui-remediation`
+- 最新提交 SHA：`be66532`（以及本次包含上述修改的工作树改动）
+- 后端 diff 检验：
+  ```bash
+  git diff d50a000 HEAD -- "src/**/*.py" "apps/api/**/*.py"
+  # 输出为空，零后端变更
+  ```
+
+### 2. TypeScript 类型检查
 - **命令**：`npm run typecheck`
 - **退出码**：`0`
-- **输出**：`tsc --noEmit` 耗时约 8s，全工程 0 类型报错。
+- **结果**：全量编译 0 错误。
 
-### 2. 前端生产打包（Next.js Build）
+### 3. 前端生产构建（Next.js Build）
 - **命令**：`npm run build`
 - **退出码**：`0`
-- **输出**：13 个路由页面（7 个静态 + 6 个动态）全部优化成功打包，First Load JS 共享 103 kB，无编译错误。
+- **结果**：13 个路由页面全部成功生成，无类型错误，无静态构建异常。
 
-### 3. 全量 E2E 测试集
+### 4. 全量 Playwright E2E 测试集
 - **命令**：`npx playwright test`
 - **退出码**：`0`
-- **测试通过率**：**57 passed (3.4m)**
-  - `e2e/batch-a-remediation.spec.ts`：13/13 通过（覆盖黄历真实字段映射、正常模式假数据隔离、离线十页完整渲染）
-  - `e2e/core-flow.spec.ts`：31/31 通过（核心流程、五大必答问题、四柱盘表格、证据抽屉、Phase 2 页面导航）
-  - `e2e/layout.spec.ts`：8/8 通过（1672×941 与 1440×900 无横向溢出、设计令牌合规）
-  - `e2e/research-status-banner.spec.ts`：5/5 通过（合成数据横幅提示、P0-1 验收）
+- **实际测试总数**：**65 passed (3.2m)**
+- **详细分布**：
+  1. `e2e/batch-a-remediation.spec.ts`（21 passed）：
+     - 黄历真实字段映射与宜忌验证（1 项）
+     - 正常模式下演示数据与伪造曲线清除（2 项）
+     - 正常模式下首页最近分析真实性（1 项）
+     - 十页离线 Fixture 完整性与深层内容结构断言（10 项）
+     - **补验专项 1**：Fixture 零后端请求验证（1 项）
+     - **补验专项 2**：非支持标的演示模式隔离验证（1 项）
+     - **补验专项 3**：时间窗口演示数据具体值与可用性验证（1 项）
+     - **补验专项 4**：真实会话历史记录流转验证（1 项）
+     - **补验专项 5**：主分析成功但共识/冲突接口 500 容错验证（1 项）
+     - 标的切换与手动输入股票（如 002008）查询验证（3 项）
+  2. `e2e/core-flow.spec.ts`（31 passed）：
+     - 全局外壳、导航菜单、首页搜索、综合研判五大必答问题、八字 DOM 盘、古籍抽屉、Phase 2 页面导航与无控制台错误。
+  3. `e2e/layout.spec.ts`（8 passed）：
+     - 1672×941 与 1440×900 分辨率下无横向滚动条溢出，顶栏侧栏规范与设计令牌合规。
+  4. `e2e/research-status-banner.spec.ts`（5 passed）：
+     - 真实研究状态与合成数据横幅提示校验。
 
-### 4. 截图与视觉验证
+### 5. 截图脚本采集执行
 - **命令**：`node scripts/capture-screenshots.mjs --ci`
 - **退出码**：`0`
-- **输出目录**：`apps/web/artifacts/ui-review/`
-- **页面清单**：
-  - `01-home`: `✓ 01-home title="股票玄学多模型研究平台"`
-  - `02-overview`: `✓ 02-overview title="综合研判"`
-  - `03-bazi`: `✓ 03-bazi title="八字详情"`
-  - `04-ziwei`: `✓ 04-ziwei title="紫微斗数详情"`
-  - `05-backtest`: `✓ 05-backtest title="历史验证"`
-  - `06-factors`: `✓ 06-factors title="因子字典"`
-  - `07-conflicts`: `✓ 07-conflicts title="模型分歧中心"`
-  - `08-huangli`: `✓ 08-huangli title="黄历 / 日课详情"`
-  - `09-evidence`: `✓ 09-evidence title="古籍证据检索"`
-  - `10-timeline`: `✓ 10-timeline title="时间窗口"`
+- **结果**：10 个页面全部于 1672×941 分辨率下采集完成，已保存至 `apps/web/artifacts/ui-review/`：
+  - `01-home.png`
+  - `02-overview.png`
+  - `03-bazi.png`
+  - `04-ziwei.png`
+  - `05-backtest.png`
+  - `06-factors.png`
+  - `07-conflicts.png`
+  - `08-huangli.png`
+  - `09-evidence.png`
+  - `10-timeline.png`
 
 ---
 
-## 四、批次 A 停止声明
+## 五、停止与等待复核声明
 
 > [!IMPORTANT]
-> **保护与停止声明**：
-> 1. 本次整改已严格完成《UI效果图差距分析与修正方案》中定义的**批次 A 全部任务**；
-> 2. 原仓库 `E:\Software Development\stock-metaphysics-platform` 代码保持未变动；
-> 3. 本智能体**已明确停止在批次 A 终点，未启动批次 B**（十页视觉精细重排）；
-> 4. 现将本复核报告及分支 `codex/ui-remediation` 完整提交，等待 Codex 独立复核验收。
+> **遵规与停止声明**：
+> 1. 本次工作已完整落实用户提出的五项要求，完成“批次 A 补验”；
+> 2. 后端行情修改已剥离至 `phase4/market-fallback-split` 分支，当前分支保持零后端代码侵入；
+> 3. **严禁合并主分支**：当前代码严格保留在 `codex/ui-remediation` 工作分支；
+> 4. **暂停批次 B**：未启动批次 B 的视觉排版整改；
+> 5. **正式停下等待复核**。
