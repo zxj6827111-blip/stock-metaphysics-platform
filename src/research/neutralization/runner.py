@@ -90,6 +90,7 @@ def _partition_of(object_frame: pd.DataFrame, partition: str) -> pd.DataFrame:
 def _base_key_rows(
     frame: pd.DataFrame,
     horizons: tuple[int, ...],
+    exposure_columns: tuple[str, ...] = STYLE_EXPOSURE_COLUMNS,
 ) -> dict[tuple[str, str, int], dict]:
     """按 (出生模型, 分区, 持有期) 预计算与对象无关的风格/板块中性列。
 
@@ -114,7 +115,7 @@ def _base_key_rows(
                     continue
                 residual_col = f"style_residual_{horizon}d"
                 work, style_diag = xs.style_neutralize(
-                    work, excess_col, list(STYLE_EXPOSURE_COLUMNS),
+                    work, excess_col, list(exposure_columns),
                     output_col=residual_col,
                 )
                 seg = segment_neutralize(work, excess_col)
@@ -155,6 +156,8 @@ def run_neutralization(
     horizons: tuple[int, ...] | None = None,
     primary_horizon: int = 20,
     include_date_effect: bool = True,
+    exposure_columns: tuple[str, ...] = STYLE_EXPOSURE_COLUMNS,
+    neutralization_version: str = NEUTRALIZATION_VERSION,
 ) -> NeutralizationOutcome:
     """对全部预注册对象 × 出生模型 × 分区 × 持有期执行中性化分析。"""
     frame = dataset.frame
@@ -164,7 +167,7 @@ def run_neutralization(
     registry = dataset.registry
     specs: dict[str, HypothesisSpec] = {spec.object_id: spec for spec in registry.hypotheses}
 
-    base = _base_key_rows(frame, horizons)
+    base = _base_key_rows(frame, horizons, exposure_columns)
     rows: list[dict] = []
     date_tables: dict[str, pd.DataFrame] = {}
 
@@ -182,7 +185,7 @@ def run_neutralization(
                     work = work.assign(**{hit_col: work[f"hit__{spec.object_id}"]})
                     excess_col = f"market_excess_return_{horizon}d"
                     row: dict = {
-                        "neutralization_version": NEUTRALIZATION_VERSION,
+                        "neutralization_version": neutralization_version,
                         "object_id": spec.object_id,
                         "hypothesis_id": spec.hypothesis_id,
                         "engines": "+".join(spec.engines),
@@ -267,7 +270,7 @@ def run_neutralization(
                     row["style_neutral_hit_dates"] = resid_stats["date_count"]
                     row["style_neutral_hit_pooled_mean"] = resid_stats["pooled_mean"]
                     controlled = xs.controlled_hit_coefficient(
-                        work, excess_col, hit_col, list(STYLE_EXPOSURE_COLUMNS),
+                        work, excess_col, hit_col, list(exposure_columns),
                     )
                     row["controlled_hit_coefficient"] = controlled["hit_coefficient"]
                     row["controlled_hit_coefficient_t"] = controlled["hit_coefficient_t"]
@@ -347,7 +350,8 @@ def run_neutralization(
                     rows.append(row)
 
     meta = {
-        "neutralization_version": NEUTRALIZATION_VERSION,
+        "neutralization_version": neutralization_version,
+        "exposure_columns": list(exposure_columns),
         "benchmark": benchmark_policy().to_dict(),
         "exposures": exposure_availability().to_dict(),
         "industry": UnavailableIndustryProvider().status().to_dict(),
