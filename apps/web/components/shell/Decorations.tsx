@@ -28,7 +28,7 @@ export function Astrolabe({
 
   return (
     <div
-      className={`relative flex items-center justify-center select-none pointer-events-none ${className}`}
+      className={`flex items-center justify-center select-none pointer-events-none ${className.includes("absolute") ? "" : "relative"} ${className}`}
       style={{ width: size, height: size }}
       aria-hidden="true"
       data-testid="astrolabe-ornament"
@@ -187,6 +187,56 @@ export function Astrolabe({
           {/* 阴眼 */}
           <circle cx={24} cy={36} r={3} fill="var(--color-gold)" fillOpacity={0.85} />
         </g>
+
+        {/* 四维天地人方位标记 */}
+        <text
+          x={center}
+          y={center - 35}
+          textAnchor="middle"
+          fill="var(--color-gold)"
+          fillOpacity={0.8}
+          fontSize={13}
+          fontFamily="var(--font-serif-cn)"
+          style={{ fontWeight: 600 }}
+        >
+          天
+        </text>
+        <text
+          x={center}
+          y={center + 46}
+          textAnchor="middle"
+          fill="var(--color-gold)"
+          fillOpacity={0.8}
+          fontSize={13}
+          fontFamily="var(--font-serif-cn)"
+          style={{ fontWeight: 600 }}
+        >
+          人
+        </text>
+        <text
+          x={center - 43}
+          y={center + 5}
+          textAnchor="middle"
+          fill="var(--color-gold)"
+          fillOpacity={0.8}
+          fontSize={13}
+          fontFamily="var(--font-serif-cn)"
+          style={{ fontWeight: 600 }}
+        >
+          地
+        </text>
+        <text
+          x={center + 43}
+          y={center + 5}
+          textAnchor="middle"
+          fill="var(--color-gold)"
+          fillOpacity={0.8}
+          fontSize={13}
+          fontFamily="var(--font-serif-cn)"
+          style={{ fontWeight: 600 }}
+        >
+          地
+        </text>
       </svg>
     </div>
   );
