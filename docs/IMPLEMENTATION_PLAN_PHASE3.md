@@ -306,9 +306,24 @@ GOAL 提到的 "Tianji"（`nihaisha-tianji`）是语料库/MCP，不含排盘算
 
 ### 产出物
 - `docs/PHASE3_RESEARCH_REPORT.md`
+- `docs/phase3-model-limitations.md`
 - `docs/HANDOFF_PHASE3.md`
-- 必要的 ADR
-- 最终 commit + tag
+- 最终 commit + tag `phase3-research-v1.0`
+
+### §3H 完成回填（2026-09-20）
+
+**报告生成方式**：`scripts/phase3h_write_report.py` **从产物自动生成** 26 章报告 ——
+脚本不参与任何统计计算，只读取 `data/phase3_universe/phase3*` 并排版。
+因此报告里的每个数字都能在 CSV/JSON 中核对，不存在"文档与产物不一致"的可能。
+
+| 交付 | 说明 |
+|---|---|
+| `docs/PHASE3_RESEARCH_REPORT.md` | 26 章；含 Q1–Q10 逐条回答、gate-v1/v2 并排、最佳/最差/失败/空结果全列 |
+| `docs/phase3-model-limitations.md` | **20 条限制**，每条给出「限制 / 实测证据 / 影响范围 / 解除条件」+ 一页速查表 |
+| `docs/HANDOFF_PHASE3.md` | 版本矩阵 / 产物清单 / 逐条复现命令 / Phase 4 建议 / 硬约束 / 已知的坑 / 关键数字速查 |
+| tag | `phase3-research-v1.0` |
+
+**最终定性**：`PASS WITH CONDITIONS — RESEARCH PIPELINE READY / EVIDENCE INCONCLUSIVE`
 
 ---
 
@@ -333,7 +348,7 @@ GOAL 提到的 "Tianji"（`nihaisha-tianji`）是语料库/MCP，不含排盘算
 | 3E | **DONE** | 648 行中性化结果；风格中性化后符号双向翻转；黄历日期效应 = 非市场日历效应 |
 | 3F | **DONE** | 族内 BH-FDR：正式实验通过 **0**；`SUPPORTED_OUT_OF_SAMPLE = **0**`；gate-v2 与 gate-v1 并排 |
 | 3G | **DONE** | 第二实现源 `fortel-ziweidoushu`（中州派）可用；2280 项比较 95.75% 一致；3 类差异全部定位 |
-| 3H | IN PROGRESS | 终章：最终报告 / 模型限制 / HANDOFF / 全量回归 / tag |
+| 3H | **DONE** | 26 章报告（从产物自动生成）/ 20 条限制 / HANDOFF / 全量回归 / tag `phase3-research-v1.0` |
 
 ---
 
