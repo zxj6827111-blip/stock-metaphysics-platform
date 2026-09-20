@@ -9,9 +9,13 @@
 
 | 项目 | 值 |
 |---|---|
-| 分支 | `feature/phase3-research-validation` |
-| 基线 commit | `981bdac201735c18772d34dde6efa41d1de19b72`（3H 冻结；3E `e7e67e4` / 3F `3787e8c` / 3G `b1a6577`）|
-| tag | `phase3-research-v1.0`（annotated，指向 3H 冻结提交）|
+| 分支 | 已合并至 `main`（PR #1，rebase 合并；原分支 `feature/phase3-research-validation` 已删除）|
+| 基线 commit | `10d959d`（3H 冻结；3E `6e6f9cb` / 3F `1ba5a3b` / 3G `2c11f00`）|
+| tag | `phase3-research-v1.0`（annotated，指向 main 当前 HEAD）|
+
+> **SHA 说明**：rebase 合并会重写提交对象，本节 SHA 为合并后的 canonical 值。
+> 合并前分支上的对应 SHA（3H `981bdac` / 3E `e7e67e4` / 3F `3787e8c` / 3G `b1a6577`）
+> 不再位于 `main` 历史中，**不得**再用于对账。内容完全一致，仅对象 ID 变化。
 | 研究结论 | **`MULTI_ENGINE_NO_SIGNAL`** / **`SUPPORTED_OUT_OF_SAMPLE = 0`** |
 | 最终定性 | `PASS WITH CONDITIONS — RESEARCH PIPELINE READY / EVIDENCE INCONCLUSIVE` |
 | 一句话 | 管线成熟可用；证据本身为负。`PASS` 仅代表研究管线成熟，**绝不等于术数有效**。 |
