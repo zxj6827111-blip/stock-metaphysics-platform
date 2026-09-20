@@ -65,6 +65,10 @@ VERSION_SUFFIX: dict[BirthModelId, str] = {
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--universe-version", default=UNIVERSE_VERSION)
+    ap.add_argument(
+        "--version-prefix", default="v1-phase3b",
+        help="出生档案版本前缀。上市日来源等口径变更时提升；默认值保持原有行为不变。",
+    )
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -98,7 +102,7 @@ def main() -> int:
                     stats["unavailable_skipped"] += 1
                     continue
 
-                version = VERSION_SUFFIX[mid]
+                version = args.version_prefix + VERSION_SUFFIX[mid].removeprefix("v1-phase3b")
                 existing = db.execute(
                     select(StockBirthProfileRow).where(
                         StockBirthProfileRow.stock_code == stock.stock_code,

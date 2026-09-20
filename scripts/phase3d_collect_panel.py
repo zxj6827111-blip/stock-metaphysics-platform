@@ -53,10 +53,15 @@ from src.research.oos.splits import UNIVERSE_VERSION  # noqa: E402
 
 CUTOFF_DATE = date(2026, 8, 14)
 #: 出生模型 → stock_birth_profile.birth_profile_version
+#:
+#: 2026-09-20 提升到 ``v2-phase4b``：上市日来源改为用户提供的权威表
+#: （916 只修正，其中 447 只此前共用供应商数据起点 2000-04-03 导致盘面完全相同）。
+#: 对未修正的 5,223 只，v2 与 v1 的 birth_datetime **逐值相同**（已验证），
+#: 因此已产出的 v1 面板与后续用 v2 重算的部分可以安全拼合。
 MODEL_VERSIONS: dict[str, str] = {
-    "listing_open_v1": "v1-phase3b-listing_open",
-    "listing_close_v1": "v1-phase3b-listing_close",
-    "ipo_approx_v1": "v1-phase3b-ipo_approx",
+    "listing_open_v1": "v2-phase4b-listing_open",
+    "listing_close_v1": "v2-phase4b-listing_close",
+    "ipo_approx_v1": "v2-phase4b-ipo_approx",
 }
 
 
