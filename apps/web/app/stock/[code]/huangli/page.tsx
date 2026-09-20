@@ -35,14 +35,15 @@ function HuangliInner() {
   const searchParams = useSearchParams();
   const fixture = searchParams?.get("fixture") === FIXTURE_QUERY_VALUE;
   const code = params?.code ?? "600519";
+  const isMoutaiFixture = fixture && code === "600519";
   const { analysis, loading, error, reload } = useAnalysis(code);
 
-  const [hl, setHl] = useState<HuangliResponse | null>(fixture ? (huangliFixture as unknown as HuangliResponse) : null);
-  const [hlLoading, setHlLoading] = useState(!fixture);
+  const [hl, setHl] = useState<HuangliResponse | null>(isMoutaiFixture ? (huangliFixture as unknown as HuangliResponse) : null);
+  const [hlLoading, setHlLoading] = useState(!isMoutaiFixture);
   const [hlError, setHlError] = useState<string | null>(null);
 
   const load = useCallback(async (analysisId: string) => {
-    if (fixture) {
+    if (isMoutaiFixture) {
       setHl(huangliFixture as unknown as HuangliResponse);
       setHlLoading(false);
       return;
@@ -56,16 +57,16 @@ function HuangliInner() {
     } finally {
       setHlLoading(false);
     }
-  }, [fixture]);
+  }, [isMoutaiFixture]);
 
   useEffect(() => {
-    if (fixture) {
+    if (isMoutaiFixture) {
       setHl(huangliFixture as unknown as HuangliResponse);
       setHlLoading(false);
       return;
     }
     if (analysis?.analysis_id) void load(analysis.analysis_id);
-  }, [analysis?.analysis_id, fixture, load]);
+  }, [analysis?.analysis_id, isMoutaiFixture, load]);
 
   const h = (hl?.huangli ?? {}) as Record<string, unknown>;
   const primary = (h.primary ?? h.today ?? h.day ?? h) as Record<string, unknown>;

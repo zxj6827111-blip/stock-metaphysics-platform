@@ -46,7 +46,7 @@ function BacktestInner() {
   const [btError, setBtError] = useState<string | null>(null);
 
   const loadBacktest = useCallback(async (analysisId: string) => {
-    if (isFixtureActive()) {
+    if (isFixtureActive() && code === "600519") {
       setEs(backtestFixture);
       return;
     }

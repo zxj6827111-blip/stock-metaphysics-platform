@@ -40,7 +40,9 @@ export async function loadMultiAnalysis(
   key: AnalysisKey,
   opts: { persist?: boolean; isFixture?: boolean } = {},
 ): Promise<ApiMultiAnalysis> {
-  const isFix = opts.isFixture ?? isFixtureActive();
+  // 核心规则：仅当明确为 600519 参考标的且处于 fixture 模式时才返回固定演示数据；
+  // 其他标的（如 002008）坚决调用后端进行真实排盘与研判
+  const isFix = (opts.isFixture ?? isFixtureActive()) && key.code === "600519";
   if (isFix) {
     return multiAnalysisFixture;
   }

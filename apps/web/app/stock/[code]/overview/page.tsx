@@ -55,11 +55,12 @@ function OverviewInner() {
   const code = routeParams?.code ?? "600519";
   const search = useSearchParams();
   const fixture = search.get("fixture") === FIXTURE_QUERY_VALUE;
+  const isMoutaiFixture = fixture && code === "600519";
 
   const [data, setData] = useState<OverviewPageData | null>(
-    fixture ? overviewFixture : null,
+    isMoutaiFixture ? overviewFixture : null,
   );
-  const [loading, setLoading] = useState(!fixture);
+  const [loading, setLoading] = useState(!isMoutaiFixture);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
   const [analysisId, setAnalysisId] = useState<string>("");
@@ -98,13 +99,13 @@ function OverviewInner() {
       const consensusView =
         consensusRes.status === "fulfilled"
           ? toConsensusView(consensusRes.value)
-          : fixture
+          : isMoutaiFixture
             ? overviewFixture.consensus
             : null;
       const conflictView =
         conflictRes.status === "fulfilled"
           ? toConflictView(conflictRes.value)
-          : fixture
+          : isMoutaiFixture
             ? overviewFixture.conflict
             : null;
 
@@ -124,7 +125,7 @@ function OverviewInner() {
           backtestRes.status === "fulfilled" ? backtestRes.value : null,
           evidenceRes.status === "fulfilled" ? evidenceRes.value : null,
           dq,
-          fixture,
+          isMoutaiFixture,
         ),
       );
       if (evidenceRes.status === "fulfilled") {
@@ -142,7 +143,7 @@ function OverviewInner() {
       setAnalysisId(aid);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-      if (fixture) {
+      if (isMoutaiFixture) {
         setData(overviewFixture);
       } else {
         setData(null);
@@ -150,15 +151,15 @@ function OverviewInner() {
     } finally {
       setLoading(false);
     }
-  }, [code, fixture]);
+  }, [code, isMoutaiFixture]);
 
   useEffect(() => {
-    if (!fixture) void load();
-  }, [fixture, load]);
+    if (!isMoutaiFixture) void load();
+  }, [isMoutaiFixture, load]);
 
   // fixture 模式下同样准备抽屉数据（用演示条目）
   useEffect(() => {
-    if (!fixture) return;
+    if (!isMoutaiFixture) return;
     setDrawerData({
       supporting: [],
       counter: [],
@@ -166,7 +167,7 @@ function OverviewInner() {
       note: "UI 复刻模式下不加载真实古籍检索结果。移除 URL 中的 fixture 参数即可查看真实证据。",
       method: "bm25 + topic_match + authority_weight + domain_filter",
     });
-  }, [fixture]);
+  }, [isMoutaiFixture]);
 
   const metrics = useMemo(() => data?.backtestMetrics ?? [], [data]);
 

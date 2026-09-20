@@ -50,7 +50,7 @@ function EvidenceInner() {
   const [q, setQ] = useState("");
 
   const load = useCallback(async (analysisId: string) => {
-    if (isFixtureActive()) {
+    if (isFixtureActive() && code === "600519") {
       setBundle(evidenceFixture);
       setEvLoading(false);
       return;
