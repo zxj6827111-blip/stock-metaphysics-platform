@@ -13,6 +13,7 @@
  * 生产 runtime 读真实 API；`?fixture=ui-reference` 时用固定演示数据。
  */
 
+import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -56,11 +57,12 @@ function OverviewInner() {
   const search = useSearchParams();
   const fixture = search.get("fixture") === FIXTURE_QUERY_VALUE;
   const isMoutaiFixture = fixture && code === "600519";
+  const isUnsupportedFixture = fixture && code !== "600519";
 
   const [data, setData] = useState<OverviewPageData | null>(
     isMoutaiFixture ? overviewFixture : null,
   );
-  const [loading, setLoading] = useState(!isMoutaiFixture);
+  const [loading, setLoading] = useState(!isMoutaiFixture && !isUnsupportedFixture);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
   const [analysisId, setAnalysisId] = useState<string>("");
@@ -75,6 +77,15 @@ function OverviewInner() {
   }>({ supporting: [], counter: [], neutral: [] });
 
   const load = useCallback(async () => {
+    if (isMoutaiFixture) {
+      setData(overviewFixture);
+      setLoading(false);
+      return;
+    }
+    if (isUnsupportedFixture) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -151,11 +162,11 @@ function OverviewInner() {
     } finally {
       setLoading(false);
     }
-  }, [code, isMoutaiFixture]);
+  }, [code, isMoutaiFixture, isUnsupportedFixture]);
 
   useEffect(() => {
-    if (!isMoutaiFixture) void load();
-  }, [isMoutaiFixture, load]);
+    if (!isMoutaiFixture && !isUnsupportedFixture) void load();
+  }, [isMoutaiFixture, isUnsupportedFixture, load]);
 
   // fixture 模式下同样准备抽屉数据（用演示条目）
   useEffect(() => {
@@ -203,6 +214,48 @@ function OverviewInner() {
     [analysisId],
   );
 
+
+  if (isUnsupportedFixture) {
+    return (
+      <AppShell activeNav="overview" dataStatus="bad" statusText="演示模式受限">
+        <PageHero
+          title="综合研判"
+          subtitle="八字 · 紫微 · 黄历三模型共识与分歧研究"
+          seal="研"
+        />
+        <Card className="my-4 p-6" testId="unsupported-fixture-error">
+          <div className="flex items-start gap-3">
+            <span className="text-[24px]">⚠️</span>
+            <div className="space-y-2">
+              <h3 className="text-[16px] font-semibold" style={{ color: "var(--color-warn)" }}>
+                演示模式（UI 复刻）仅支持 600519（贵州茅台）
+              </h3>
+              <p className="text-[13px] leading-relaxed" style={{ color: "var(--color-ink-sub)" }}>
+                当前访问标的为 <code className="smp-num rounded border px-1.5 py-0.5">{code}</code>。
+                为严格保证数据隔离，系统在演示模式下<strong>已统一阻断对真实后端的排盘分析与持久化请求</strong>，
+                禁止静默进入真实模式。
+              </p>
+              <div className="flex items-center gap-3 pt-2">
+                <Link
+                  href={`/stock/${code}/overview`}
+                  className="smp-btn smp-btn--primary"
+                  data-testid="enter-real-mode-btn"
+                >
+                  移除 fixture 参数并进入真实分析模式
+                </Link>
+                <Link
+                  href={`/stock/600519/overview?fixture=${FIXTURE_QUERY_VALUE}`}
+                  className="smp-btn"
+                >
+                  返回 600519 演示标的
+                </Link>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell activeNav="overview" dataStatus={error ? "bad" : "ok"} statusText={error ? "后端未连接" : "数据正常"}>

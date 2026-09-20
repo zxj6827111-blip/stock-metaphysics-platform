@@ -7,8 +7,9 @@
  * 四柱盘必须是真实 DOM（禁止图片），且四柱数值全部来自后端 `chart_artifact.raw_chart`。
  */
 
+import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHero } from "@/components/shell/TopBar";
@@ -28,9 +29,13 @@ import {
 import { FIXTURE_QUERY_VALUE, baziFixture } from "@/lib/fixture";
 import {
   buildBaziPage,
+  buildBaziPageFromMulti,
   buildContext,
   loadAnalysis,
+  invalidateBaziAnalysisCache,
 } from "@/lib/dataSource";
+import { useAnalysis } from "@/lib/analysisStore";
+import { api, endpoints, type ApiEvidence, type ApiEventStudy } from "@/lib/api";
 import type { BaziPageData } from "@/lib/types";
 
 function BaziInner() {
@@ -39,9 +44,12 @@ function BaziInner() {
   const search = useSearchParams();
   const fixture = search.get("fixture") === FIXTURE_QUERY_VALUE;
   const isMoutaiFixture = fixture && code === "600519";
+  const isUnsupportedFixture = fixture && code !== "600519";
+
+  const { analysis, loading: multiLoading, error: multiError, reload } = useAnalysis(code);
 
   const [data, setData] = useState<BaziPageData | null>(isMoutaiFixture ? baziFixture : null);
-  const [loading, setLoading] = useState(!isMoutaiFixture);
+  const [loading, setLoading] = useState(!isMoutaiFixture && !isUnsupportedFixture);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
   const [drawerData, setDrawerData] = useState<{
@@ -52,8 +60,53 @@ function BaziInner() {
     method?: string;
   }>({ supporting: [], counter: [], neutral: [] });
 
-  const load = useCallback(async () => {
-    if (isMoutaiFixture) return;
+  const prevEvidenceRef = useRef<ApiEvidence | null>(null);
+  const prevBacktestRef = useRef<ApiEventStudy | null>(null);
+
+  // 1. 优先使用会话级缓存的 analysis 数据（0ms 瞬间秒开）
+  useEffect(() => {
+    if (isMoutaiFixture || isUnsupportedFixture) return;
+    if (!analysis) return;
+
+    if (analysis.bazi_chart) {
+      setData(buildBaziPageFromMulti(analysis, prevEvidenceRef.current, prevBacktestRef.current));
+      setLoading(false);
+      setError(null);
+    }
+
+    let active = true;
+    const aid = analysis.analysis_id;
+    Promise.allSettled([
+      api.get<ApiEvidence>(endpoints.evidence(aid)),
+      api.get<ApiEventStudy>(endpoints.backtest(aid)),
+    ]).then(([evRes, btRes]) => {
+      if (!active) return;
+      const ev = evRes.status === "fulfilled" ? evRes.value : null;
+      const bt = btRes.status === "fulfilled" ? btRes.value : null;
+      prevEvidenceRef.current = ev;
+      prevBacktestRef.current = bt;
+      if (analysis.bazi_chart) {
+        setData(buildBaziPageFromMulti(analysis, ev, bt));
+      }
+      if (ev) {
+        setDrawerData({
+          supporting: ev.evidence.supporting_evidence as never[],
+          counter: ev.evidence.counter_evidence as never[],
+          neutral: ev.evidence.neutral_evidence as never[],
+          note: ev.evidence.note,
+          method: ev.evidence.retrieval_method,
+        });
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [analysis, isMoutaiFixture, isUnsupportedFixture]);
+
+  // 2. 独立兜底加载（若 multi 出错时尝试单模型分析）
+  const fallbackLoad = useCallback(async () => {
+    if (isMoutaiFixture || isUnsupportedFixture) return;
     setLoading(true);
     setError(null);
     try {
@@ -81,11 +134,63 @@ function BaziInner() {
     } finally {
       setLoading(false);
     }
-  }, [code, isMoutaiFixture]);
+  }, [code, isMoutaiFixture, isUnsupportedFixture]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (multiError && !data) {
+      void fallbackLoad();
+    }
+  }, [multiError, data, fallbackLoad]);
+
+  const handleRecalculate = useCallback(() => {
+    invalidateBaziAnalysisCache(code);
+    prevEvidenceRef.current = null;
+    prevBacktestRef.current = null;
+    reload();
+  }, [code, reload]);
+
+
+  if (isUnsupportedFixture) {
+    return (
+      <AppShell activeNav="bazi" dataStatus="bad" statusText="演示模式受限">
+        <PageHero
+          title="八字详情"
+          subtitle="以天地之数，观市场之机"
+          seal="命"
+        />
+        <Card className="my-4 p-6" testId="unsupported-fixture-error">
+          <div className="flex items-start gap-3">
+            <span className="text-[24px]">⚠️</span>
+            <div className="space-y-2">
+              <h3 className="text-[16px] font-semibold" style={{ color: "var(--color-warn)" }}>
+                演示模式（UI 复刻）仅支持 600519（贵州茅台）
+              </h3>
+              <p className="text-[13px] leading-relaxed" style={{ color: "var(--color-ink-sub)" }}>
+                当前访问标的为 <code className="smp-num rounded border px-1.5 py-0.5">{code}</code>。
+                为严格保证数据隔离，系统在演示模式下<strong>已统一阻断对真实后端的排盘分析与持久化请求</strong>，
+                禁止静默进入真实模式。
+              </p>
+              <div className="flex items-center gap-3 pt-2">
+                <Link
+                  href={`/stock/${code}/bazi`}
+                  className="smp-btn smp-btn--primary"
+                  data-testid="enter-real-mode-btn"
+                >
+                  移除 fixture 参数并进入真实分析模式
+                </Link>
+                <Link
+                  href={`/stock/600519/bazi?fixture=${FIXTURE_QUERY_VALUE}`}
+                  className="smp-btn"
+                >
+                  返回 600519 演示标的
+                </Link>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell activeNav="bazi" dataStatus={error ? "bad" : "ok"} statusText={error ? "后端未连接" : "数据正常"}>
@@ -106,8 +211,15 @@ function BaziInner() {
       />
 
       {data ? (
-        <StockContextBar context={data.context} activeTab="bazi" onRecalculate={load} recalculating={loading} showTabs />
+        <StockContextBar
+          context={data.context}
+          activeTab="bazi"
+          onRecalculate={handleRecalculate}
+          recalculating={multiLoading || loading}
+          showTabs
+        />
       ) : null}
+
 
       {error ? (
         <Card className="mb-3 p-4" testId="bazi-error">

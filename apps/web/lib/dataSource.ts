@@ -17,7 +17,7 @@ import {
   type ApiFactorSet,
   type ApiOpinion,
 } from "./api";
-import { WUXING_COLORS, EXCHANGE_CN } from "./fixture";
+import { WUXING_COLORS, EXCHANGE_CN, isFixtureActive } from "./fixture";
 import { KNOWN_STOCK_NAMES } from "@/components/stock/StockSwitchModal";
 import type {
   BacktestMetric,
@@ -442,7 +442,36 @@ export function toEvidenceCards(items: ApiEvidence["evidence"]["supporting_evide
 /* 顶层加载器                                                                  */
 /* -------------------------------------------------------------------------- */
 
+const baziAnalysisCache = new Map<string, {
+  analysis: ApiBaziAnalysis;
+  factors: ApiFactorSet | null;
+  huangli: Record<string, unknown> | null;
+  evidence: ApiEvidence | null;
+  backtest: ApiEventStudy | null;
+}>();
+
+export function invalidateBaziAnalysisCache(code?: string): void {
+  if (code) {
+    for (const k of baziAnalysisCache.keys()) {
+      if (k.startsWith(code)) baziAnalysisCache.delete(k);
+    }
+  } else {
+    baziAnalysisCache.clear();
+  }
+}
+
 export async function loadAnalysis(code: string, asOf?: string) {
+  if (isFixtureActive()) {
+    if (code !== "600519") {
+      throw new Error(
+        `演示模式（UI 复刻）仅支持 600519（贵州茅台）。标的 ${code} 在演示模式下不可用；为保证数据隔离，系统已统一阻断对真实后端的排盘分析与持久化请求，请移除 URL 中的 fixture 参数以进入真实分析模式。`,
+      );
+    }
+  }
+  const cacheKey = `${code}|${asOf ?? ""}`;
+  const hit = baziAnalysisCache.get(cacheKey);
+  if (hit) return hit;
+
   const body: Record<string, unknown> = { persist: true };
   if (asOf) body.as_of = asOf;
   const analysis = await api.post<ApiBaziAnalysis>(endpoints.analyzeBazi(code), body);
@@ -455,14 +484,17 @@ export async function loadAnalysis(code: string, asOf?: string) {
     api.get<ApiEventStudy>(endpoints.backtest(aid)),
   ]);
 
-  return {
+  const result = {
     analysis,
     factors: factors.status === "fulfilled" ? factors.value : null,
     huangli: huangli.status === "fulfilled" ? (huangli.value as never) : null,
     evidence: evidence.status === "fulfilled" ? evidence.value : null,
     backtest: backtest.status === "fulfilled" ? backtest.value : null,
   };
+  baziAnalysisCache.set(cacheKey, result);
+  return result;
 }
+
 
 export function huangliToFields(raw: Record<string, unknown>): {
   primary: { solar: string; lunar: string; ganzhi: string; jieqi: string };
@@ -592,6 +624,17 @@ export function buildBaziPage(
     ],
   };
 }
+
+export function buildBaziPageFromMulti(
+  multi: ApiMultiAnalysis,
+  evidence: ApiEvidence | null = null,
+  backtest: ApiEventStudy | null = null,
+): BaziPageData {
+  const ctx = buildContextFromMulti(multi);
+  const chart = (multi.bazi_chart ?? {}) as Record<string, unknown>;
+  return buildBaziPage(ctx, chart, multi.factors, evidence, backtest);
+}
+
 
 /* -------------------------------------------------------------------------- */
 /* Phase 2：多模型分析                                                        */

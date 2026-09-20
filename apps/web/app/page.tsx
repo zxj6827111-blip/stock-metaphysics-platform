@@ -30,6 +30,7 @@ import {
 } from "@/components/shell/Icons";
 import { FIXTURE_QUERY_VALUE, homeFixture, homeCapabilitySub } from "@/lib/fixture";
 import { api, endpoints, type ApiEnginesResponse } from "@/lib/api";
+import { getRecentAnalyses, type RecentAnalysisItem } from "@/lib/historyStore";
 
 const ENGINE_MINILABEL: Record<string, string> = {
   bazi: "八字",
@@ -60,7 +61,7 @@ const SYSTEM_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   knowledge: IconBook,
 };
 
-function RecentCard({ item }: { item: (typeof homeFixture.recent)[number] }) {
+function RecentCard({ item }: { item: RecentAnalysisItem }) {
   const tone =
     item.statusTone === "up"
       ? "up"
@@ -103,7 +104,7 @@ function RecentCard({ item }: { item: (typeof homeFixture.recent)[number] }) {
       </div>
 
       <div className="mt-1.5">
-        <MiniTrend values={spark} tone={item.trend} height={54} />
+        <MiniTrend values={spark} tone={item.trend === "down" ? "down" : "up"} height={54} />
       </div>
 
       <div className="mt-1.5 flex items-center gap-4 border-t pt-2" style={{ borderColor: "var(--color-border)" }}>
@@ -196,7 +197,15 @@ function HomeInner() {
     };
   }, [fixture]);
 
-  const recent = fixture ? homeFixture.recent : [];
+  const [recent, setRecent] = useState<RecentAnalysisItem[]>([]);
+
+  useEffect(() => {
+    if (fixture) {
+      setRecent(homeFixture.recent);
+    } else {
+      setRecent(getRecentAnalyses());
+    }
+  }, [fixture]);
 
   return (
     <AppShell activeNav="home" dataStatus={dataStatus} statusText={statusText}>

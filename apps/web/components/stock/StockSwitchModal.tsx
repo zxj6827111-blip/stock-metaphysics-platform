@@ -129,6 +129,26 @@ export function StockSwitchModal({
       (s) => s.code.includes(lowered) || s.name.toLowerCase().includes(lowered),
     );
 
+    // 如果处于 fixture 模式，完全基于本地清单，禁止向后端发起网络请求
+    if (isFixture) {
+      if (localHits.length > 0) {
+        setResults(localHits);
+      } else if (/^\d{6}$/.test(trimmed)) {
+        const known = KNOWN_STOCK_NAMES[trimmed];
+        setResults([
+          {
+            code: trimmed,
+            name: known?.name || "A股标的",
+            exchange: trimmed.startsWith("6") || trimmed.startsWith("9") ? "SSE" : "SZSE",
+            listingDate: known?.listingDate || "",
+          },
+        ]);
+      } else {
+        setResults([]);
+      }
+      return;
+    }
+
     // 如果匹配到本地常用标的，直接展示
     if (localHits.length > 0) {
       setResults(localHits);

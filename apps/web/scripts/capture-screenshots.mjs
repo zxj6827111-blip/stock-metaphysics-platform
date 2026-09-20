@@ -79,9 +79,10 @@ async function main() {
     page.on("pageerror", onPageError);
 
     await page.goto(url, { waitUntil: "load", timeout: 60000 });
-    await page.waitForSelector("[data-testid=page-title], [data-testid=home-title]", { timeout: 30000 }).catch(() => null);
-    // 等待加载中状态彻底脱离 DOM（达到终态稳定）
-    await page.locator("[data-testid=page-loading]").waitFor({ state: "detached", timeout: 15000 }).catch(() => null);
+    // 严格等待页面核心标题出现，超时必须失败抛出异常，严禁静默吞掉
+    await page.waitForSelector("[data-testid=page-title], [data-testid=home-title]", { timeout: 30000 });
+    // 严格等待加载中状态脱离 DOM，超时必须失败
+    await page.locator("[data-testid=page-loading]").waitFor({ state: "detached", timeout: 15000 });
     // 等字体与 ECharts 渲染稳定
     await page.waitForTimeout(1400);
 
