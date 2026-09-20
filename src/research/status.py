@@ -22,14 +22,20 @@
     SUPPORTED_IN_SAMPLE      四类对照全部被真实因子击败且样本充足（仍只是样本内）
     OOS_CANDIDATE_SUPPORTED  Phase 3D 引入：OOS 十项条件全过，但**尚未做多重检验校正**
                              （FDR 属 Phase 3F），因此只能记为候选，不得解锁
-    SUPPORTED_OUT_OF_SAMPLE  **Phase 3D 仍禁止产出**（正式解锁必须在 Phase 3F 完成 BH-FDR 后另行改版）
+    EXPLORATORY_NOT_GATED    预注册为探索性（无方向性预测）：不套用单向门，
+                             永远不解锁任何候选/支持状态
+    SUPPORTED_OUT_OF_SAMPLE  Phase 3F 起可用：必须通过 gate-v2 的 A–L 十二项条件
+                             （含族内 BH-FDR、date-block bootstrap、日期分层置换、
+                             风格/板块中性化）
 
 硬性规则
 --------
 * 任何数据为 synthetic / degraded 时，唯一允许的状态是 ``NO_REAL_DATA``。
-* 本模块**永远不会**返回 ``SUPPORTED_OUT_OF_SAMPLE``；
-  Phase 3D 的 OOS 状态门（``src/research/oos/gates.py``）最高只产出
+* Phase 3D 的 OOS 状态门（``src/research/oos/gates.py``）最高只产出
   ``OOS_CANDIDATE_SUPPORTED`` 且必须携带 ``pending_fdr=True``。
+* 只有 ``src/research/multipletesting/gate_v2.py`` 的 A–L 十二项条件全部通过，
+  才会返回 ``SUPPORTED_OUT_OF_SAMPLE``；``assess_research_status``（Phase 1.1 的
+  样本内判定）仍然永不返回它。
 """
 
 from __future__ import annotations
@@ -49,7 +55,12 @@ class ResearchStatus(str, Enum):
     SUPPORTED_IN_SAMPLE = "SUPPORTED_IN_SAMPLE"
     #: Phase 3D：OOS 条件全过但未做 FDR 校正 —— 候选状态，不等于"样本外验证通过"
     OOS_CANDIDATE_SUPPORTED = "OOS_CANDIDATE_SUPPORTED"
-    SUPPORTED_OUT_OF_SAMPLE = "SUPPORTED_OUT_OF_SAMPLE"  # Phase 3F 之前禁用
+    #: 预注册为探索性（无方向性预测）的对象：照常做描述统计与多重检验校正，
+    #: 但**不套用单向状态门**，永远不解锁候选/支持状态。
+    #: Phase 3D 起以字符串形式出现在结果 CSV 中；Phase 3F 提升为正式枚举成员。
+    EXPLORATORY_NOT_GATED = "EXPLORATORY_NOT_GATED"
+    #: Phase 3F 起可用（必须通过 gate-v2 的 A–L 十二项条件，含族内 BH-FDR）
+    SUPPORTED_OUT_OF_SAMPLE = "SUPPORTED_OUT_OF_SAMPLE"
 
 
 #: 判定"全对照均被击败"所需的最小事件样本（与负对照判定阈值一致）
