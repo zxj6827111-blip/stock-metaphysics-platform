@@ -1,0 +1,36 @@
+{
+  "case_version": "phase3g-ziwei-crosscheck-cases-v1",
+  "frozen_at": "2026-09-20",
+  "purpose": "紫微第二实现源交叉核对的固定案例集（GOAL §3G-4：至少 20 个，覆盖年份/月份/时辰/晚子时/闰月/forward/reverse）",
+  "notes": [
+    "case 只描述出生时刻与 variant；性别参数由核对器**同时尝试 M/F** 后判定，",
+    "因为股票的性别是假设（AGENTS.md §5），不得默认填男命。",
+    "闰月案例按农历闰月选取公历日期，核对器会显式比较两边的农历月与闰月标记。"
+  ],
+  "cases": [
+    {"case_id": "C01-1940s-forward", "solar": [1940, 3, 15], "hour": 9, "variant_mode": "forward", "tags": ["year:1940s", "hour:09"]},
+    {"case_id": "C02-1952-classic", "solar": [1952, 4, 9], "hour": 4, "variant_mode": "forward", "tags": ["reference:README", "hour:04"]},
+    {"case_id": "C03-1968-reverse", "solar": [1968, 7, 22], "hour": 14, "variant_mode": "reverse", "tags": ["year:1960s", "hour:14"]},
+    {"case_id": "C04-1978-newyear", "solar": [1978, 1, 1], "hour": 0, "variant_mode": "forward", "tags": ["month:01", "early_zi"]},
+    {"case_id": "C05-1988-leapish", "solar": [1988, 2, 29], "hour": 6, "variant_mode": "forward", "tags": ["leap_day_solar"]},
+    {"case_id": "C06-1990-late-zi", "solar": [1990, 6, 15], "hour": 23, "variant_mode": "forward", "tags": ["late_zi", "hour:23"]},
+    {"case_id": "C07-1990-early-zi", "solar": [1990, 6, 16], "hour": 0, "variant_mode": "forward", "tags": ["early_zi", "hour:00"]},
+    {"case_id": "C08-1999-december", "solar": [1999, 12, 31], "hour": 21, "variant_mode": "reverse", "tags": ["month:12", "hour:21"]},
+    {"case_id": "C09-2004-leap-month", "solar": [2004, 3, 20], "hour": 11, "variant_mode": "forward", "tags": ["leap_month"]},
+    {"case_id": "C10-2012-leap-month", "solar": [2012, 5, 20], "hour": 17, "variant_mode": "forward", "tags": ["leap_month"]},
+    {"case_id": "C11-2017-leap-month", "solar": [2017, 8, 1], "hour": 3, "variant_mode": "forward", "tags": ["leap_month", "hour:03"]},
+    {"case_id": "C12-2020-leap-month", "solar": [2020, 6, 1], "hour": 8, "variant_mode": "reverse", "tags": ["leap_month"]},
+    {"case_id": "C13-2023-leap-month", "solar": [2023, 4, 5], "hour": 10, "variant_mode": "forward", "tags": ["leap_month"]},
+    {"case_id": "C14-2023-spring-festival", "solar": [2023, 1, 22], "hour": 5, "variant_mode": "forward", "tags": ["lunar_new_year"]},
+    {"case_id": "C15-2024-chunjie", "solar": [2024, 2, 10], "hour": 19, "variant_mode": "reverse", "tags": ["lunar_new_year"]},
+    {"case_id": "C16-2026-cutoff-year", "solar": [2026, 5, 6], "hour": 13, "variant_mode": "forward", "tags": ["year:2026"]},
+    {"case_id": "C17-1965-summer", "solar": [1965, 8, 8], "hour": 15, "variant_mode": "reverse", "tags": ["hour:15"]},
+    {"case_id": "C18-1975-autumn", "solar": [1975, 10, 18], "hour": 20, "variant_mode": "forward", "tags": ["month:10"]},
+    {"case_id": "C19-1985-winter", "solar": [1985, 12, 5], "hour": 22, "variant_mode": "reverse", "tags": ["hour:22"]},
+    {"case_id": "C20-1995-spring", "solar": [1995, 3, 3], "hour": 7, "variant_mode": "forward", "tags": ["month:03"]},
+    {"case_id": "C21-2005-noon", "solar": [2005, 9, 9], "hour": 12, "variant_mode": "forward", "tags": ["hour:12"]},
+    {"case_id": "C22-2015-late-zi", "solar": [2015, 7, 7], "hour": 23, "variant_mode": "reverse", "tags": ["late_zi", "hour:23"]},
+    {"case_id": "C23-2021-early-zi", "solar": [2021, 11, 11], "hour": 0, "variant_mode": "forward", "tags": ["early_zi", "hour:00"]},
+    {"case_id": "C24-2026-jan", "solar": [2026, 1, 15], "hour": 2, "variant_mode": "reverse", "tags": ["month:01", "hour:02"]}
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "smp-ziwei-reference-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "股票玄学多模型研究平台 · 紫微第二实现源（REFERENCE ONLY，中州派 fortel-ziweidoushu）",
+  "type": "module",
+  "main": "reference_chart.js",
+  "scripts": {
+    "smoke": "node reference_chart.js --smoke"
+  },
+  "dependencies": {
+    "fortel-ziweidoushu": "1.3.4"
+  }
+}

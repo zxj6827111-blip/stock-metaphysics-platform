@@ -1,0 +1,501 @@
+{
+  "run_version": "phase3g-ziwei-crosscheck-v1",
+  "git_sha": "b04a2b9fc69d2bac2b883bcd948f9892b0cf6cb3",
+  "generated_at": "2026-09-20T13:23:22.050465",
+  "case_version": "phase3g-ziwei-crosscheck-cases-v1",
+  "case_count": 24,
+  "second_engine_status": "REFERENCE_AVAILABLE",
+  "second_engine_unavailable_reason": "",
+  "production_engine_version": "iztro-2.6.1+smx-1.0.0",
+  "reference": {
+    "status": "REFERENCE_AVAILABLE",
+    "library": "fortel-ziweidoushu",
+    "version": "1.3.4",
+    "school": "中州派",
+    "license": "MIT",
+    "repository": "https://github.com/airicyu/fortel-ziweidoushu",
+    "node_binary": "C:\\Program Files\\nodejs\\node.EXE",
+    "service_dir": "E:\\Software Development\\stock-metaphysics-platform\\services\\ziwei-reference-service",
+    "dependencies_installed": true,
+    "detail": "subprocess: C:\\Program Files\\nodejs\\node.EXE reference_chart.js",
+    "enters_consensus_engine": false,
+    "role": "REFERENCE_ONLY"
+  },
+  "audited_candidates": [
+    {
+      "repository": "airicyu/fortel-ziweidoushu",
+      "language": "TypeScript",
+      "license": "MIT",
+      "stars": 32,
+      "dependency": "仅 util（自带日历，不依赖 iztro）",
+      "independent": true,
+      "decision": "ADOPTED_AS_REFERENCE",
+      "reason": "真正独立实现（唯一运行时依赖 util，自带 jjonline 日历），MIT 许可明确，v1.3.4 已发布到 npm，中州派体系，自身区分早子時/夜子時，且暴露十二宫/主星/辅星/四化/五行局/大限/长生/三方四正。仅用于 REFERENCE 核对。"
+    },
+    {
+      "repository": "SylarLong/iztro",
+      "language": "TypeScript",
+      "license": "MIT",
+      "stars": 4174,
+      "dependency": "生产引擎本身",
+      "independent": false,
+      "decision": "PRODUCTION_ENGINE",
+      "reason": "生产引擎（Phase 2 起通过 Adapter 接入），不可作为自己的第二实现源。"
+    },
+    {
+      "repository": "Renhuai123/ziwei-doushu",
+      "language": "TypeScript",
+      "license": "MIT",
+      "stars": 4169,
+      "dependency": "**import { astro } from 'iztro'**（lib/ziwei/algorithm.ts 首行）",
+      "independent": false,
+      "decision": "REJECTED_NOT_INDEPENDENT",
+      "reason": "自我描述为『紫微斗数开源排盘引擎』且星标最高，但源码首行即 import iztro 的 astro 做排盘，其增量在于倪海夏《天纪》知识库与解读层。用它做第二实现源＝用 iztro 验证 iztro，属于循环验证，不构成独立证据。"
+    },
+    {
+      "repository": "x-haose/py-iztro",
+      "language": "Python",
+      "license": "未声明（None）",
+      "stars": 135,
+      "dependency": "iztro 的 Python 移植",
+      "independent": false,
+      "decision": "REJECTED_LICENSE_AND_NOT_INDEPENDENT",
+      "reason": "双重排除：许可证未声明；且是 iztro 的移植，算法同源。"
+    },
+    {
+      "repository": "spyfree/iztro-py",
+      "language": "Python",
+      "license": "MIT",
+      "stars": 18,
+      "dependency": "iztro 的 Python 移植",
+      "independent": false,
+      "decision": "REJECTED_NOT_INDEPENDENT",
+      "reason": "许可证明确但算法同源（iztro 移植），无法用于验证 iztro 的实现差异。"
+    },
+    {
+      "repository": "learnwithu/mingli-master",
+      "language": "Python",
+      "license": "MIT",
+      "stars": 730,
+      "dependency": "基于 iztro-py 排盘",
+      "independent": false,
+      "decision": "REJECTED_NOT_INDEPENDENT",
+      "reason": "排盘部分来自 iztro-py，同源。"
+    },
+    {
+      "repository": "Wolke/ziwei-doushu",
+      "language": "Python",
+      "license": "NOASSERTION（不明确）",
+      "stars": 18,
+      "dependency": "未知",
+      "independent": "unknown",
+      "decision": "REJECTED_LICENSE_UNCLEAR",
+      "reason": "许可证状态为 NOASSERTION；按 GOAL §3G-1，许可证不明确者禁止集成，也不作为可执行参考。"
+    },
+    {
+      "repository": "ziweiknows/ziwei-chart",
+      "language": "TypeScript",
+      "license": "GPL-3.0",
+      "stars": 450,
+      "dependency": "完整 Web 应用（非库）",
+      "independent": "unknown",
+      "decision": "REJECTED_LICENSE_COPYLEFT_AND_SCOPE",
+      "reason": "GPL-3.0 属强 copyleft：即便只做本地参考，把其结果并入本仓库的产物链会带来许可证传染风险；且它是应用而不是库，无法在不改动其项目结构的前提下作为可执行 oracle。按 GOAL §3G-6 记为不可用。"
+    },
+    {
+      "repository": "cubshuang/ZiWeiDouShu",
+      "language": "JavaScript",
+      "license": "未声明（None）",
+      "stars": 78,
+      "dependency": "未知",
+      "independent": "unknown",
+      "decision": "REJECTED_LICENSE_UNCLEAR",
+      "reason": "无许可证声明，且 2020 年后无维护。"
+    },
+    {
+      "repository": "jonhnsonzz/nihaisha-tianji",
+      "language": "Python",
+      "license": "MIT",
+      "stars": 23,
+      "dependency": "知识库 / MCP（非排盘引擎）",
+      "independent": "n/a",
+      "decision": "REJECTED_NOT_A_CHART_ENGINE",
+      "reason": "GOAL 文本提到优先调研『Tianji』。实测该仓库是倪海厦《天纪》语料与 MCP 服务，**不含独立排盘算法**，无法用于盘面字段对拍。"
+    },
+    {
+      "repository": "EdwinXiang/dart_iztro",
+      "language": "Dart",
+      "license": "MIT",
+      "stars": 155,
+      "dependency": "iztro 的 Dart 移植",
+      "independent": false,
+      "decision": "REJECTED_NOT_INDEPENDENT",
+      "reason": "iztro 移植，算法同源；Dart 运行时也不在本项目技术栈内。"
+    }
+  ],
+  "comparison_scope": [
+    "十二宫位置",
+    "命宫",
+    "身宫",
+    "五行局",
+    "主星",
+    "辅星",
+    "四化",
+    "三方四正",
+    "大限",
+    "长生十二神",
+    "流年（不可比对）",
+    "流月（不可比对）"
+  ],
+  "enters_consensus_engine": false,
+  "difference_classification_counts": {
+    "IDENTICAL": 2183,
+    "FIELD_UNAVAILABLE": 48,
+    "DIFFERENT_SCHOOL_CONVENTION": 32,
+    "DIFFERENT_SUSPECTED_IMP_BUG": 17
+  },
+  "field_group_counts": {
+    "palace_branch": 288,
+    "changsheng12": 288,
+    "trine": 288,
+    "minor_stars": 288,
+    "major_stars": 288,
+    "palace_stem": 288,
+    "decadal_range": 288,
+    "mutagen": 96,
+    "horoscope": 48,
+    "body_master": 24,
+    "five_elements_class": 24,
+    "destiny_master": 24,
+    "body_palace": 24,
+    "soul_palace": 24
+  },
+  "per_field_classification": {
+    "body_master::IDENTICAL": 24,
+    "body_palace::IDENTICAL": 24,
+    "changsheng12.仆役::IDENTICAL": 24,
+    "changsheng12.兄弟::IDENTICAL": 24,
+    "changsheng12.命宫::IDENTICAL": 24,
+    "changsheng12.夫妻::IDENTICAL": 24,
+    "changsheng12.子女::IDENTICAL": 24,
+    "changsheng12.官禄::IDENTICAL": 24,
+    "changsheng12.父母::IDENTICAL": 24,
+    "changsheng12.田宅::IDENTICAL": 24,
+    "changsheng12.疾厄::IDENTICAL": 24,
+    "changsheng12.福德::IDENTICAL": 24,
+    "changsheng12.财帛::IDENTICAL": 24,
+    "changsheng12.迁移::IDENTICAL": 24,
+    "decadal_range.仆役::IDENTICAL": 24,
+    "decadal_range.兄弟::IDENTICAL": 24,
+    "decadal_range.命宫::IDENTICAL": 24,
+    "decadal_range.夫妻::IDENTICAL": 24,
+    "decadal_range.子女::IDENTICAL": 24,
+    "decadal_range.官禄::IDENTICAL": 24,
+    "decadal_range.父母::IDENTICAL": 24,
+    "decadal_range.田宅::IDENTICAL": 24,
+    "decadal_range.疾厄::IDENTICAL": 24,
+    "decadal_range.福德::IDENTICAL": 24,
+    "decadal_range.财帛::IDENTICAL": 24,
+    "decadal_range.迁移::IDENTICAL": 24,
+    "destiny_master::DIFFERENT_SUSPECTED_IMP_BUG": 17,
+    "destiny_master::IDENTICAL": 7,
+    "five_elements_class::IDENTICAL": 24,
+    "horoscope.monthly.palace_ground::FIELD_UNAVAILABLE": 24,
+    "horoscope.yearly.palace_ground::FIELD_UNAVAILABLE": 24,
+    "major_stars.仆役::IDENTICAL": 22,
+    "major_stars.仆役::DIFFERENT_SCHOOL_CONVENTION": 2,
+    "major_stars.兄弟::IDENTICAL": 22,
+    "major_stars.兄弟::DIFFERENT_SCHOOL_CONVENTION": 2,
+    "major_stars.命宫::IDENTICAL": 22,
+    "major_stars.命宫::DIFFERENT_SCHOOL_CONVENTION": 2,
+    "major_stars.夫妻::IDENTICAL": 22,
+    "major_stars.夫妻::DIFFERENT_SCHOOL_CONVENTION": 2,
+    "major_stars.子女::IDENTICAL": 22,
+    "major_stars.子女::DIFFERENT_SCHOOL_CONVENTION": 2,
+    "major_stars.官禄::IDENTICAL": 22,
+    "major_stars.官禄::DIFFERENT_SCHOOL_CONVENTION": 2,
+    "major_stars.父母::IDENTICAL": 22,
+    "major_stars.父母::DIFFERENT_SCHOOL_CONVENTION": 2,
+    "major_stars.田宅::IDENTICAL": 22,
+    "major_stars.田宅::DIFFERENT_SCHOOL_CONVENTION": 2,
+    "major_stars.疾厄::IDENTICAL": 22,
+    "major_stars.疾厄::DIFFERENT_SCHOOL_CONVENTION": 2,
+    "major_stars.福德::IDENTICAL": 22,
+    "major_stars.福德::DIFFERENT_SCHOOL_CONVENTION": 2,
+    "major_stars.财帛::IDENTICAL": 22,
+    "major_stars.财帛::DIFFERENT_SCHOOL_CONVENTION": 2,
+    "major_stars.迁移::IDENTICAL": 22,
+    "major_stars.迁移::DIFFERENT_SCHOOL_CONVENTION": 2,
+    "minor_stars.仆役::IDENTICAL": 24,
+    "minor_stars.兄弟::IDENTICAL": 24,
+    "minor_stars.命宫::IDENTICAL": 24,
+    "minor_stars.夫妻::IDENTICAL": 24,
+    "minor_stars.子女::IDENTICAL": 24,
+    "minor_stars.官禄::IDENTICAL": 24,
+    "minor_stars.父母::IDENTICAL": 24,
+    "minor_stars.田宅::IDENTICAL": 24,
+    "minor_stars.疾厄::IDENTICAL": 24,
+    "minor_stars.福德::IDENTICAL": 24,
+    "minor_stars.财帛::IDENTICAL": 24,
+    "minor_stars.迁移::IDENTICAL": 24,
+    "mutagen.忌::IDENTICAL": 24,
+    "mutagen.权::IDENTICAL": 24,
+    "mutagen.禄::IDENTICAL": 24,
+    "mutagen.科::IDENTICAL": 16,
+    "mutagen.科::DIFFERENT_SCHOOL_CONVENTION": 8,
+    "palace_branch.仆役::IDENTICAL": 24,
+    "palace_branch.兄弟::IDENTICAL": 24,
+    "palace_branch.命宫::IDENTICAL": 24,
+    "palace_branch.夫妻::IDENTICAL": 24,
+    "palace_branch.子女::IDENTICAL": 24,
+    "palace_branch.官禄::IDENTICAL": 24,
+    "palace_branch.父母::IDENTICAL": 24,
+    "palace_branch.田宅::IDENTICAL": 24,
+    "palace_branch.疾厄::IDENTICAL": 24,
+    "palace_branch.福德::IDENTICAL": 24,
+    "palace_branch.财帛::IDENTICAL": 24,
+    "palace_branch.迁移::IDENTICAL": 24,
+    "palace_stem.仆役::IDENTICAL": 24,
+    "palace_stem.兄弟::IDENTICAL": 24,
+    "palace_stem.命宫::IDENTICAL": 24,
+    "palace_stem.夫妻::IDENTICAL": 24,
+    "palace_stem.子女::IDENTICAL": 24,
+    "palace_stem.官禄::IDENTICAL": 24,
+    "palace_stem.父母::IDENTICAL": 24,
+    "palace_stem.田宅::IDENTICAL": 24,
+    "palace_stem.疾厄::IDENTICAL": 24,
+    "palace_stem.福德::IDENTICAL": 24,
+    "palace_stem.财帛::IDENTICAL": 24,
+    "palace_stem.迁移::IDENTICAL": 24,
+    "soul_palace::IDENTICAL": 24,
+    "trine.仆役::IDENTICAL": 24,
+    "trine.兄弟::IDENTICAL": 24,
+    "trine.命宫::IDENTICAL": 24,
+    "trine.夫妻::IDENTICAL": 24,
+    "trine.子女::IDENTICAL": 24,
+    "trine.官禄::IDENTICAL": 24,
+    "trine.父母::IDENTICAL": 24,
+    "trine.田宅::IDENTICAL": 24,
+    "trine.疾厄::IDENTICAL": 24,
+    "trine.福德::IDENTICAL": 24,
+    "trine.财帛::IDENTICAL": 24,
+    "trine.迁移::IDENTICAL": 24
+  },
+  "identical_ratio": 0.957456,
+  "cases_with_any_difference": 24,
+  "late_zi_probe": {
+    "production_late_zi": {
+      "lunar_date": "一九九〇年五月廿三",
+      "chinese_date": "庚午 壬午 壬子 庚子",
+      "time_index": 12,
+      "palace_of_major": {
+        "财帛": [],
+        "子女": [],
+        "夫妻": [
+          "天同"
+        ],
+        "兄弟": [
+          "武曲",
+          "破军"
+        ],
+        "命宫": [
+          "太阳"
+        ],
+        "父母": [
+          "天府"
+        ],
+        "福德": [
+          "天机",
+          "太阴"
+        ],
+        "田宅": [
+          "紫微",
+          "贪狼"
+        ],
+        "官禄": [
+          "巨门"
+        ],
+        "仆役": [
+          "天相"
+        ],
+        "迁移": [
+          "天梁"
+        ],
+        "疾厄": [
+          "七杀",
+          "廉贞"
+        ]
+      }
+    },
+    "production_next_day_early_zi": {
+      "lunar_date": "一九九〇年五月廿四",
+      "chinese_date": "庚午 壬午 壬子 庚子",
+      "time_index": 0,
+      "palace_of_major": {
+        "财帛": [],
+        "子女": [],
+        "夫妻": [
+          "天同"
+        ],
+        "兄弟": [
+          "武曲",
+          "破军"
+        ],
+        "命宫": [
+          "太阳"
+        ],
+        "父母": [
+          "天府"
+        ],
+        "福德": [
+          "天机",
+          "太阴"
+        ],
+        "田宅": [
+          "紫微",
+          "贪狼"
+        ],
+        "官禄": [
+          "巨门"
+        ],
+        "仆役": [
+          "天相"
+        ],
+        "迁移": [
+          "天梁"
+        ],
+        "疾厄": [
+          "七杀",
+          "廉贞"
+        ]
+      }
+    },
+    "reference_late_zi": {
+      "lunar_month": 5,
+      "lunar_day": 23,
+      "day_pillar": "辛亥",
+      "major": {
+        "遷移": [
+          "天相",
+          "廉貞"
+        ],
+        "疾厄": [
+          "天梁"
+        ],
+        "財帛": [
+          "七殺"
+        ],
+        "子女": [
+          "天同"
+        ],
+        "夫妻": [
+          "武曲"
+        ],
+        "兄弟": [
+          "太陽"
+        ],
+        "命宮|身宮": [
+          "破軍"
+        ],
+        "父母": [
+          "天機"
+        ],
+        "福德": [
+          "天府",
+          "紫微"
+        ],
+        "田宅": [
+          "太陰"
+        ],
+        "事業": [
+          "貪狼"
+        ],
+        "交友": [
+          "巨門"
+        ]
+      }
+    },
+    "reference_next_day_early_zi": {
+      "lunar_month": 5,
+      "lunar_day": 24,
+      "day_pillar": "壬子",
+      "major": {
+        "遷移": [
+          "天梁"
+        ],
+        "疾厄": [
+          "七殺",
+          "廉貞"
+        ],
+        "財帛": [],
+        "子女": [],
+        "夫妻": [
+          "天同"
+        ],
+        "兄弟": [
+          "武曲",
+          "破軍"
+        ],
+        "命宮|身宮": [
+          "太陽"
+        ],
+        "父母": [
+          "天府"
+        ],
+        "福德": [
+          "天機",
+          "太陰"
+        ],
+        "田宅": [
+          "紫微",
+          "貪狼"
+        ],
+        "事業": [
+          "巨門"
+        ],
+        "交友": [
+          "天相"
+        ]
+      }
+    },
+    "production_late_zi_equals_next_day_early_zi": true,
+    "production_late_zi_equals_reference_late_zi": false,
+    "production_next_day_early_zi_equals_reference_next_day_early_zi": false,
+    "production_lunar_date_display": "一九九〇年五月廿三",
+    "reference_late_zi_lunar_day": 23
+  },
+  "notable_findings": [
+    {
+      "title": "晚子时换日口径不同（流派差异）",
+      "observation": "两套实现对 23:00-24:00 的换日处理不同：生产引擎（iztro）把晚子时归入次日，参考实现（中州派）归入当日。",
+      "evidence": "实测 1990-06-15 23:30：生产引擎的盘面与 1990-06-16 00:30 完全相同（True），且生产引擎晚子时盘面与参考实现次日早子时盘面一致（False）；而参考实现晚子时盘面与生产引擎晚子时盘面不同（False，参考农历日 23 / 生产显示 一九九〇年五月廿三）。",
+      "classification": "DIFFERENT_SCHOOL_CONVENTION",
+      "resolved": true,
+      "impact": "只影响晚子时出生（23:00-24:00）的整盘主星安放。本平台 500 只股票的出生时刻来自上市日派生的日间时刻（取自 exchange_session_calendar），不含晚子时，因此对 Phase 3 全部研究结论无影响。iztro 在晚子时的**显示口径与安放口径不一致**：chart.lunar_date 显示「五月廿三」，但星曜按「五月廿四」安放（与次日 00:30 的盘完全一致）。该不一致只影响 raw_chart 的农历日显示，不影响本项目因子计算（因子只用 iztro 的盘面，不含农历日字符串）；且本项目 500 只股票的出生时刻来自上市日派生的日间时刻（取自 exchange_session_calendar 的开盘/收盘时段），不含晚子时，因此对 Phase 3 研究结论无影响。"
+    },
+    {
+      "title": "命主取用不同（疑似参考实现问题）",
+      "observation": "参考实现的命主（destinyMaster）以**生年地支**索引命主表；命主的标准定义是以**命宫地支**查表（身主才是以生年支查表）。",
+      "evidence": "17/24 个案例不一致（其余案例因生年支恰等于命宫支而偶然相同）；参考实现源码 build/model/destinyBoard.js 的 #setupDestinyBodyMaster() 对命主与身主**都**使用 this.config.yearGround.index，而两张表本身（贪狼/巨门/禄存/文曲/廉贞/武曲/破军... 与 火星/天相/天梁/天同/文昌/天机...）与标准表一致 —— 说明表正确、取用位置错误。",
+      "classification": "DIFFERENT_SUSPECTED_IMP_BUG",
+      "resolved": false,
+      "impact": "生产引擎不受影响（iztro 按命宫支取命主，与标准一致）。本项目因子未使用命主字段，因此对研究结论无影响。"
+    },
+    {
+      "title": "十干四化的「科」星取法不同（流派差异）",
+      "observation": "两套实现使用的十干四化表在部分天干上的「科」星不同。",
+      "evidence": "8 个案例不一致，出现的取法对为 ['右弼→太阳', '太阴→天府', '左辅→天府']；涉及 戊（右弼 / 太阳）、庚（太阴 / 天府）、壬（左辅 / 天府）三干，均为紫微斗数文献中记载的『两说 / 多说』。",
+      "classification": "DIFFERENT_SCHOOL_CONVENTION",
+      "resolved": true,
+      "impact": "四化直接影响本项目 Opinion 的方向聚合，因此这是**语义级**差异 —— 但本研究平台的结论建立在 iztro 的实现上并已全程冻结版本（iztro-2.6.1+smx-1.0.0），换实现源会改变四化因子；本核对的价值是把这一敏感点固定下来，而不是据此换源。"
+    },
+    {
+      "title": "大限 / 长生十二神方向由性别参数决定（假设差异，已可精确对齐）",
+      "observation": "长生十二神与大限顺逆行由「阳男阴女顺行 / 阴男阳女逆行」决定，而股票没有真实性别（AGENTS.md §5）。",
+      "evidence": "本次核对在同一案例下分别用 M/F 各排一次并统计性别相关字段的一致数：每个案例都有一个性别精确匹配 24/24 项，另一个只匹配 4/24 项；归类为 DIFFERENT_VARIANT_ASSUMPTION 的差异条数 0。说明本项目的 variant_mode（forward/reverse）与标准性别规则一一对应，不存在『方向搞反』这类实现错误。",
+      "classification": "DIFFERENT_VARIANT_ASSUMPTION",
+      "resolved": true,
+      "impact": "本项目在 variant_mode=not_applicable 时不输出大运；Phase 3 的出生模型不含大限因子，因此该差异不进入任何研究结论。"
+    }
+  ]
+}
