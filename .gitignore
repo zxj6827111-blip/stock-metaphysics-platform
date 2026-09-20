@@ -49,3 +49,12 @@ Thumbs.db
 
 # ---- Phase 3D 面板缓存（可由 scripts/phase3d_collect_panel.py 重新生成）----
 data/phase3_universe/phase3d_cache/
+
+# ---- Phase 4 供应商 Parquet 仓库（可由 scripts/phase4_import_vendor.py 重建，1.2G 不入库）----
+data/vendor/
+
+# ---- Phase 4 面板采集缓存（可重建；一次性 5–6 小时，按需保留）----
+data/phase4_cache/
+
+# ---- Playwright MCP 临时产物 ----
+.playwright-mcp/
