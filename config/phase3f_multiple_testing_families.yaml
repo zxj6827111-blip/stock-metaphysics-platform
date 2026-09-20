@@ -1,0 +1,103 @@
+# Phase 3F 假设族冻结（GOAL §4.1 / §4.2）
+#
+# 冻结纪律：
+#   * 本文件在**读取任何最终校正结果之前**写入并冻结。
+#   * 族的划分不允许在看过 q-value 之后再调整 —— 那等于人为降低校正强度。
+#   * 新增族必须新建 mt 版本号（mt-v2）并把本文件原样保留，不得就地改写。
+#   * 每个 formal hypothesis 必须**恰好**属于一个族；未归属者视为流程错误。
+#
+# 与 Phase 3D 的关系：
+#   * 假设本身（命中定义 / 方向 / 持有期 / 对照）沿用
+#     `config/phase3d_hypothesis_registry.yaml`，本文件**只**定义"族"。
+#   * expected_direction=exploratory 的冲突组合归入 conflict 族：
+#     它们照常做多重检验校正，但**不套用单向 gate**、永远不能解锁
+#     SUPPORTED_OUT_OF_SAMPLE（其 p 值为双侧）。
+#
+# 检验口径（mt-v1，全部在 OOS 上）：
+#   raw_p_value = 日期分层置换检验（在同一个 as_of 内部打乱命中标签，
+#                 保留每个日期的命中数量）→ 这直接修正 Phase 3D 发现的
+#                 "黄历是日期选择器"结构：日期层面的随机化零假设
+#                 不会与真实集合共享日期构成。
+
+mt_version: mt-v1
+frozen_at: "2026-09-20"
+final_results_seen_at_freeze: false
+
+notes:
+  - "族内使用 Benjamini-Hochberg FDR（alpha=0.05）与 Bonferroni 同时报告。"
+  - "BH 在**族内**校正；禁止把族拆细以降低校正强度。"
+  - "exploratory 族使用双侧 p；其余族使用预注册的单侧 p。"
+  - "birth_model_comparison 族检验的是『换出生模型结论是否改变』，
+     属于 GOAL §4.2 明确要求的一类，不是新的信号假设。"
+
+alpha: 0.05
+
+families:
+  - family_id: bazi
+    description: 八字单引擎（原始方向 + TRAIN-only 校准方向）
+    hypothesis_ids:
+      - HYP-BZ-RAW-001
+      - HYP-BZ-CAL-001
+    gated: true
+    tails: one_sided
+
+  - family_id: ziwei
+    description: 紫微单引擎（原始方向 + TRAIN-only 校准方向）
+    hypothesis_ids:
+      - HYP-ZW-RAW-001
+      - HYP-ZW-CAL-001
+    gated: true
+    tails: one_sided
+
+  - family_id: huangli
+    description: 黄历单引擎（原始方向 + TRAIN-only 校准方向）
+    hypothesis_ids:
+      - HYP-HL-RAW-001
+      - HYP-HL-CAL-001
+    gated: true
+    tails: one_sided
+
+  - family_id: consensus
+    description: 多引擎共振（两两 + 三模型，raw 与 calibrated）
+    hypothesis_ids:
+      - HYP-CON-BZ-ZW-RAW-001
+      - HYP-CON-BZ-ZW-CAL-001
+      - HYP-CON-BZ-HL-RAW-001
+      - HYP-CON-BZ-HL-CAL-001
+      - HYP-CON-ZW-HL-RAW-001
+      - HYP-CON-ZW-HL-CAL-001
+      - HYP-CON-ALL3-RAW-001
+      - HYP-CON-ALL3-CAL-001
+    gated: true
+    tails: one_sided
+
+  - family_id: conflict
+    description: 预注册冲突组合（探索性；双侧 p，不套用单向 gate）
+    hypothesis_ids:
+      - HYP-CFL-BZ-POS-ZW-NEG-CAL-001
+      - HYP-CFL-BZ-NEG-ZW-POS-CAL-001
+      - HYP-CFL-BZ-POS-HL-NEG-CAL-001
+      - HYP-CFL-ZW-POS-HL-NEG-CAL-001
+    gated: false
+    tails: two_sided
+
+  - family_id: birth_model_comparison
+    description: >
+      出生模型对比族：对 6 个单引擎对象（bazi/ziwei/huangli × raw/calibrated），
+      两两比较三个出生模型在同一对象上的 OOS 效应差异（配对、同日）。
+      零假设 = 「换出生模型不改变结论」；拒绝零假设说明结论对出生模型敏感。
+      这一族不产生"术数有效"的证据，只回答 GOAL §20 Q2/Q9。
+    comparison_objects:
+      - bazi_raw
+      - bazi_calibrated
+      - ziwei_raw
+      - ziwei_calibrated
+      - huangli_raw
+      - huangli_calibrated
+    birth_model_pairs:
+      - [listing_open_v1, listing_close_v1]
+      - [listing_open_v1, ipo_approx_v1]
+      - [listing_close_v1, ipo_approx_v1]
+    primary_horizon_only: true
+    gated: false
+    tails: two_sided
