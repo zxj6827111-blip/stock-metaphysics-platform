@@ -57,10 +57,6 @@ BUILTIN_STOCKS: list[dict] = [
     {"stock_code": "600887", "name": "伊利股份", "listing_date": "1996-03-12", "industry": "乳品"},
     {"stock_code": "601166", "name": "兴业银行", "listing_date": "2007-02-05", "industry": "银行"},
     {"stock_code": "000651", "name": "格力电器", "listing_date": "1996-11-18", "industry": "白色家电"},
-    {"stock_code": "002008", "name": "大族激光", "listing_date": "2004-06-25", "industry": "激光设备"},
-    {"stock_code": "000002", "name": "万科A", "listing_date": "1991-01-29", "industry": "房地产开发"},
-    {"stock_code": "600050", "name": "中国联通", "listing_date": "2002-10-09", "industry": "通信服务"},
-    {"stock_code": "300014", "name": "亿纬锂能", "listing_date": "2009-10-30", "industry": "电池"},
 ]
 
 BENCHMARK_INDEXES: dict[str, str] = {
@@ -94,16 +90,6 @@ class AkshareMarketProvider(MarketDataProvider):
         if not query:
             return []
 
-        # 1) 优先快速匹配内置清单（秒级响应常用标的与核心池）
-        lowered = query.lower()
-        matches = [
-            s for s in BUILTIN_STOCKS
-            if lowered in s["stock_code"] or lowered in s["name"].lower()
-        ][:limit]
-        if matches:
-            return [self._dict_to_stock(m) for m in matches]
-
-        # 2) 尝试全量实时行情（若网络顺畅）
         try:
             df = self._call_with_retry("stock_zh_a_spot_em", lambda ak: ak.stock_zh_a_spot_em())
             if df is not None and len(df):
@@ -118,7 +104,15 @@ class AkshareMarketProvider(MarketDataProvider):
         except Exception as exc:  # noqa: BLE001
             self._last_error = f"{type(exc).__name__}: {exc}"
 
-        # 3) 代码可解析即返回
+        # 兜底：内置清单 + 代码可解析即返回
+        lowered = query.lower()
+        matches = [
+            s for s in BUILTIN_STOCKS
+            if lowered in s["stock_code"] or lowered in s["name"]
+        ][:limit]
+        if matches:
+            return [self._dict_to_stock(m) for m in matches]
+
         try:
             code = codes.normalize_code(query)
         except ValueError:
@@ -153,43 +147,22 @@ class AkshareMarketProvider(MarketDataProvider):
                 stock.source = SourceRef(source="builtin_fallback", extra={"error": self._last_error[:200]})
                 return stock
 
-        # 3) 代码可解析但无资料 —— 尝试轻量解析名称并降级返回
+        # 3) 代码可解析但无资料 —— 返回最小可用对象并降级，而非直接报错
         if ex_value(exchange) != "UNKNOWN":
-            resolved_name = self._resolve_name_fallback(code, exchange)
             return StockMaster(
                 stock_code=code,
                 wind_code=wind,
-                name=resolved_name,
+                name="",
                 exchange=exchange,
                 board=board,
                 data_quality={
                     "grade": "D",
                     "score": 0.3,
-                    "notes": ["无法获取股票名称与上市日期；分析可继续但结论不可靠"]
-                    if not resolved_name
-                    else ["已通过备用行情源解析标的名称，但缺少正式上市日"],
+                    "notes": ["无法获取股票名称与上市日期；分析可继续但结论不可靠"],
                 },
                 source=SourceRef(source="code_prefix_only", extra={"error": self._last_error[:200]}),
             )
         raise SymbolNotFoundError(f"无法识别股票代码 {code}")
-
-    @staticmethod
-    def _resolve_name_fallback(code: str, exchange: Exchange) -> str:
-        """当主数据源实时资料接口受网络/代理影响不可用时，通过轻量 HTTP 快速解析标的中文名称。"""
-        import urllib.request
-        prefix = "sh" if str(exchange).upper() in ("SSE", "SH") or code.startswith(("6", "9")) else "sz"
-        url = f"http://qt.gtimg.cn/q={prefix}{code}"
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=1.5) as resp:
-                text = resp.read().decode("gbk", "ignore")
-                if "~" in text:
-                    parts = text.split("~")
-                    if len(parts) > 1 and parts[1]:
-                        return parts[1].strip()
-        except Exception:
-            pass
-        return ""
 
     # ------------------------------------------------------------------
     # 行情
