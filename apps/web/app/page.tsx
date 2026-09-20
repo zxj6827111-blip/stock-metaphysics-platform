@@ -15,6 +15,7 @@ import { PageHero } from "@/components/shell/TopBar";
 import { Card, CardHeader, Chip } from "@/components/cards/Card";
 import { MiniTrend } from "@/components/charts/Charts";
 import { StockSearch } from "@/components/stock/StockSearch";
+import { Astrolabe, MountainSilhouette } from "@/components/shell/Decorations";
 import {
   IconChart,
   IconArrowRight,
@@ -219,43 +220,26 @@ function HomeInner() {
   return (
     <AppShell activeNav="home" dataStatus={dataStatus} statusText={statusText}>
       {/* Hero */}
-      <section className="relative mb-3 overflow-hidden rounded-[12px] border px-7 py-6"
+      <section
+        className="relative mb-3 overflow-hidden rounded-[12px] border px-7 py-6"
         style={{
           borderColor: "var(--color-border)",
           background:
             "radial-gradient(900px 320px at 82% 20%, rgba(212,184,122,0.10), transparent 60%), linear-gradient(180deg, rgba(16,31,43,0.72), rgba(10,21,31,0.72))",
         }}
       >
-        {/* 右侧装饰性太极星图（纯 CSS/SVG，不是位图） */}
-        <div
-          className="pointer-events-none absolute right-10 top-1/2 hidden -translate-y-1/2 opacity-[0.5] xl:block"
-          aria-hidden="true"
-        >
-          <div
-            className="flex h-[240px] w-[240px] items-center justify-center rounded-full"
-            style={{
-              border: "1px solid rgba(212,184,122,0.22)",
-              background:
-                "radial-gradient(circle, rgba(212,184,122,0.10), transparent 68%)",
-            }}
-          >
-            <div
-              className="flex h-[168px] w-[168px] items-center justify-center rounded-full"
-              style={{ border: "1px solid rgba(212,184,122,0.16)" }}
-            >
-              <div
-                className="flex h-[104px] w-[104px] items-center justify-center rounded-full"
-                style={{ color: "rgba(212,184,122,0.5)" }}
-              >
-                <IconTaiji size={104} />
-              </div>
-            </div>
-          </div>
-        </div>
+        <MountainSilhouette opacity={0.06} />
+
+        {/* 右侧精细矢量星盘 */}
+        <Astrolabe
+          size={260}
+          glow={true}
+          className="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2 hidden xl:block"
+        />
 
         <div
-          className="pointer-events-none absolute right-[330px] top-8 hidden text-right leading-[26px] tracking-[0.36em] xl:block"
-          style={{ color: "rgba(212,184,122,0.42)", fontSize: 13 }}
+          className="pointer-events-none absolute right-[320px] top-9 hidden text-right leading-[26px] tracking-[0.36em] xl:block"
+          style={{ color: "rgba(212,184,122,0.45)", fontSize: 13, fontFamily: "var(--font-serif-cn)" }}
           aria-hidden="true"
         >
           观天时
@@ -269,8 +253,12 @@ function HomeInner() {
 
         <div className="relative max-w-[1000px]">
           <h1
-            className="text-[50px] font-bold leading-[1.15] tracking-[0.05em]"
-            style={{ color: "var(--color-gold-strong)", textShadow: "0 3px 26px rgba(212,184,122,0.22)" }}
+            className="smp-serif-title text-[52px] font-bold leading-[1.12] tracking-[0.05em]"
+            style={{
+              color: "var(--color-gold-strong)",
+              fontFamily: "var(--font-serif-cn)",
+              textShadow: "0 3px 26px rgba(212,184,122,0.22)",
+            }}
             data-testid="home-title"
           >
             股票玄学多模型研究平台
@@ -313,8 +301,8 @@ function HomeInner() {
         </div>
       </section>
 
-      {/* 最近分析 + 系统状态 */}
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_400px]">
+      {/* 最近分析 + 系统状态 (2.1 : 1 比例) */}
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
         <Card testId="recent-analysis">
           <CardHeader
             icon={<IconDatabase size={14} />}

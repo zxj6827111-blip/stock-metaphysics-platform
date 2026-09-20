@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { IconLing, IconSearch, IconSettings, IconTaiji } from "./Icons";
 import { StockSearch } from "../stock/StockSearch";
+import { SealStamp } from "./Decorations";
 
 export function TopBar({
   dataStatus = "ok",
@@ -72,8 +73,8 @@ export function TopBar({
         </span>
         <span className="flex flex-col leading-tight">
           <span
-            className="text-[19px] font-semibold tracking-[0.06em]"
-            style={{ color: "var(--color-ink)" }}
+            className="smp-serif-title smp-gold-shimmer text-[19px] font-semibold tracking-[0.06em]"
+            style={{ fontFamily: "var(--font-serif-cn)" }}
           >
             股票玄学多模型研究平台
           </span>
@@ -151,9 +152,10 @@ export function PageHero({
     <div className="relative mb-3 flex items-start justify-between gap-4 px-1 pt-1">
       <div className="min-w-0">
         <h1
-          className="text-[40px] font-bold leading-[1.12] tracking-[0.04em]"
+          className="smp-serif-title text-[40px] font-bold leading-[1.12] tracking-[0.04em]"
           style={{
             color: "var(--color-gold-strong)",
+            fontFamily: "var(--font-serif-cn)",
             textShadow: "0 2px 18px rgba(212,184,122,0.18)",
           }}
           data-testid="page-title"
@@ -168,16 +170,9 @@ export function PageHero({
       </div>
       {right}
       {seal ? (
-        <span
-          className="absolute right-2 top-1 flex h-7 w-7 items-center justify-center rounded-[3px] text-[11px]"
-          style={{
-            color: "#f0d9b0",
-            background: "linear-gradient(180deg,#8d2f28,#6d211c)",
-            border: "1px solid #a8453b",
-          }}
-        >
-          {seal}
-        </span>
+        <div className="absolute right-2 top-1">
+          <SealStamp text={seal} size={28} />
+        </div>
       ) : null}
     </div>
   );

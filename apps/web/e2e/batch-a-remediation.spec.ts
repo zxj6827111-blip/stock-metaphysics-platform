@@ -379,7 +379,7 @@ test.describe("标的切换与手动输入股票（如 002008）查询验证", (
   test("点击「切换股票」按钮可打开快速切换弹窗", async ({ page }) => {
     await page.goto(`/stock/600519/overview${FIXTURE}`);
 
-    const switchBtn = page.getByTestId("switch-stock-btn");
+    const switchBtn = page.getByTestId("switch-stock-btn").first();
     await expect(switchBtn).toBeVisible();
     await expect(switchBtn).not.toBeDisabled();
 
@@ -406,7 +406,7 @@ test.describe("标的切换与手动输入股票（如 002008）查询验证", (
     await page.goto(`/stock/600519/huangli${FIXTURE}`);
 
     // 打开切换弹窗
-    await page.getByTestId("switch-stock-btn").click();
+    await page.getByTestId("switch-stock-btn").first().click();
     await expect(page.getByTestId("stock-switch-modal")).toBeVisible();
 
     // 点击 002008 快捷标签

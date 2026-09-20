@@ -11,14 +11,50 @@ import type { BaziPillarView, WuxingBar, FateSummaryRow, TimelineItem } from "@/
 import { Chip } from "../cards/Card";
 import { IconDiamond, IconLayers, IconTaiji } from "../shell/Icons";
 
+const WUXING_COLOR_MAP: Record<string, string> = {
+  // 木 (Wood) -> 绿
+  甲: "var(--color-wood)",
+  乙: "var(--color-wood)",
+  寅: "var(--color-wood)",
+  卯: "var(--color-wood)",
+  // 火 (Fire) -> 红
+  丙: "var(--color-fire)",
+  丁: "var(--color-fire)",
+  巳: "var(--color-fire)",
+  午: "var(--color-fire)",
+  // 土 (Earth) -> 黄/褐
+  戊: "var(--color-earth)",
+  己: "var(--color-earth)",
+  辰: "var(--color-earth)",
+  戌: "var(--color-earth)",
+  丑: "var(--color-earth)",
+  未: "var(--color-earth)",
+  // 金 (Metal) -> 白灰/银
+  庚: "var(--color-metal)",
+  辛: "var(--color-metal)",
+  申: "var(--color-metal)",
+  酉: "var(--color-metal)",
+  // 水 (Water) -> 蓝
+  壬: "var(--color-water)",
+  癸: "var(--color-water)",
+  亥: "var(--color-water)",
+  子: "var(--color-water)",
+};
+
+export function getWuxingColor(char: string): string {
+  return WUXING_COLOR_MAP[char] ?? "var(--color-ink)";
+}
+
 export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
   const rows: { label: string; render: (p: BaziPillarView) => React.ReactNode }[] = [
     {
       label: "天干",
       render: (p) => (
         <span
-          className="text-[30px] font-semibold leading-none"
-          style={{ color: "var(--color-ink)", fontFamily: "var(--font-serif-cn)" }}
+          className="smp-serif-title text-[28px] font-semibold leading-none"
+          style={{ color: getWuxingColor(p.stem), fontFamily: "var(--font-serif-cn)" }}
+          data-testid={`stem-${p.position}`}
+          data-char={p.stem}
         >
           {p.stem}
         </span>
@@ -28,8 +64,10 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
       label: "地支",
       render: (p) => (
         <span
-          className="text-[30px] font-semibold leading-none"
-          style={{ color: "var(--color-ink)", fontFamily: "var(--font-serif-cn)" }}
+          className="smp-serif-title text-[28px] font-semibold leading-none"
+          style={{ color: getWuxingColor(p.branch), fontFamily: "var(--font-serif-cn)" }}
+          data-testid={`branch-${p.position}`}
+          data-char={p.branch}
         >
           {p.branch}
         </span>
@@ -38,7 +76,7 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
     {
       label: "藏干",
       render: (p) => (
-        <span className="smp-num text-[13px]" style={{ color: "var(--color-ink-sub)" }}>
+        <span className="smp-num text-[11.5px]" style={{ color: "var(--color-ink-sub)" }}>
           {p.hiddenStems}
         </span>
       ),
@@ -46,7 +84,7 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
     {
       label: "十神",
       render: (p) => (
-        <span className="text-[12.5px]" style={{ color: "var(--color-gold)" }}>
+        <span className="text-[11.5px] font-medium" style={{ color: "var(--color-gold)" }}>
           {p.hiddenTenGods}
         </span>
       ),
@@ -54,7 +92,7 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
     {
       label: "纳音",
       render: (p) => (
-        <span className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+        <span className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
           {p.nayin}
         </span>
       ),
@@ -62,7 +100,7 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
     {
       label: "长生",
       render: (p) => (
-        <span className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+        <span className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
           {p.diShi}
         </span>
       ),
@@ -79,13 +117,13 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
         <thead>
           <tr>
             <th
-              className="w-[64px] border-b px-2 py-1.5 text-left text-[11px] font-normal"
+              className="w-[56px] border-b px-2 py-0.5 text-left text-[11px] font-normal"
               style={{ borderColor: "var(--color-border)", color: "var(--color-ink-faint)" }}
             />
             {pillars.map((p) => (
               <th
                 key={p.position}
-                className="border-b border-l px-2 py-1.5 text-center text-[12px] font-medium"
+                className="border-b border-l px-2 py-0.5 text-center text-[11.5px] font-medium"
                 style={{ borderColor: "var(--color-border)", color: "var(--color-ink-sub)" }}
                 data-testid={`pillar-${p.position}`}
               >
@@ -103,7 +141,7 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
               }}
             >
               <td
-                className="border-b px-2 py-2 text-[11px]"
+                className="border-b px-2 py-0.5 text-[11px]"
                 style={{ borderColor: "var(--color-border)", color: "var(--color-ink-faint)" }}
               >
                 {row.label}
@@ -111,7 +149,7 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
               {pillars.map((p) => (
                 <td
                   key={p.position}
-                  className="border-b border-l px-2 py-2 text-center"
+                  className="border-b border-l px-2 py-0.5 text-center"
                   style={{ borderColor: "var(--color-border)" }}
                 >
                   {row.render(p)}
@@ -127,14 +165,14 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
 
 export function WuxingDistribution({ bars }: { bars: WuxingBar[] }) {
   return (
-    <div className="space-y-3.5 px-4 py-4" data-testid="wuxing-distribution">
+    <div className="space-y-2 px-3 py-2.5" data-testid="wuxing-distribution">
       {bars.map((b) => (
-        <div key={b.element} className="flex items-center gap-3">
-          <span className="w-[16px] text-[13px]" style={{ color: "var(--color-ink)" }}>
+        <div key={b.element} className="flex items-center gap-2.5">
+          <span className="w-[16px] text-[12.5px]" style={{ color: "var(--color-ink)" }}>
             {b.element}
           </span>
           <div
-            className="relative h-[13px] flex-1 overflow-hidden rounded-[2px]"
+            className="relative h-[11px] flex-1 overflow-hidden rounded-[2px]"
             style={{ background: "rgba(255,255,255,0.045)" }}
             role="img"
             aria-label={`${b.element} ${b.percent}%`}
@@ -149,7 +187,7 @@ export function WuxingDistribution({ bars }: { bars: WuxingBar[] }) {
             />
           </div>
           <span
-            className="smp-num w-[38px] text-right text-[12.5px]"
+            className="smp-num w-[34px] text-right text-[11.5px]"
             style={{ color: "var(--color-ink-sub)" }}
           >
             {b.percent}%
@@ -170,23 +208,23 @@ export function FateSummary({ rows }: { rows: FateSummaryRow[] }) {
           ? "var(--color-gold)"
           : "var(--color-ink)";
   return (
-    <div className="px-4 py-3" data-testid="fate-summary">
+    <div className="px-3 py-2" data-testid="fate-summary">
       {rows.map((r) => (
         <div
           key={r.label}
-          className="flex items-center gap-3 border-b py-[9px] last:border-b-0"
+          className="flex items-center gap-2.5 border-b py-[6px] last:border-b-0"
           style={{ borderColor: "rgba(30,52,68,0.6)" }}
         >
-          <span className="w-[44px] shrink-0 text-[12.5px]" style={{ color: "var(--color-ink-sub)" }}>
+          <span className="w-[40px] shrink-0 text-[12px]" style={{ color: "var(--color-ink-sub)" }}>
             {r.label}
           </span>
           <span
-            className="shrink-0 rounded-[4px] border px-2 py-[2px] text-[12.5px]"
+            className="shrink-0 rounded-[3px] border px-1.5 py-[1px] text-[11.5px]"
             style={{ color: tone(r.tone), borderColor: `${tone(r.tone)}55`, background: "rgba(0,0,0,0.2)" }}
           >
             {r.value}
           </span>
-          <span className="min-w-0 truncate text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
+          <span className="min-w-0 truncate text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
             {r.note}
           </span>
         </div>
@@ -205,19 +243,19 @@ export function TimeStructure({
   variantNote: string;
 }) {
   const iconFor: Record<string, React.ReactNode> = {
-    dayun: <IconLayers size={16} />,
-    year: <IconTaiji size={16} />,
-    month: <IconDiamond size={16} />,
-    day: <IconDiamond size={16} />,
+    dayun: <IconLayers size={14} />,
+    year: <IconTaiji size={14} />,
+    month: <IconDiamond size={14} />,
+    day: <IconDiamond size={14} />,
   };
   return (
-    <div className="px-4 py-3" data-testid="time-structure">
-      <div className="mb-2.5 flex flex-wrap items-center gap-2">
+    <div className="px-3 py-2" data-testid="time-structure">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <Chip tone="warn">{variantNote || "股票无天然性别，运限推演基于假设规则"}</Chip>
         <div className="ml-auto flex items-center gap-1.5">
-          <span className="smp-metric-label">运限假设</span>
+          <span className="smp-metric-label text-[10.5px]">运限假设</span>
           <span
-            className="rounded-[4px] border px-2 py-[1px] text-[11px]"
+            className="rounded-[3px] border px-1.5 py-[0.5px] text-[10.5px]"
             style={{ borderColor: "var(--color-border-strong)", color: "var(--color-ink-sub)" }}
             data-testid="variant-mode"
           >
@@ -226,11 +264,11 @@ export function TimeStructure({
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-4 gap-2">
         {items.map((it) => (
           <div
             key={it.key}
-            className="rounded-[7px] border px-3 py-2.5"
+            className="rounded-[6px] border px-2.5 py-1.5"
             style={{
               borderColor: "var(--color-border)",
               background:
@@ -240,19 +278,19 @@ export function TimeStructure({
             }}
             data-testid={`timeline-${it.key}`}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <span style={{ color: "var(--color-gold-dim)" }}>{iconFor[it.key]}</span>
-              <span className="text-[12px]" style={{ color: "var(--color-ink-sub)" }}>
+              <span className="text-[11.5px]" style={{ color: "var(--color-ink-sub)" }}>
                 {it.title}
               </span>
             </div>
-            <div className="mt-2 text-[14px]" style={{ color: "var(--color-ink)" }}>
+            <div className="mt-1 text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
               {it.primary}
             </div>
-            <div className="mt-0.5 text-[12.5px]" style={{ color: "var(--color-gold)" }}>
+            <div className="mt-0.5 text-[11.5px]" style={{ color: "var(--color-gold)" }}>
               {it.secondary}
             </div>
-            <div className="mt-1 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
+            <div className="mt-0.5 text-[10.5px]" style={{ color: "var(--color-ink-muted)" }}>
               {it.note}
             </div>
           </div>

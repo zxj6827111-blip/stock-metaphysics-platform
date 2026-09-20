@@ -338,19 +338,20 @@ function OverviewInner() {
 
       {data ? (
         <>
-          {/* A + B + C */}
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2.35fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          {/* A + B + C (约 50:29:21 比例) */}
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1.16fr)_minmax(0,0.84fr)]">
             <Card testId="engine-scores">
               <CardHeader
                 icon={<IconGrid size={14} />}
                 title="模型评分与判断"
+                dense
                 right={
                   <span className="text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
                     分数 = 传统规则强度聚合（非收益预测）
                   </span>
                 }
               />
-              <div className="grid grid-cols-1 gap-3 p-3.5 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 p-2.5 md:grid-cols-3">
                 {data.engines.map((e) => (
                   <EngineScoreCard key={e.engine} engine={e} />
                 ))}
@@ -361,130 +362,133 @@ function OverviewInner() {
             <ConflictCard conflict={data.conflict} />
           </div>
 
-          {/* D + E：时间窗口 + 关键证据 */}
-          <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-            <Card testId="time-window">
-              <CardHeader
-                icon={<IconChart size={14} />}
-                title="未来时间窗口"
-                right={
-                  <div className="flex items-center gap-1">
-                    {["近1月", "近3月", "近6月", "未来1年"].map((t, i) => (
-                      <span
-                        key={t}
-                        className="rounded-[4px] border px-2 py-[2px] text-[11px]"
-                        style={{
-                          borderColor: i === 3 ? "var(--color-gold-dim)" : "var(--color-border)",
-                          background: i === 3 ? "var(--color-gold-ghost)" : "transparent",
-                          color: i === 3 ? "var(--color-gold)" : "var(--color-ink-muted)",
-                        }}
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                }
-                action={{ label: "查看详情" }}
-              />
-              <div className="px-3 py-2">
-                {data.timeWindow.series.length > 0 ? (
-                  <>
-                    <div className="mb-1 flex items-center gap-4 px-1">
-                      {data.timeWindow.series.map((s2) => (
-                        <span key={s2.key} className="flex items-center gap-1.5 text-[11.5px]">
-                          <span
-                            className="inline-block h-[3px] w-[14px] rounded-full"
-                            style={{ background: s2.color }}
-                          />
-                          <span style={{ color: "var(--color-ink-sub)" }}>{s2.name}</span>
+          {/* D + E + F：下部双列独立垂直堆叠 (58% : 42%) */}
+          <div className="mt-3 grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)]">
+            {/* 左列 (58%)：未来时间窗口 + 历史验证摘要（保障 y <= 760px 进入首屏） */}
+            <div className="flex flex-col gap-3">
+              <Card testId="time-window">
+                <CardHeader
+                  icon={<IconChart size={14} />}
+                  title="未来时间窗口"
+                  dense
+                  right={
+                    <div className="flex items-center gap-1">
+                      {["近1月", "近3月", "近6月", "未来1年"].map((t, i) => (
+                        <span
+                          key={t}
+                          className="rounded-[4px] border px-2 py-[1px] text-[10.5px]"
+                          style={{
+                            borderColor: i === 3 ? "var(--color-gold-dim)" : "var(--color-border)",
+                            background: i === 3 ? "var(--color-gold-ghost)" : "transparent",
+                            color: i === 3 ? "var(--color-gold)" : "var(--color-ink-muted)",
+                          }}
+                        >
+                          {t}
                         </span>
                       ))}
-                      <span className="ml-3 flex items-center gap-1.5 text-[11.5px]">
-                        <span
-                          className="inline-block h-[10px] w-[14px] rounded-[2px]"
-                          style={{ background: "rgba(79,211,155,0.22)", border: "1px solid rgba(79,211,155,0.45)" }}
-                        />
-                        <span style={{ color: "var(--color-ink-sub)" }}>高共识区</span>
-                      </span>
-                      <span className="flex items-center gap-1.5 text-[11.5px]">
-                        <span
-                          className="inline-block h-[10px] w-[14px] rounded-[2px]"
-                          style={{ background: "rgba(176,124,214,0.22)", border: "1px solid rgba(176,124,214,0.45)" }}
-                        />
-                        <span style={{ color: "var(--color-ink-sub)" }}>高冲突区</span>
-                      </span>
                     </div>
-                    <TimeWindowChart data={data.timeWindow} height={252} />
-                    <p className="px-1 pb-2 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
-                      纵轴为术数研究指数（0-100 规则强度），非收益率预测。曲线为基于当前引擎分数的
-                      展示层平滑示意；正式时间窗口预测属 Phase 2。
-                    </p>
-                  </>
-                ) : (
-                  <div className="flex h-[252px] flex-col items-center justify-center text-center">
-                    <p className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
-                      未来时间窗口外推尚未运行（系统不提供伪造预测曲线）
-                    </p>
-                    <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
-                      正式时间序列外推与共振窗口分析将在 Phase 2 完整上线
-                    </p>
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            <Card testId="key-evidence">
-              <CardHeader
-                icon={<IconBook size={14} />}
-                title="关键证据"
-                action={{ label: "查看更多", onClick: () => setDrawer(true) }}
-              />
-              <div className="space-y-2 p-3.5">
-                {data.evidence.length === 0 ? (
-                  <div className="py-6 text-center text-[12px]" style={{ color: "var(--color-ink-faint)" }}>
-                    暂无证据条目
-                  </div>
-                ) : (
-                  data.evidence.map((ev) => <EvidenceRow key={ev.id} item={ev} />)
-                )}
-              </div>
-            </Card>
-          </div>
-
-          {/* F：历史验证 + 数据质量 */}
-          <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-            <Card testId="backtest-summary">
-              <CardHeader
-                icon={<IconTrend size={14} />}
-                title="历史验证摘要"
-                action={{ label: "历史验证详情" }}
-              />
-              <div className="grid grid-cols-2 gap-2.5 p-3.5 md:grid-cols-5">
-                {metrics.map((m) => (
-                  <BacktestMetricCard key={m.key} metric={m} />
-                ))}
-              </div>
-              <div className="grid grid-cols-1 gap-4 px-3.5 pb-3.5 md:grid-cols-[minmax(0,1fr)_300px]">
-                <div>
-                  <div className="smp-metric-label mb-1">收益分布（示意）</div>
-                  {data.distribution.length ? (
-                    <DistributionChart bins={data.distribution} height={124} />
+                  }
+                  action={{ label: "查看详情" }}
+                />
+                <div className="px-3 py-1.5">
+                  {data.timeWindow.series.length > 0 ? (
+                    <>
+                      <div className="mb-1 flex items-center gap-3 px-1 text-[11px]">
+                        {data.timeWindow.series.map((s2) => (
+                          <span key={s2.key} className="flex items-center gap-1">
+                            <span
+                              className="inline-block h-[3px] w-[12px] rounded-full"
+                              style={{ background: s2.color }}
+                            />
+                            <span style={{ color: "var(--color-ink-sub)" }}>{s2.name}</span>
+                          </span>
+                        ))}
+                        <span className="ml-2 flex items-center gap-1">
+                          <span
+                            className="inline-block h-[8px] w-[12px] rounded-[2px]"
+                            style={{ background: "rgba(79,211,155,0.22)", border: "1px solid rgba(79,211,155,0.45)" }}
+                          />
+                          <span style={{ color: "var(--color-ink-sub)" }}>高共识区</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span
+                            className="inline-block h-[8px] w-[12px] rounded-[2px]"
+                            style={{ background: "rgba(176,124,214,0.22)", border: "1px solid rgba(176,124,214,0.45)" }}
+                          />
+                          <span style={{ color: "var(--color-ink-sub)" }}>高冲突区</span>
+                        </span>
+                      </div>
+                      <TimeWindowChart data={data.timeWindow} height={140} />
+                      <p className="px-1 pb-1 pt-0.5 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                        纵轴为术数研究指数（0-100 规则强度），非收益率预测。正式时间窗口预测属 Phase 2。
+                      </p>
+                    </>
                   ) : (
-                    <div className="py-6 text-center text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
-                      尚无历史验证样本分布数据（不采用正态假设伪造分箱）
+                    <div className="flex h-[140px] flex-col items-center justify-center text-center">
+                      <p className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+                        未来时间窗口外推尚未运行（系统不提供伪造预测曲线）
+                      </p>
+                      <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
+                        正式时间序列外推与共振窗口分析将在 Phase 2 完整上线
+                      </p>
                     </div>
                   )}
                 </div>
-                <div>
-                  <div className="smp-metric-label mb-1">历史验证结论</div>
-                  <p className="text-[11.5px] leading-[18px]" style={{ color: "var(--color-ink-sub)" }}>
-                    {data.backtestConclusion}
-                  </p>
-                </div>
-              </div>
-            </Card>
+              </Card>
 
-            <DataQualityBadge quality={data.dataQuality} />
+              <Card testId="backtest-summary">
+                <CardHeader
+                  icon={<IconTrend size={14} />}
+                  title="历史验证摘要"
+                  action={{ label: "历史验证详情" }}
+                />
+                <div className="grid grid-cols-2 gap-2.5 p-3.5 md:grid-cols-5">
+                  {metrics.map((m) => (
+                    <BacktestMetricCard key={m.key} metric={m} />
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 gap-4 px-3.5 pb-3.5 md:grid-cols-[minmax(0,1fr)_300px]">
+                  <div>
+                    <div className="smp-metric-label mb-1">收益分布（示意）</div>
+                    {data.distribution.length ? (
+                      <DistributionChart bins={data.distribution} height={110} />
+                    ) : (
+                      <div className="py-6 text-center text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                        尚无历史验证样本分布数据（不采用正态假设伪造分箱）
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="smp-metric-label mb-1">历史验证结论</div>
+                    <p className="text-[11.5px] leading-[18px]" style={{ color: "var(--color-ink-sub)" }}>
+                      {data.backtestConclusion}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* 右列 (42%)：关键证据 + 数据质量 */}
+            <div className="flex flex-col gap-3">
+              <Card testId="key-evidence">
+                <CardHeader
+                  icon={<IconBook size={14} />}
+                  title="关键证据"
+                  action={{ label: "查看更多", onClick: () => setDrawer(true) }}
+                />
+                <div className="space-y-2 p-3.5">
+                  {data.evidence.length === 0 ? (
+                    <div className="py-6 text-center text-[12px]" style={{ color: "var(--color-ink-faint)" }}>
+                      暂无证据条目
+                    </div>
+                  ) : (
+                    data.evidence.map((ev) => <EvidenceRow key={ev.id} item={ev} />)
+                  )}
+                </div>
+              </Card>
+
+              <DataQualityBadge quality={data.dataQuality} />
+            </div>
           </div>
 
           <div className="mt-3 flex items-center justify-center gap-2 text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>

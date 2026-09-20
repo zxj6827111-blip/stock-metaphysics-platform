@@ -237,13 +237,13 @@ function BaziInner() {
 
       {data ? (
         <>
-          {/* 第一层：五行分布 | 四柱八字 | 命局摘要 */}
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[300px_minmax(0,1.5fr)_360px]">
+          {/* 第一层：五行分布 | 四柱八字 | 命局摘要 (26:45:29) */}
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.73fr)_minmax(0,1.11fr)]">
             <Card testId="wuxing-card">
-              <CardHeader icon={<IconGrid size={14} />} title="五行分布" />
+              <CardHeader icon={<IconGrid size={14} />} title="五行分布" dense />
               <WuxingDistribution bars={data.wuxing} />
-              <div className="px-4 pb-3">
-                <p className="text-[10.5px] leading-[16px]" style={{ color: "var(--color-ink-faint)" }}>
+              <div className="px-3 pb-2">
+                <p className="text-[10px] leading-[15px]" style={{ color: "var(--color-ink-faint)" }}>
                   五行力量为工程估算（天干 1.0、月支 ×1.5、日支 ×1.2，藏干按本气/中气/余气赋权），
                   属研究性近似，非传统定论。
                 </p>
@@ -254,19 +254,20 @@ function BaziInner() {
               <CardHeader
                 icon={<IconTaiji size={14} />}
                 title="四柱八字"
+                dense
                 action={{ label: "八字排盘详情" }}
               />
-              <div className="p-3.5">
+              <div className="p-2.5">
                 <BaziChart pillars={data.pillars} />
-                <div className="mt-2.5 flex items-center gap-2 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
-                  <IconLayers size={12} />
-                  原始盘面已保存至 chart_artifact.raw_chart，含 engine_version / config_version，可审计、可复算。
+                <div className="mt-1.5 flex items-center gap-1.5 text-[10px]" style={{ color: "var(--color-ink-faint)" }}>
+                  <IconLayers size={11} />
+                  原始盘面已保存至 chart_artifact.raw_chart，含 engine_version / config_version。
                 </div>
               </div>
             </Card>
 
             <Card testId="fate-summary-card">
-              <CardHeader icon={<IconDiamond size={14} />} title="命局摘要" />
+              <CardHeader icon={<IconDiamond size={14} />} title="命局摘要" dense />
               <FateSummary rows={data.summary} />
             </Card>
           </div>
@@ -276,11 +277,12 @@ function BaziInner() {
             <CardHeader
               icon={<IconDiamond size={14} />}
               title="时间结构"
+              dense
               right={
                 <div className="flex items-center gap-2">
                   <Chip tone="gold">Variant A（阳男）</Chip>
                   <Chip tone="flat">Variant B（阴女）</Chip>
-                  <span className="text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                  <span className="text-[10px]" style={{ color: "var(--color-ink-faint)" }}>
                     Phase 2 将并行回测两种假设
                   </span>
                 </div>
