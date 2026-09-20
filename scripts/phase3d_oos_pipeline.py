@@ -40,15 +40,16 @@ sys.path.insert(0, str(ROOT))
 
 from src.core.config import settings  # noqa: E402
 from src.db.base import get_session_factory  # noqa: E402
-from src.db.models import MarketBarDailyRow, UniverseMembershipRow  # noqa: E402
-from src.research.labels.horizon_returns import (  # noqa: E402
-    DEFAULT_BENCHMARK_CODE,
-    HORIZONS,
-    BenchmarkSeries,
-    compute_forward_returns,
-    label_frame,
+from src.db.models import UniverseMembershipRow  # noqa: E402
+from src.research.labels import panel as label_panel  # noqa: E402
+from src.research.labels.horizon_returns import BenchmarkSeries  # noqa: E402
+from src.research.oos.calibration_freeze import (  # noqa: E402
+    CALIBRATION_VERSION,
+    FREEZE_V1,
 )
-from src.research.oos.calibration_freeze import CALIBRATION_VERSION, FREEZE_V1  # noqa: E402
+from src.research.oos.calibration_freeze import (  # noqa: E402
+    fit_holdout_calibration as freeze_fit,
+)
 from src.research.oos.gates import gate_thresholds  # noqa: E402
 from src.research.oos.registry import (  # noqa: E402
     ExperimentRecord,
@@ -60,7 +61,6 @@ from src.research.oos.registry import (  # noqa: E402
     write_registry_json,
 )
 from src.research.oos.runner import (  # noqa: E402
-    PanelError,
     assert_no_out_of_scope,
     attach_calibration,
     build_observation_panel,
@@ -240,116 +240,30 @@ def merge_shards(paths: list[Path]) -> dict:
 
 
 def adj_factor_index() -> dict[str, Path]:
-    """``stock_code -> adj_factor csv``（主快照优先，退市补丁兜底）。"""
-    index: dict[str, Path] = {}
-    for snapshot in reversed(ADJ_SNAPSHOTS):  # 先写补丁，再被主快照覆盖
-        directory = ASTOCKDATA_FACTOR_ROOT / snapshot
-        if not directory.exists():
-            continue
-        for path in directory.glob("*.csv"):
-            code = path.stem.split(".")[0]
-            index[code] = path
-    return index
+    """``stock_code -> adj_factor csv``（主快照优先，退市补丁兜底）。
+
+    实现已上移到 ``src/research/labels/panel.py``（Phase 3E 起 3D/3E/3F 共用同一份
+    标签构建实现，避免"两次构建、两个口径"）。此处保留同名薄封装以免改动调用点。
+    """
+    return label_panel.adj_factor_index(ASTOCKDATA_FACTOR_ROOT)
 
 
 def load_adj_factors(code: str, index: dict[str, Path], cache: dict[str, pd.DataFrame]) -> pd.DataFrame | None:
-    if code in cache:
-        return cache[code]
-    path = index.get(code)
-    if path is None:
-        cache[code] = None
-        return None
-    frame = pd.read_csv(path, dtype={"trade_date": str, "adj_factor": float})
-    frame["trade_date"] = pd.to_datetime(frame["trade_date"], format="%Y%m%d")
-    frame = frame.rename(columns={"adj_factor": "factor"})[["trade_date", "factor"]]
-    cache[code] = frame
-    return frame
+    return label_panel.load_adj_factors(code, index, cache)
 
 
 def load_bars_by_code(codes: list[str]) -> dict[str, pd.DataFrame]:
-    factory = get_session_factory()
-    out: dict[str, pd.DataFrame] = {}
-    with factory() as db:
-        for start in range(0, len(codes), 100):
-            chunk = codes[start:start + 100]
-            rows = db.execute(
-                select(
-                    MarketBarDailyRow.stock_code, MarketBarDailyRow.trade_date,
-                    MarketBarDailyRow.close, MarketBarDailyRow.is_degraded,
-                ).where(
-                    MarketBarDailyRow.stock_code.in_(chunk),
-                    MarketBarDailyRow.source == BAR_SOURCE,
-                ).order_by(MarketBarDailyRow.stock_code, MarketBarDailyRow.trade_date)
-            ).all()
-            frame = pd.DataFrame(rows, columns=["stock_code", "trade_date", "close", "is_degraded"])
-            for code, group in frame.groupby("stock_code", sort=False):
-                out[str(code)] = group.reset_index(drop=True)
-    return out
+    return label_panel.load_bars_by_code(codes)
 
 
 def load_benchmark() -> BenchmarkSeries:
-    factory = get_session_factory()
-    with factory() as db:
-        rows = db.execute(
-            select(MarketBarDailyRow.trade_date, MarketBarDailyRow.close).where(
-                MarketBarDailyRow.stock_code == BENCHMARK_CODE
-            ).order_by(MarketBarDailyRow.trade_date)
-        ).all()
-    frame = pd.DataFrame(rows, columns=["trade_date", "close"])
-    return BenchmarkSeries.from_frame(frame, code=DEFAULT_BENCHMARK_CODE)
+    return label_panel.load_benchmark(BENCHMARK_CODE)
 
 
 def build_label_panel(
     bars: dict[str, pd.DataFrame], sample_dates: list[date],
 ) -> tuple[pd.DataFrame, dict]:
-    index = adj_factor_index()
-    factor_cache: dict[str, pd.DataFrame | None] = {}
-    benchmark = load_benchmark()
-    rows: list[dict] = []
-    coverage_totals: Counter = Counter()
-    per_code: list[dict] = []
-    for code, frame in bars.items():
-        coverage: dict = {}
-        produced = compute_forward_returns(
-            frame, sample_dates, stock_code=code, horizons=HORIZONS,
-            adj_factors=load_adj_factors(code, index, factor_cache),
-            benchmark=benchmark,
-            is_degraded=bool(frame["is_degraded"].any()),
-            coverage_out=coverage,
-        )
-        rows.extend(produced)
-        for key in ("raw_rows", "matched_rows", "filled_rows", "uncovered_rows"):
-            coverage_totals[key] += int(coverage.get(key, 0))
-        per_code.append({
-            "stock_code": code,
-            "label_rows": len(produced),
-            "adj_raw_rows": coverage.get("raw_rows", 0),
-            "adj_matched_rows": coverage.get("matched_rows", 0),
-            "adj_filled_rows": coverage.get("filled_rows", 0),
-            "adj_uncovered_rows": coverage.get("uncovered_rows", 0),
-            "adj_source": "missing" if code not in index else "provided",
-            "has_degraded_bars": bool(frame["is_degraded"].any()),
-        })
-    labels = label_frame(rows)
-    # 标签类型：as_of 是 date，trade_date 保留 date 以便 join
-    if not labels.empty:
-        labels["as_of"] = pd.to_datetime(labels["as_of"]).dt.date
-        labels["trade_date"] = pd.to_datetime(labels["trade_date"]).dt.date
-    meta = {
-        "label_version": LABEL_VERSION,
-        "benchmark_code": BENCHMARK_CODE,
-        "adj_snapshots": list(ADJ_SNAPSHOTS),
-        "adj_factor_files": len(index),
-        "codes_with_adj": sum(1 for code in bars if code in index),
-        "codes_without_adj": sum(1 for code in bars if code not in index),
-        "coverage_totals": dict(coverage_totals),
-        "per_code": per_code,
-        "label_rows": int(len(labels)),
-        "degraded_codes": sorted(
-            code for code, frame in bars.items() if bool(frame["is_degraded"].any())
-        ),
-    }
-    return labels, meta
+    return label_panel.build_label_panel(bars, sample_dates, adj_root=ASTOCKDATA_FACTOR_ROOT)
 
 
 # ---------------------------------------------------------------------------
@@ -358,38 +272,12 @@ def build_label_panel(
 
 
 def fit_holdout_calibration(panel: pd.DataFrame, split, *, group_cols: tuple[str, ...]):
-    """固定 holdout 的 cal-v1：只用 TRAIN（<= train_end）拟合一次。"""
-    train = panel[panel["partition"] == TRAIN].copy()
-    if train.empty:
-        raise PanelError("TRAIN 分区为空，无法拟合 cal-v1")
-    from src.research.calibration import ResearchCalibrationLayer
+    """固定 holdout 的 cal-v1：只用 TRAIN（<= train_end）拟合一次。
 
-    layer = ResearchCalibrationLayer(
-        value_col="opinion_score",
-        group_cols=group_cols,
-        date_col="as_of",
-        partition_col="partition",
-        calibration_version=CALIBRATION_VERSION,
-        fit_partition=TRAIN,
-        fit_max_as_of=split.train_end,
-    ).fit(train)
-    fit_max = pd.to_datetime(train["as_of"]).dt.date.max()
-    FREEZE_V1.assert_holdout_fit(fit_max_as_of=fit_max, target_partition=VALIDATION)
-    from src.research.oos.walk_forward import calibration_fit_hash
-
-    audit = {
-        "calibration_version": CALIBRATION_VERSION,
-        "fit_scope": FREEZE_V1.fit_scope,
-        "fit_max_as_of": fit_max.isoformat(),
-        "train_end": split.train_end.isoformat(),
-        "fit_lag_days_vs_train_end": (split.train_end - fit_max).days,
-        "fit_row_count": int(len(train)),
-        "fit_group_count": len(layer.groups),
-        "calibration_fit_hash": calibration_fit_hash(layer),
-        "oos_labels_seen": True,
-        "layer_metadata": layer.metadata(),
-    }
-    return layer, audit
+    实现已上移到 ``src/research/oos/calibration_freeze.fit_holdout_calibration``
+    （Phase 3E/3F 复用同一实现，保证三阶段的 ``calibration_fit_hash`` 一致）。
+    """
+    return freeze_fit(panel, split, group_cols)
 
 
 # ---------------------------------------------------------------------------

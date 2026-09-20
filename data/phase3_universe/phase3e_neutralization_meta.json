@@ -1,0 +1,519 @@
+{
+  "neutralization_version": "phase3e-neutralization-v1",
+  "git_sha": "b04a2b9fc69d2bac2b883bcd948f9892b0cf6cb3",
+  "generated_at": "2026-09-20T12:47:11.904491",
+  "split_version": "phase3-oos-v1",
+  "split_fingerprint": "6a059b3dbe54f22d",
+  "calibration_version": "cal-v1",
+  "calibration_fit_hash": "7e9897570d3b5a28",
+  "calibration_fit_max_as_of": "2018-10-01",
+  "label_version": "phase3d-hfq-adjfactor-v1",
+  "universe_version": "v2-phase3a",
+  "dataset_version": "phase3a_astockdata_cutoff_20260814",
+  "hypothesis_registry_version": "phase3d-hypotheses-v1",
+  "hypothesis_count": 18,
+  "oos_labels_seen_at_registration": false,
+  "object_count": 18,
+  "birth_models": [
+    "ipo_approx_v1",
+    "listing_close_v1",
+    "listing_open_v1"
+  ],
+  "row_count": 648,
+  "label_rows": 24646,
+  "label_meta_summary": {
+    "label_version": "phase3d-hfq-adjfactor-v1",
+    "benchmark_code": "IDX000300",
+    "bar_source": "astockdata_composite_none",
+    "adj_snapshots": [
+      "tsfactor_20260731T221443_49624041",
+      "tsfactor_20260806T110553_91dc1a9e"
+    ],
+    "adj_factor_files": 5865,
+    "codes_with_adj": 500,
+    "codes_without_adj": 0,
+    "coverage_totals": {
+      "raw_rows": 1737363,
+      "matched_rows": 1660476,
+      "filled_rows": 76887,
+      "uncovered_rows": 0
+    },
+    "label_rows": 24646,
+    "degraded_codes": []
+  },
+  "benchmark": {
+    "market_neutral_version": "phase3e-market-neutral-v1",
+    "benchmark_code": "IDX000300",
+    "benchmark_status": "BENCHMARK_SPLIT_UNAVAILABLE",
+    "mapping_rule": "统一使用沪深 300（IDX000300）作为全部股票的基准；不做市值分层映射（中证 500 IDX000905 不在 canonical 快照内）。偏差方向已知：规模暴露会混入超额收益，由 style controls 的 size 维度单独量化。",
+    "available_benchmarks": [
+      "IDX000300"
+    ],
+    "required_for_split_mapping": [
+      "IDX000300",
+      "IDX000905"
+    ],
+    "split_mapping_available": false
+  },
+  "exposures": {
+    "exposure_version": "phase3e-exposures-v1",
+    "available_columns": [
+      "momentum_60d",
+      "momentum_120d",
+      "volatility_20d",
+      "volatility_60d",
+      "size_proxy_log_amount_20d"
+    ],
+    "size_proxy_note": "size 使用 trailing 20 日均成交额的对数作为**流动性代理**；这是 proxy 而不是市值。它衡量的是交易活跃度，与市值高度相关但不相等，报告与结论都必须按 proxy 解释。",
+    "unavailable_dimensions": {
+      "size_market_cap": "MARKET_CAP_UNAVAILABLE",
+      "value": "VALUE_FACTOR_UNAVAILABLE"
+    },
+    "size_status": "SIZE_PROXY_LIQUIDITY_AMOUNT",
+    "value_status": "VALUE_FACTOR_UNAVAILABLE"
+  },
+  "industry": {
+    "industry_version": "phase3e-industry-v1",
+    "status": "INDUSTRY_CLASSIFICATION_UNAVAILABLE",
+    "point_in_time_available": false,
+    "current_classification_available": false,
+    "detail": "POINT_IN_TIME_INDUSTRY_UNAVAILABLE 且 INDUSTRY_CLASSIFICATION_UNAVAILABLE：canonical 快照与本地 TuShare 目录均无行业字段，Phase 1 的 20 只腾讯快照带 industry 但与 500 只 universe 不重叠到可用程度。本阶段不做行业中性化，也不用板块冒充行业。",
+    "segment_control": "SEGMENT_CONTROL_BOARD",
+    "segment_labels": {
+      "sse_main": "上交所主板",
+      "szse_main": "深交所主板",
+      "szse_sme_legacy": "深交所中小板（已并入主板）",
+      "chinext": "创业板",
+      "star": "科创板"
+    },
+    "neutralization_available": false,
+    "strict_industry_neutral_backtest_allowed": false
+  },
+  "segments": [
+    "chinext",
+    "sse_main",
+    "star",
+    "szse_main",
+    "szse_sme_legacy"
+  ],
+  "questions": {
+    "Q-E1_bazi_calibrated_market_neutral": [
+      {
+        "birth_model": "ipo_approx_v1",
+        "hit_sample_count": 813,
+        "hit_mean_raw_return": -0.011217,
+        "hit_mean_benchmark_return": 0.001092,
+        "hit_mean_market_excess_return": -0.01231,
+        "hit_date_mean_market_excess": -0.01127402,
+        "style_neutral_hit_mean": 0.00647268,
+        "controlled_hit_coefficient": 0.00928232,
+        "controlled_hit_coefficient_t": 1.870918,
+        "style_explained_share": 1.574124
+      },
+      {
+        "birth_model": "listing_close_v1",
+        "hit_sample_count": 874,
+        "hit_mean_raw_return": -0.017134,
+        "hit_mean_benchmark_return": 0.000261,
+        "hit_mean_market_excess_return": -0.017395,
+        "hit_date_mean_market_excess": -0.01822362,
+        "style_neutral_hit_mean": 0.00172876,
+        "controlled_hit_coefficient": 0.00365734,
+        "controlled_hit_coefficient_t": 0.573355,
+        "style_explained_share": 1.094864
+      },
+      {
+        "birth_model": "listing_open_v1",
+        "hit_sample_count": 831,
+        "hit_mean_raw_return": -0.01529,
+        "hit_mean_benchmark_return": 0.000426,
+        "hit_mean_market_excess_return": -0.015716,
+        "hit_date_mean_market_excess": -0.01207079,
+        "style_neutral_hit_mean": 0.00816648,
+        "controlled_hit_coefficient": 0.01090074,
+        "controlled_hit_coefficient_t": 1.36499,
+        "style_explained_share": 1.676549
+      }
+    ],
+    "Q-E2_ziwei_market_exposure": [
+      {
+        "object_id": "ziwei_raw",
+        "birth_model": "ipo_approx_v1",
+        "hit_sample_count": 889,
+        "hit_mean_raw_return": -0.017324,
+        "hit_mean_benchmark_return": -0.003427,
+        "hit_mean_market_excess_return": -0.013897,
+        "hit_date_mean_market_excess": -0.01445003,
+        "event_rank_ic_mean": -0.00796829,
+        "factor_rank_ic_mean": 0.0140729,
+        "controlled_hit_coefficient": 0.00012292,
+        "controlled_hit_coefficient_t": 0.016324
+      },
+      {
+        "object_id": "ziwei_raw",
+        "birth_model": "listing_close_v1",
+        "hit_sample_count": 974,
+        "hit_mean_raw_return": -0.023873,
+        "hit_mean_benchmark_return": -0.001479,
+        "hit_mean_market_excess_return": -0.022394,
+        "hit_date_mean_market_excess": -0.01830863,
+        "event_rank_ic_mean": -0.00228934,
+        "factor_rank_ic_mean": -0.00717296,
+        "controlled_hit_coefficient": 0.00097419,
+        "controlled_hit_coefficient_t": 0.199104
+      },
+      {
+        "object_id": "ziwei_raw",
+        "birth_model": "listing_open_v1",
+        "hit_sample_count": 755,
+        "hit_mean_raw_return": -0.020977,
+        "hit_mean_benchmark_return": -0.001749,
+        "hit_mean_market_excess_return": -0.019228,
+        "hit_date_mean_market_excess": -0.01601003,
+        "event_rank_ic_mean": 0.00355621,
+        "factor_rank_ic_mean": 0.01419625,
+        "controlled_hit_coefficient": 0.00243984,
+        "controlled_hit_coefficient_t": 0.456915
+      },
+      {
+        "object_id": "ziwei_calibrated",
+        "birth_model": "ipo_approx_v1",
+        "hit_sample_count": 743,
+        "hit_mean_raw_return": -0.021886,
+        "hit_mean_benchmark_return": -0.003397,
+        "hit_mean_market_excess_return": -0.018489,
+        "hit_date_mean_market_excess": -0.01864646,
+        "event_rank_ic_mean": -0.02045309,
+        "factor_rank_ic_mean": 0.0140573,
+        "controlled_hit_coefficient": -0.00494327,
+        "controlled_hit_coefficient_t": -0.588041
+      },
+      {
+        "object_id": "ziwei_calibrated",
+        "birth_model": "listing_close_v1",
+        "hit_sample_count": 720,
+        "hit_mean_raw_return": -0.026758,
+        "hit_mean_benchmark_return": -0.000924,
+        "hit_mean_market_excess_return": -0.025834,
+        "hit_date_mean_market_excess": -0.02035301,
+        "event_rank_ic_mean": -0.00555124,
+        "factor_rank_ic_mean": -0.00717375,
+        "controlled_hit_coefficient": -0.00117518,
+        "controlled_hit_coefficient_t": -0.214619
+      },
+      {
+        "object_id": "ziwei_calibrated",
+        "birth_model": "listing_open_v1",
+        "hit_sample_count": 678,
+        "hit_mean_raw_return": -0.022325,
+        "hit_mean_benchmark_return": -0.00181,
+        "hit_mean_market_excess_return": -0.020515,
+        "hit_date_mean_market_excess": -0.01613618,
+        "event_rank_ic_mean": 0.00012936,
+        "factor_rank_ic_mean": 0.01419327,
+        "controlled_hit_coefficient": 0.00251111,
+        "controlled_hit_coefficient_t": 0.445264
+      }
+    ],
+    "Q-E3_huangli_calendar_effect": [
+      {
+        "object_id": "huangli_raw",
+        "birth_model": "ipo_approx_v1",
+        "hit_share": 0.443061,
+        "date_count": 15,
+        "stock_count_per_date_mean": 219.53,
+        "market_excess_date_mean": -0.01906227,
+        "market_excess_date_t": -1.16701,
+        "hit_dates_count": null,
+        "hit_dates_market_excess": null,
+        "non_hit_dates_count": null,
+        "non_hit_dates_market_excess": null,
+        "hit_vs_non_hit_date_difference": null,
+        "hit_vs_non_hit_date_welch_t": null,
+        "hit_share_slope": -0.06537949,
+        "hit_share_slope_t": -1.385056
+      },
+      {
+        "object_id": "huangli_raw",
+        "birth_model": "listing_close_v1",
+        "hit_share": 0.446098,
+        "date_count": 15,
+        "stock_count_per_date_mean": 219.53,
+        "market_excess_date_mean": -0.01906227,
+        "market_excess_date_t": -1.16701,
+        "hit_dates_count": null,
+        "hit_dates_market_excess": null,
+        "non_hit_dates_count": null,
+        "non_hit_dates_market_excess": null,
+        "hit_vs_non_hit_date_difference": null,
+        "hit_vs_non_hit_date_welch_t": null,
+        "hit_share_slope": -0.10776568,
+        "hit_share_slope_t": -1.942313
+      },
+      {
+        "object_id": "huangli_raw",
+        "birth_model": "listing_open_v1",
+        "hit_share": 0.443061,
+        "date_count": 15,
+        "stock_count_per_date_mean": 219.53,
+        "market_excess_date_mean": -0.01906227,
+        "market_excess_date_t": -1.16701,
+        "hit_dates_count": null,
+        "hit_dates_market_excess": null,
+        "non_hit_dates_count": null,
+        "non_hit_dates_market_excess": null,
+        "hit_vs_non_hit_date_difference": null,
+        "hit_vs_non_hit_date_welch_t": null,
+        "hit_share_slope": -0.06634154,
+        "hit_share_slope_t": -1.355138
+      },
+      {
+        "object_id": "huangli_calibrated",
+        "birth_model": "ipo_approx_v1",
+        "hit_share": 0.253265,
+        "date_count": 15,
+        "stock_count_per_date_mean": 219.53,
+        "market_excess_date_mean": -0.01906227,
+        "market_excess_date_t": -1.16701,
+        "hit_dates_count": null,
+        "hit_dates_market_excess": null,
+        "non_hit_dates_count": null,
+        "non_hit_dates_market_excess": null,
+        "hit_vs_non_hit_date_difference": null,
+        "hit_vs_non_hit_date_welch_t": null,
+        "hit_share_slope": -0.08736157,
+        "hit_share_slope_t": -1.485291
+      },
+      {
+        "object_id": "huangli_calibrated",
+        "birth_model": "listing_close_v1",
+        "hit_share": 0.208017,
+        "date_count": 15,
+        "stock_count_per_date_mean": 219.53,
+        "market_excess_date_mean": -0.01906227,
+        "market_excess_date_t": -1.16701,
+        "hit_dates_count": null,
+        "hit_dates_market_excess": null,
+        "non_hit_dates_count": null,
+        "non_hit_dates_market_excess": null,
+        "hit_vs_non_hit_date_difference": null,
+        "hit_vs_non_hit_date_welch_t": null,
+        "hit_share_slope": -0.12004,
+        "hit_share_slope_t": -1.649169
+      },
+      {
+        "object_id": "huangli_calibrated",
+        "birth_model": "listing_open_v1",
+        "hit_share": 0.254176,
+        "date_count": 15,
+        "stock_count_per_date_mean": 219.53,
+        "market_excess_date_mean": -0.01906227,
+        "market_excess_date_t": -1.16701,
+        "hit_dates_count": null,
+        "hit_dates_market_excess": null,
+        "non_hit_dates_count": null,
+        "non_hit_dates_market_excess": null,
+        "hit_vs_non_hit_date_difference": null,
+        "hit_vs_non_hit_date_welch_t": null,
+        "hit_share_slope": -0.08625943,
+        "hit_share_slope_t": -1.438446
+      }
+    ],
+    "Q-E4_consensus_after_market_control": [
+      {
+        "object_id": "bazi_ziwei_calibrated",
+        "birth_model": "ipo_approx_v1",
+        "hit_row_count": 169,
+        "hit_sample_count": 169,
+        "hit_mean_market_excess_return": 0.009614,
+        "hit_date_mean_market_excess": 0.01600458,
+        "style_neutral_hit_mean": 0.02835553,
+        "controlled_hit_coefficient": 0.03555078,
+        "controlled_hit_coefficient_t": 2.23243,
+        "event_rank_ic_mean": 0.03218832
+      },
+      {
+        "object_id": "bazi_ziwei_calibrated",
+        "birth_model": "listing_close_v1",
+        "hit_row_count": 166,
+        "hit_sample_count": 166,
+        "hit_mean_market_excess_return": -0.021545,
+        "hit_date_mean_market_excess": -0.02108808,
+        "style_neutral_hit_mean": 0.0034251,
+        "controlled_hit_coefficient": -0.00182542,
+        "controlled_hit_coefficient_t": -0.099574,
+        "event_rank_ic_mean": 0.00293172
+      },
+      {
+        "object_id": "bazi_ziwei_calibrated",
+        "birth_model": "listing_open_v1",
+        "hit_row_count": 175,
+        "hit_sample_count": 175,
+        "hit_mean_market_excess_return": -0.034309,
+        "hit_date_mean_market_excess": -0.01613179,
+        "style_neutral_hit_mean": 0.00045877,
+        "controlled_hit_coefficient": 0.0077738,
+        "controlled_hit_coefficient_t": 0.58868,
+        "event_rank_ic_mean": -0.01407711
+      },
+      {
+        "object_id": "all_three_calibrated",
+        "birth_model": "ipo_approx_v1",
+        "hit_row_count": 69,
+        "hit_sample_count": 69,
+        "hit_mean_market_excess_return": -0.009013,
+        "hit_date_mean_market_excess": 0.02518863,
+        "style_neutral_hit_mean": 0.01038949,
+        "controlled_hit_coefficient": 0.04703258,
+        "controlled_hit_coefficient_t": 1.332374,
+        "event_rank_ic_mean": 0.02331541
+      },
+      {
+        "object_id": "all_three_calibrated",
+        "birth_model": "listing_close_v1",
+        "hit_row_count": 40,
+        "hit_sample_count": 40,
+        "hit_mean_market_excess_return": -0.051261,
+        "hit_date_mean_market_excess": -0.00214787,
+        "style_neutral_hit_mean": -0.01354896,
+        "controlled_hit_coefficient": 0.03878313,
+        "controlled_hit_coefficient_t": 0.910168,
+        "event_rank_ic_mean": 0.03712497
+      },
+      {
+        "object_id": "all_three_calibrated",
+        "birth_model": "listing_open_v1",
+        "hit_row_count": 64,
+        "hit_sample_count": 64,
+        "hit_mean_market_excess_return": -0.070961,
+        "hit_date_mean_market_excess": 0.00902361,
+        "style_neutral_hit_mean": -0.04994356,
+        "controlled_hit_coefficient": 0.03284374,
+        "controlled_hit_coefficient_t": 0.932627,
+        "event_rank_ic_mean": -0.01189395
+      }
+    ],
+    "Q-E5_top_results_style_explained": [
+      {
+        "object_id": "conflict_bazi_pos_huangli_neg",
+        "birth_model": "ipo_approx_v1",
+        "hit_row_count": 146,
+        "hit_date_mean_market_excess": 0.05814963,
+        "style_neutral_hit_mean": -0.0119459,
+        "controlled_hit_coefficient": 0.08129558,
+        "controlled_hit_coefficient_t": 1.398754,
+        "style_explained_share": 1.205434,
+        "style_r2_mean": 0.199223,
+        "segment_neutral_hit_mean": -0.00862954
+      },
+      {
+        "object_id": "ziwei_huangli_calibrated",
+        "birth_model": "listing_open_v1",
+        "hit_row_count": 172,
+        "hit_date_mean_market_excess": 0.03031011,
+        "style_neutral_hit_mean": -0.01957912,
+        "controlled_hit_coefficient": 0.05124286,
+        "controlled_hit_coefficient_t": 1.35506,
+        "style_explained_share": 1.64596,
+        "style_r2_mean": 0.199223,
+        "segment_neutral_hit_mean": -0.01402013
+      },
+      {
+        "object_id": "bazi_ziwei_calibrated",
+        "birth_model": "ipo_approx_v1",
+        "hit_row_count": 169,
+        "hit_date_mean_market_excess": 0.01600458,
+        "style_neutral_hit_mean": 0.02835553,
+        "controlled_hit_coefficient": 0.03555078,
+        "controlled_hit_coefficient_t": 2.23243,
+        "style_explained_share": -0.771713,
+        "style_r2_mean": 0.199223,
+        "segment_neutral_hit_mean": 0.03143222
+      },
+      {
+        "object_id": "conflict_ziwei_pos_huangli_neg",
+        "birth_model": "ipo_approx_v1",
+        "hit_row_count": 237,
+        "hit_date_mean_market_excess": 0.01130246,
+        "style_neutral_hit_mean": -0.0170811,
+        "controlled_hit_coefficient": 0.01301328,
+        "controlled_hit_coefficient_t": 0.547135,
+        "style_explained_share": 2.511273,
+        "style_r2_mean": 0.199223,
+        "segment_neutral_hit_mean": -0.01870415
+      },
+      {
+        "object_id": "huangli_calibrated",
+        "birth_model": "listing_close_v1",
+        "hit_row_count": 685,
+        "hit_date_mean_market_excess": 0.01110281,
+        "style_neutral_hit_mean": 0.02526533,
+        "controlled_hit_coefficient": 0.03326528,
+        "controlled_hit_coefficient_t": 2.952287,
+        "style_explained_share": -1.27558,
+        "style_r2_mean": 0.199223,
+        "segment_neutral_hit_mean": 0.03365135
+      },
+      {
+        "object_id": "bazi_huangli_calibrated",
+        "birth_model": "listing_close_v1",
+        "hit_row_count": 251,
+        "hit_date_mean_market_excess": 0.01104566,
+        "style_neutral_hit_mean": 0.03518142,
+        "controlled_hit_coefficient": 0.04775715,
+        "controlled_hit_coefficient_t": 2.46294,
+        "style_explained_share": -2.18509,
+        "style_r2_mean": 0.199223,
+        "segment_neutral_hit_mean": 0.03879369
+      },
+      {
+        "object_id": "all_three_raw",
+        "birth_model": "ipo_approx_v1",
+        "hit_row_count": 388,
+        "hit_date_mean_market_excess": 0.01023324,
+        "style_neutral_hit_mean": 0.00457878,
+        "controlled_hit_coefficient": 0.02046532,
+        "controlled_hit_coefficient_t": 0.950806,
+        "style_explained_share": 0.552558,
+        "style_r2_mean": 0.199223,
+        "segment_neutral_hit_mean": 0.01354131
+      },
+      {
+        "object_id": "huangli_calibrated",
+        "birth_model": "listing_open_v1",
+        "hit_row_count": 837,
+        "hit_date_mean_market_excess": 0.01011973,
+        "style_neutral_hit_mean": 0.02002631,
+        "controlled_hit_coefficient": 0.04109882,
+        "controlled_hit_coefficient_t": 1.96707,
+        "style_explained_share": -0.978937,
+        "style_r2_mean": 0.199223,
+        "segment_neutral_hit_mean": 0.00810396
+      },
+      {
+        "object_id": "ziwei_huangli_raw",
+        "birth_model": "ipo_approx_v1",
+        "hit_row_count": 404,
+        "hit_date_mean_market_excess": 0.01006493,
+        "style_neutral_hit_mean": 0.00375985,
+        "controlled_hit_coefficient": 0.01945872,
+        "controlled_hit_coefficient_t": 0.896275,
+        "style_explained_share": 0.626441,
+        "style_r2_mean": 0.199223,
+        "segment_neutral_hit_mean": 0.01349683
+      },
+      {
+        "object_id": "bazi_huangli_calibrated",
+        "birth_model": "ipo_approx_v1",
+        "hit_row_count": 277,
+        "hit_date_mean_market_excess": 0.00951824,
+        "style_neutral_hit_mean": 0.02500232,
+        "controlled_hit_coefficient": 0.03739092,
+        "controlled_hit_coefficient_t": 0.852195,
+        "style_explained_share": -1.62678,
+        "style_r2_mean": 0.199223,
+        "segment_neutral_hit_mean": 0.02671601
+      }
+    ]
+  }
+}
