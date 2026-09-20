@@ -56,141 +56,145 @@ export function StockContextBar({
   return (
     <>
       <div
-        className="smp-card mb-3 px-4 py-2.5"
+        className={`smp-card mb-3 px-3.5 ${showTabs ? "py-2" : "py-1.5"}`}
         data-testid="stock-context-bar"
         style={{ background: "var(--color-surface-1)" }}
       >
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          {/* 股票标识 */}
-          <div className="flex items-center gap-2.5">
-            <span
-              className="flex h-7 w-7 items-center justify-center rounded-full"
-              style={{
-                color: "var(--color-gold)",
-                border: "1px solid var(--color-gold-dim)",
-                background: "var(--color-gold-ghost)",
-              }}
-            >
-              <IconTaiji size={15} />
-            </span>
-            <span className="text-[16px] font-semibold" style={{ color: "var(--color-ink)" }}>
-              {displayName}
-            </span>
-            <span className="smp-num text-[13px]" style={{ color: "var(--color-ink-sub)" }}>
-              {stock.windCode || stock.code}
-            </span>
-            <button
-              type="button"
-              title="加入自选（Phase 2）"
-              style={{ color: "var(--color-ink-muted)" }}
-              disabled
-            >
-              <IconStar size={13} />
-            </button>
+        <div className="flex items-center justify-between gap-3 overflow-x-auto whitespace-nowrap smp-scroll">
+          <div className="flex items-center gap-3 shrink-0">
+            {/* 股票标识 */}
+            <div className="flex items-center gap-2">
+              <span
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                style={{
+                  color: "var(--color-gold)",
+                  border: "1px solid var(--color-gold-dim)",
+                  background: "var(--color-gold-ghost)",
+                }}
+              >
+                <IconTaiji size={13} />
+              </span>
+              <span className="text-[15px] font-semibold tracking-wide" style={{ color: "var(--color-ink)" }}>
+                {displayName}
+              </span>
+              <span className="smp-num text-[12px]" style={{ color: "var(--color-ink-sub)" }}>
+                {stock.windCode || stock.code}
+              </span>
+              <button
+                type="button"
+                title="加入自选（Phase 2）"
+                style={{ color: "var(--color-ink-muted)" }}
+                disabled
+              >
+                <IconStar size={12} />
+              </button>
+            </div>
+
+            <Divider />
+
+            <Field label="上市" value={displayListing} />
+            <Field label="出生模型" value={birthProfile.basis} mono />
+            <Field
+              label="出生时刻"
+              value={birthProfile.datetime}
+              mono
+              title={`时区：${birthProfile.timezone}`}
+            />
+            <Field label="分析基准" value={asOf} mono />
+            <Field label="预测" value={horizon} />
+
+            <Divider />
+
+            {/* 数据质量 */}
+            <div className="flex items-center gap-1.5">
+              <span className="smp-metric-label">数据质量</span>
+              <span
+                className="rounded-[3px] border px-1.5 text-[11px] font-semibold"
+                style={{
+                  color: quality === "A" ? "var(--color-down)" : "var(--color-warn)",
+                  borderColor:
+                    quality === "A" ? "rgba(79,211,155,0.45)" : "rgba(224,164,88,0.45)",
+                }}
+                data-testid="context-quality"
+              >
+                {quality}
+              </span>
+            </div>
           </div>
 
-          <Divider />
-
-          <Field label="上市" value={displayListing} />
-          <Field label="出生模型" value={birthProfile.basis} mono />
-          <Field
-            label="出生时刻"
-            value={birthProfile.datetime}
-            mono
-            title={`时区：${birthProfile.timezone}`}
-          />
-          <Field label="分析基准" value={asOf} mono />
-          <Field label="预测" value={horizon} />
-
-          {/* 数据质量 */}
-          <div className="flex items-center gap-1.5">
-            <span className="smp-metric-label">数据质量</span>
-            <span
-              className="rounded-[3px] border px-1.5 text-[12px] font-semibold"
-              style={{
-                color: quality === "A" ? "var(--color-down)" : "var(--color-warn)",
-                borderColor:
-                  quality === "A" ? "rgba(79,211,155,0.45)" : "rgba(224,164,88,0.45)",
-              }}
-              data-testid="context-quality"
-            >
-              {quality}
-            </span>
-          </div>
-
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
             <button
               type="button"
-              className="smp-btn smp-btn--primary"
+              className="smp-btn smp-btn--primary px-2.5 py-1 text-[11.5px]"
               onClick={() => setSwitchModalOpen(true)}
               data-testid="switch-stock-btn"
             >
               切换股票
             </button>
-            <button type="button" className="smp-btn" disabled title="Phase 2">
+            <button type="button" className="smp-btn px-2 py-1 text-[11.5px]" disabled title="Phase 2">
               切换出生模型
             </button>
             <button
               type="button"
-              className="smp-btn"
+              className="smp-btn px-2 py-1 text-[11.5px]"
               onClick={onRecalculate}
               disabled={recalculating}
               data-testid="recalculate"
             >
-              <IconRefresh size={14} />
+              <IconRefresh size={12} />
               {recalculating ? "计算中…" : "重新计算"}
             </button>
-            <button type="button" className="smp-btn" disabled title="Phase 2">
-              <IconExport size={14} />
+            <button type="button" className="smp-btn px-2 py-1 text-[11.5px]" disabled title="Phase 2">
+              <IconExport size={12} />
               导出报告
             </button>
           </div>
         </div>
 
-      {showTabs ? (
-      <div
-        className="mt-2 flex items-center gap-1 border-t pt-2"
-        style={{ borderColor: "var(--color-border)" }}
-      >
-        <IconClock size={13} style={{ color: "var(--color-ink-faint)" }} />
-        {TABS.map((t) =>
-          t.disabled ? (
+        {showTabs ? (
+          <div
+            className="mt-1.5 flex items-center gap-1 border-t pt-1.5"
+            style={{ borderColor: "var(--color-border)" }}
+          >
+            <IconClock size={12} style={{ color: "var(--color-ink-faint)" }} />
+            {TABS.map((t) =>
+              t.disabled ? (
+                <span
+                  key={t.key}
+                  className="rounded-[4px] px-2.5 py-0.5 text-[11.5px]"
+                  style={{ color: "var(--color-ink-faint)" }}
+                  title="Phase 2 实现"
+                >
+                  {t.label}
+                </span>
+              ) : (
+                <Link
+                  key={t.key}
+                  href={t.href}
+                  className="rounded-[4px] px-2.5 py-0.5 text-[11.5px] transition-colors"
+                  style={{
+                    color: activeTab === t.key ? "var(--color-gold)" : "var(--color-ink-sub)",
+                    background: activeTab === t.key ? "var(--color-gold-ghost)" : "transparent",
+                    border:
+                      activeTab === t.key
+                        ? "1px solid var(--color-gold-dim)"
+                        : "1px solid transparent",
+                  }}
+                >
+                  {t.label}
+                </Link>
+              ),
+            )}
             <span
-              key={t.key}
-              className="rounded-[5px] px-3 py-1 text-[12px]"
+              className="ml-auto text-[10.5px]"
               style={{ color: "var(--color-ink-faint)" }}
-              title="Phase 2 实现"
+              data-testid="variant-note"
             >
-              {t.label}
+              运限假设：{birthProfile.variantMode}（股票无性别）
             </span>
-          ) : (
-            <Link
-              key={t.key}
-              href={t.href}
-              className="rounded-[5px] px-3 py-1 text-[12px] transition-colors"
-              style={{
-                color: activeTab === t.key ? "var(--color-gold)" : "var(--color-ink-sub)",
-                background: activeTab === t.key ? "var(--color-gold-ghost)" : "transparent",
-                border:
-                  activeTab === t.key
-                    ? "1px solid var(--color-gold-dim)"
-                    : "1px solid transparent",
-              }}
-            >
-              {t.label}
-            </Link>
-          ),
-        )}
-        <span
-          className="ml-auto text-[11px]"
-          style={{ color: "var(--color-ink-faint)" }}
-          data-testid="variant-note"
-        >
-          运限假设：{birthProfile.variantMode}（股票无性别）
-        </span>
+          </div>
+        ) : null}
       </div>
-      ) : null}
-    </div>
       <StockSwitchModal
         isOpen={switchModalOpen}
         onClose={() => setSwitchModalOpen(false)}

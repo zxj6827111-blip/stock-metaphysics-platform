@@ -140,7 +140,7 @@ test.describe("八字详情页", () => {
 
   test("四柱盘是真实 DOM 表格", async ({ page }) => {
     await expect(page.getByTestId("page-title").first()).toHaveText("八字详情");
-    const chart = page.getByTestId("bazi-chart");
+    const chart = page.getByTestId("bazi-chart").first();
     await expect(chart).toBeVisible();
     await expect(chart.locator("table")).toBeVisible();
     for (const pos of ["year", "month", "day", "hour"]) {
