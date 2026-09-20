@@ -65,7 +65,7 @@ def load_panel_collector():  # type: ignore[no-untyped-def]
 
 
 def load_universe(
-    version: str, limit: int = 0,
+    version: str, limit: int = 0, only_codes: set[str] | None = None,
 ) -> tuple[list[str], dict[str, tuple[object, object]]]:
     factory = get_session_factory()
     with factory() as db:
@@ -74,12 +74,29 @@ def load_universe(
                 UniverseMembershipRow.universe_version == version,
             ).order_by(UniverseMembershipRow.stock_code)
         ).scalars().all()
+    if only_codes is not None:
+        rows = [row for row in rows if row.stock_code in only_codes]
     if limit:
         rows = rows[:limit]
     return (
         [row.stock_code for row in rows],
         {row.stock_code: (row.list_date, row.delist_date) for row in rows},
     )
+
+
+def read_codes_file(path: str) -> set[str] | None:
+    """读取"只算这些股票"的清单（每行一个代码，# 开头为注释）。
+
+    用于**局部重算**：出生档案修正后，只重算受影响的股票，不必全量重跑。
+    """
+    if not path:
+        return None
+    codes = set()
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        text = line.strip()
+        if text and not text.startswith("#"):
+            codes.add(text.split(",")[0].strip().zfill(6))
+    return codes or None
 
 
 def run_shard(args: argparse.Namespace) -> int:
@@ -90,7 +107,9 @@ def run_shard(args: argparse.Namespace) -> int:
     dates = module.sample_dates(
         date.fromisoformat(args.date_from), date.fromisoformat(args.date_to), args.step_months,
     )
-    codes, eligibility = load_universe(args.universe_version, args.limit)
+    codes, eligibility = load_universe(
+        args.universe_version, args.limit, only_codes=read_codes_file(args.codes_file),
+    )
     if args.shard_count > 1:
         codes = codes[args.shard_index::args.shard_count]
     if not codes:
@@ -172,6 +191,10 @@ def launch_parallel(args: argparse.Namespace) -> int:
         ]
         if args.limit:
             command += ["--limit", str(args.limit)]
+        if args.codes_file:
+            command += ["--codes-file", args.codes_file]
+        if args.cache_dir:
+            command += ["--cache-dir", args.cache_dir]
         if args.skip_ziwei:
             command.append("--skip-ziwei")
         environment = dict(os.environ)
@@ -278,11 +301,22 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--date-to", default=DATE_TO)
     parser.add_argument("--step-months", type=int, default=STEP_MONTHS)
     parser.add_argument("--out", default="")
+    parser.add_argument(
+        "--codes-file", default="",
+        help="只计算该文件内的股票代码（每行一个）；用于出生档案修正后的局部重算",
+    )
+    parser.add_argument(
+        "--cache-dir", default="",
+        help="分片输出目录（默认 data/phase4_cache）；局部重算时指向独立目录，避免覆盖全量分片",
+    )
     return parser
 
 
 def main() -> int:
+    global CACHE_DIR
     args = build_parser().parse_args()
+    if args.cache_dir:
+        CACHE_DIR = Path(args.cache_dir)
     if args.merge:
         return merge_shards()
     if args.parallel > 0:
