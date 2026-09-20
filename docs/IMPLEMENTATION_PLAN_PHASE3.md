@@ -8,6 +8,31 @@
 
 ---
 
+## ⚠ 2026-09-20 · PHASE 3 FINAL SPRINT IN PROGRESS
+
+**状态**：`3E → 3F → 3G → 3H` 连续执行中（GOAL MODE FINAL SPRINT）。
+
+**冻结纪律（FINAL SPRINT 期间不得违反）**：
+
+* 不重新调 `cal-v1`；不修改 Phase 3D 的 P25/P75 阈值；
+* 不根据 OOS 表现重新选因子 / 出生模型 / 持有期；
+* 不自由搜索新组合；不删除失败假设；
+* 不为提高显著性改统计协议（`gate-v2` 只能是 Phase 3D 已预登记的改进项，
+  且必须与 `gate-v1` **同时**报告）；
+* 不扩展六爻 / 奇门；不修改传统术数原始 score 语义。
+
+**启动核查（2026-09-20 实测）**：
+
+| 项目 | 实测结果 |
+|---|---|
+| HEAD | `b04a2b9`（docs: record Phase 3D result artifacts against commit 66939bb） |
+| 工作树 | 干净（仅 `.zcodeignore` 未跟踪） |
+| 3D 产物 | `phase3d_*.csv/json` 22 个文件齐全；`phase3d_cache/` 主/月度/平移分片齐全 |
+| OOS 状态 | 54 条实验全部 `oos_used=true`；`phase3d_calibration_freeze.json` 冻结记录存在 |
+| 结论 | 0 候选 / 0 `SUPPORTED_OUT_OF_SAMPLE` —— 与 `docs/phase3d-oos-results.md` 一致 |
+
+---
+
 ## 0. 启动基线核查（2026-09-19 实测）
 
 | 项目 | 状态 |
@@ -168,7 +193,30 @@
 ### 产出物
 - `src/research/neutralization/`
 - `docs/neutralization-methodology.md`
-- `tests/research/test_neutralization.py`
+- `docs/huangli-date-effect-analysis.md`
+- `tests/research/test_neutralization.py`、`test_style_exposures.py`、`test_huangli_date_effect.py`、`test_research_dataset.py`
+
+### §3E 完成回填（2026-09-20）
+
+**真实运行规模**：500 只 × 3 出生模型 × 18 预注册对象 × 4 持有期 × 3 分区 = **648 行结果**；
+数据集 58,578 行；风格暴露覆盖率 98.4%–99.7%（不足即 NaN，不填 0）；耗时 101s。
+
+| 项目 | 结果 |
+|---|---|
+| 市场中性 | 统一基准 `IDX000300`；**`BENCHMARK_SPLIT_UNAVAILABLE`**（快照内无中证 500，不做市值分层映射） |
+| 行业中性 | **双重不可用**：`POINT_IN_TIME_INDUSTRY_UNAVAILABLE` + `INDUSTRY_CLASSIFICATION_UNAVAILABLE`（canonical 快照 / 本地 TuShare / PIT 注册簿均无行业字段） |
+| 替代控制 | `SEGMENT_CONTROL_BOARD`（法定板块，5 类）：明确声明**不是行业** |
+| 风格可用 | momentum 60/120D、volatility 20/60D、**size 用流动性代理**（20 日均成交额对数） |
+| 风格不可用 | `MARKET_CAP_UNAVAILABLE`（无股本表）、`VALUE_FACTOR_UNAVAILABLE`（无 PIT 基本面） |
+| 风格解释力 | `style_r2_mean = 0.1992`（OOS 20D 横截面方差） |
+| **黄历日期效应（P0 修正）** | 折叠到日期：15 个日期 × 219.5 只/日；二值切分**退化**（15/15 日期都有命中）；`hit_share` 斜率 TRAIN **+0.044** vs OOS **−0.066**（符号相反、均不显著）→ **不是市场-wide calendar effect** |
+| Q-E5 风格解释 | **符号双向翻转**：紫微+黄历 cal +3.03%→−1.96%、三模型 cal +0.90%→−4.99%、八字 raw −1.91%→−0.04%；只有 2 个对象控制后 |t| ≥ 2（黄历 cal 1.97、八字+黄历 cal 2.15），在 42–54 个实验下属噪声水平 |
+
+**顺带完成的基础设施收敛**（避免 3E/3F 出现"两次构建、两个口径"）：
+- 标签面板构建上移到 `src/research/labels/panel.py`（3D 脚本改为薄封装）；
+  已用**逐位等价校验**确认搬运前后输出完全相同（6 只真实股票 × 13 个 as_of = 50 行标签 SHA 一致）。
+- 校准拟合上移到 `src/research/oos/calibration_freeze.fit_holdout_calibration`；
+  已确认 `cal-v1` 的 `fit_hash` / `fit_max_as_of` / 分组数与 3D 内联实现完全一致。
 
 ---
 
@@ -182,9 +230,30 @@
 - effect_size：mean diff / Cohen's d / RankIC magnitude
 
 ### 产出物
-- `src/research/stats/` 扩展
+- `src/research/multipletesting/`
+- `config/phase3f_multiple_testing_families.yaml`（族定义，结果前冻结）
 - `docs/multiple-testing-methodology.md`
 - `tests/research/test_multiple_testing.py`
+
+### §3F 完成回填（2026-09-20）
+
+**真实运行规模**：54 个实验 + 18 个出生模型对比 = **72 行**；日期分层置换 **5000 次/实验**；
+date-block bootstrap 2000 次；稳健性维度 9 个 × 54 = 324 行切片；耗时 121s。
+
+| 项目 | 结果 |
+|---|---|
+| 假设族 | 6 个（bazi 6 / ziwei 6 / huangli 6 / consensus 24 / conflict 12 / birth_model_comparison 18），`mt-v1` 冻结，代码强制校验"恰好归属一个族" |
+| **BH-FDR 通过** | **正式 gate 实验 0 个**；仅 `conflict`（探索性）族通过 1 个，按预注册**不解锁** |
+| **Bonferroni 通过** | 同上：正式 0 个 |
+| Bootstrap | 42 个正式实验的命中均值 95% CI **全部跨 0** |
+| 置换 | 日期分层（保留每日命中数量）；构造实验证明池化置换会把"纯日期选择器"误判为显著 |
+| **`SUPPORTED_OUT_OF_SAMPLE`** | **0 个** |
+| gate-v1 vs gate-v2 | 32 INCONCLUSIVE/4 WEAK/3 INSUFFICIENT/2 INVALID/1 NO_SIGNAL → 20/17/3/2/0，**两版并排输出** |
+| 稳健性最弱维度 | `universe_subset` 在 **31/42** 个实验中符号不一致（在市股 vs 退市股结论相反） |
+| 名义 p 最小的 6 个 | 全部同时未通过 C（方向一致）/ F（FDR）/ G（CI 跨零）/ I（跨年稳定） |
+
+**协议合法性**（GOAL §4.7 五条）：只实现 3D 已预登记的改进项；不改 3D 结果（只读）；
+标记 `protocol_version=phase3f-oos-gate-v2`；两版并排；不选择性保留。
 
 ---
 
@@ -198,9 +267,32 @@
 - 差异登记：字段 / iztro / reference / 可能原因 / 学派差异 / resolved?
 
 ### 产出物
-- `src/engines/ziwei/reference/`
+- `src/engines/ziwei/reference/`、`services/ziwei-reference-service/`
+- `config/ziwei_cross_engine_cases.json`
 - `docs/ziwei-cross-engine-differences.md`
 - `tests/golden/test_ziwei_cross_engine.py`
+
+### §3G 完成回填（2026-09-20）
+
+**采用**：`airicyu/fortel-ziweidoushu` v1.3.4（**中州派**，MIT，唯一运行时依赖 `util`，
+自带 jjonline 日历，**不依赖 iztro**）→ **`REFERENCE_AVAILABLE`**（不是 UNAVAILABLE）。
+
+**关键审计结论**：星标最高的"紫微排盘引擎"`Renhuai123/ziwei-doushu`（4169★）的
+`lib/ziwei/algorithm.ts` 首行即 `import { astro } from 'iztro'` —— **不是独立实现**；
+Python 侧候选（`py-iztro` / `iztro-py` / `mingli-master`）同为 iztro 移植；
+`Wolke/ziwei-doushu` / `cubshuang` 许可证不明确；`ziweiknows/ziwei-chart` 为 GPL-3.0 应用；
+GOAL 提到的 "Tianji"（`nihaisha-tianji`）是语料库/MCP，不含排盘算法。共 11 个候选逐个记录理由。
+
+| 项目 | 结果 |
+|---|---|
+| 案例数 | **24**（1940s–2026、12 个月份、21 个不同小时、早/晚子时、4 个闰月、forward 16 + reverse 8） |
+| 字段比较 | **2280 项**，其中 **2183 项完全一致（95.75%）** |
+| 完全一致的关键字段 | 十二宫位置、十二宫天干、五行局、命宫、身宫、**辅星、三方四正、大限、长生十二神**（性别相关字段在匹配性别下 24/24 一致） |
+| 差异 1 | `晚子时换日` —— iztro 归次日 / 中州派归当日（32 条中的 24 条）；实测证明 iztro 晚子时盘 == 次日早子时盘，且 iztro 的 `lunar_date` 显示与安放口径不一致 |
+| 差异 2 | `十干四化「科」星` —— 戊（右弼/太阳）、庚（太阴/天府）、壬（左辅/天府）三干流派分歧（8 条） |
+| 差异 3 | `命主取用` —— 参考实现以**生年支**索引命主表（标准应为**命宫支**），源码级证据，判定为**参考实现疑似问题**（17 条） |
+| 不可比对字段 | 流年 / 流月（参考实现只暴露十年运接口）（48 条） |
+| 对研究结论的影响 | 无：500 只股票出生时刻为日间时刻（非晚子时）；因子不使用命主字段；四化差异已固定为"实现选择敏感点"并冻结版本 |
 
 ---
 
@@ -238,10 +330,10 @@
 | 3B | **DONE** (commit `c9fee4a`) | 4 birth model 注册（company_foundation 显式 UNAVAILABLE，无伪造）；500股×3模型 factor 对比 → `docs/birth-model-study.md` |
 | 3C | **DONE** (Phase 3C commit) | 500 股 × 3 birth model × 18 采样点；Factor 5814 行摘要、Opinion 153 行摘要；BAZI 原始正向率 94.0%–96.6%，TRAIN-only Calibration 正向率 25.5%–26.7%；无失败；行业切片显式 `POINT_IN_TIME_INDUSTRY_UNAVAILABLE` |
 | 3D | **DONE** (Phase 3D commit) | 固定 holdout + 扩窗 walk-forward；18 假设 × 3 出生模型 = 54 实验；**0 个 OOS 候选、0 个 SUPPORTED_OUT_OF_SAMPLE**；见下方 §3D 完成回填 |
-| 3E | PENDING | 依赖 3A 行业表 |
-| 3F | PENDING | 依赖 3D |
-| 3G | PENDING | 可并行（只读调研） |
-| 3H | PENDING | 终章 |
+| 3E | **DONE** | 648 行中性化结果；风格中性化后符号双向翻转；黄历日期效应 = 非市场日历效应 |
+| 3F | **DONE** | 族内 BH-FDR：正式实验通过 **0**；`SUPPORTED_OUT_OF_SAMPLE = **0**`；gate-v2 与 gate-v1 并排 |
+| 3G | **DONE** | 第二实现源 `fortel-ziweidoushu`（中州派）可用；2280 项比较 95.75% 一致；3 类差异全部定位 |
+| 3H | IN PROGRESS | 终章：最终报告 / 模型限制 / HANDOFF / 全量回归 / tag |
 
 ---
 

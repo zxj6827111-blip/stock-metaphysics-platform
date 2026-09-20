@@ -142,6 +142,52 @@ def freeze_for(calibration_version: str) -> CalibrationFreeze:
         ) from exc
 
 
+def fit_holdout_calibration(panel, split, group_cols: tuple[str, ...] = ("engine", "birth_model")):
+    """固定 holdout 的 ``cal-v1``：只用 TRAIN（``<= train_end``）拟合一次。
+
+    Phase 3D 起它是校准拟合的**唯一入口**（3E / 3F 复用同一实现，
+    保证三阶段的 ``calibration_fit_hash`` 完全一致）。返回 ``(layer, audit)``；
+    ``audit`` 可直接写入报告并被状态门的 G10 条件消费。
+
+    Raises:
+        CalibrationFreezeError: TRAIN 为空，或实际 fit 用到了越界日期。
+    """
+    import pandas as pd
+
+    from src.research.calibration import ResearchCalibrationLayer
+    from src.research.oos.splits import TRAIN, VALIDATION
+
+    train = panel[panel["partition"] == TRAIN].copy()
+    if train.empty:
+        raise CalibrationFreezeError("TRAIN 分区为空，无法拟合 cal-v1")
+    layer = ResearchCalibrationLayer(
+        value_col="opinion_score",
+        group_cols=group_cols,
+        date_col="as_of",
+        partition_col="partition",
+        calibration_version=CALIBRATION_VERSION,
+        fit_partition=TRAIN,
+        fit_max_as_of=split.train_end,
+    ).fit(train)
+    fit_max = pd.to_datetime(train["as_of"]).dt.date.max()
+    FREEZE_V1.assert_holdout_fit(fit_max_as_of=fit_max, target_partition=VALIDATION)
+    from src.research.oos.walk_forward import calibration_fit_hash
+
+    audit = {
+        "calibration_version": CALIBRATION_VERSION,
+        "fit_scope": FREEZE_V1.fit_scope,
+        "fit_max_as_of": fit_max.isoformat(),
+        "train_end": split.train_end.isoformat(),
+        "fit_lag_days_vs_train_end": (split.train_end - fit_max).days,
+        "fit_row_count": int(len(train)),
+        "fit_group_count": len(layer.groups),
+        "calibration_fit_hash": calibration_fit_hash(layer),
+        "oos_labels_seen": True,
+        "layer_metadata": layer.metadata(),
+    }
+    return layer, audit
+
+
 __all__ = [
     "CALIBRATION_VERSION",
     "FIT_SCOPE",
@@ -150,5 +196,6 @@ __all__ = [
     "FREEZE_VERSION",
     "CalibrationFreeze",
     "CalibrationFreezeError",
+    "fit_holdout_calibration",
     "freeze_for",
 ]

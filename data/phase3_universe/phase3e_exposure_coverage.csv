@@ -1,0 +1,6 @@
+﻿column,usable,missing,coverage_ratio
+momentum_60d,28551,224,0.992215
+momentum_120d,28323,452,0.984292
+volatility_20d,28692,83,0.997116
+volatility_60d,28551,224,0.992215
+size_proxy_log_amount_20d,28698,77,0.997324
