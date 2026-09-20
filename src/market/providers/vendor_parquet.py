@@ -37,6 +37,7 @@ from src.core.schemas.common import MarketDataSource, SourceRef
 from src.core.schemas.market import Bar, BarSeries
 from src.core.schemas.stock import StockMaster
 from src.market.normalization.errors import SymbolNotFoundError
+from src.market.providers.base import MarketDataProvider
 
 #: Parquet 仓库目录（NAS 上以 ``SMP_VENDOR_DATA_DIR`` 覆盖）
 DEFAULT_VENDOR_DATA_DIR = Path(
@@ -84,16 +85,22 @@ class VendorRepoMeta:
         return dict(self.payload)
 
 
-class VendorParquetProvider:
+class VendorParquetProvider(MarketDataProvider):
     """``MarketDataProvider`` 实现：读 Parquet 仓库（全市场）。
 
     只读、无副作用；**不写任何东西**。构造函数不加载数据（惰性），
     首次查询时才读 Parquet（DuckDB 引擎，按 stock_code 行组裁剪）。
     """
 
+    #: 契约要求的提供者标识（AGENTS.md §1-15：新行情源必须实现 MarketDataProvider）
+    provider_id = "vendor_parquet"
     name = "vendor_parquet"
 
-    def __init__(self, data_dir: Path | None = None) -> None:
+    def __init__(
+        self, data_dir: Path | None = None, *, benchmark_fallback=None,
+    ) -> None:  # type: ignore[no-untyped-def]
+        """``benchmark_fallback``：供应商仓库不含指数，基准查询委派给它。"""
+        self.benchmark_fallback = benchmark_fallback
         self.data_dir = Path(data_dir) if data_dir is not None else DEFAULT_VENDOR_DATA_DIR
         if not vendor_available(self.data_dir):
             raise FileNotFoundError(
@@ -220,9 +227,22 @@ class VendorParquetProvider:
     def get_benchmark_bars(
         self, index_code: str, start: date, end: date, *, adjust: str = "none",
     ) -> BarSeries:
-        """基准指数：供应商仓库只有个股。基准由 SQLite/其他 provider 提供。"""
+        """基准指数：供应商仓库只有个股，因此委派给 ``benchmark_fallback``。
+
+        未配置回退时明确报错（**不返回空序列**，避免把"没有基准"伪装成"基准收益为 0"）。
+        """
+        if self.benchmark_fallback is not None:
+            # 基准代码有两套命名约定，必须显式适配（不靠 try/except 兜）：
+            #   SQLite / 研究侧：``IDX000300``（market_bar_daily.stock_code）
+            #   文件通道 offline：``000300``（它自己会拼上 ``IDX`` 前缀）
+            code = str(index_code).strip()
+            if code.upper().startswith("IDX"):
+                code = code[3:]
+            return self.benchmark_fallback.get_benchmark_bars(
+                code, start, end, adjust=adjust,
+            )
         raise SymbolNotFoundError(
-            f"供应商 Parquet 仓库不含指数 {index_code}（基准请用 load_benchmark 的 SQLite 路径）"
+            f"供应商 Parquet 仓库不含指数 {index_code}，且未配置 benchmark_fallback"
         )
 
     # ------------------------------------------------------------------

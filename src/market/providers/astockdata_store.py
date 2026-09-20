@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -101,7 +100,7 @@ class AStockDataBlobStore:
     # 工厂
     # ------------------------------------------------------------------
     @classmethod
-    def latest_composite_none(cls, root: Path = DEFAULT_ROOT) -> "AStockDataBlobStore":
+    def latest_composite_none(cls, root: Path = DEFAULT_ROOT) -> AStockDataBlobStore:
         """加载最新 ``internal_composite_none_1d_*.json``。"""
         mdir = root / MANIFEST_DIR
         candidates = sorted(mdir.glob("internal_composite_none_1d_*.json"))
@@ -112,7 +111,7 @@ class AStockDataBlobStore:
         return cls(root=root, manifest=AStockDataManifest(candidates[-1]))
 
     @classmethod
-    def from_manifest(cls, path: Path, root: Path = DEFAULT_ROOT) -> "AStockDataBlobStore":
+    def from_manifest(cls, path: Path, root: Path = DEFAULT_ROOT) -> AStockDataBlobStore:
         return cls(root=root, manifest=AStockDataManifest(path))
 
     # ------------------------------------------------------------------
