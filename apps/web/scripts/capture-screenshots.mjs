@@ -83,7 +83,8 @@ async function main() {
     await page.waitForSelector("[data-testid=page-title], [data-testid=home-title]", { timeout: 30000 });
     // 严格等待加载中状态脱离 DOM，超时必须失败
     await page.locator("[data-testid=page-loading]").waitFor({ state: "detached", timeout: 15000 });
-    // 等字体与 ECharts 渲染稳定
+    // 确保网页字体已解析就绪，等字体与 ECharts 渲染稳定
+    await page.evaluate(() => document.fonts.ready).catch(() => null);
     await page.waitForTimeout(1400);
 
     await page.screenshot({ path: path.join(dir, "current.png"), fullPage: false });

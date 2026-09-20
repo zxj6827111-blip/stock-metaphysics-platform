@@ -18,7 +18,7 @@ import {
   type ApiOpinion,
 } from "./api";
 import { WUXING_COLORS, EXCHANGE_CN, isFixtureActive } from "./fixture";
-import { KNOWN_STOCK_NAMES } from "@/components/stock/StockSwitchModal";
+import { KNOWN_STOCK_NAMES } from "./stockCatalog";
 import type {
   BacktestMetric,
   BaziPageData,

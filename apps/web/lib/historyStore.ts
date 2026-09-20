@@ -9,7 +9,7 @@
  */
 
 import type { ApiMultiAnalysis } from "./api";
-import { KNOWN_STOCK_NAMES } from "@/components/stock/StockSwitchModal";
+import { KNOWN_STOCK_NAMES } from "./stockCatalog";
 
 export interface RecentAnalysisItem {
   code: string;
