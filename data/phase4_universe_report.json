@@ -1,0 +1,26 @@
+{
+  "phase": "4C",
+  "generated_at": "2026-09-20T07:07:12.239634",
+  "vendor_data_version": "phase4-vendor-hfq-v1",
+  "universe_version": "v4-full",
+  "counts": {
+    "total": 6104,
+    "active": 5796,
+    "delisted": 308,
+    "with_valuation": 5796,
+    "without_valuation": 308,
+    "board_known": 5862,
+    "listing_date_missing": 0
+  },
+  "sources": {
+    "full_market": "vendor_full_market_phase4",
+    "delisted": "astockdata_delisted"
+  },
+  "notes": [
+    "v4-full 与 v2-phase3a 并存；Phase 3 结论仍锚定 v2-phase3a（500 只）。",
+    "退市股只有 OHLCV → size/value 暴露为 NaN（不得用 0 冒充）。",
+    "industry 不可得，一律留空；board 取 TuShare PIT 注册簿，缺失留空不猜测。",
+    "delist_date 为 NULL 表示『截至快照仍在市』，不等于永不退市。"
+  ],
+  "listing_date_missing_sample": []
+}
