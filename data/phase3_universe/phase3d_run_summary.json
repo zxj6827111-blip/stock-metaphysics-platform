@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-20T11:51:03",
-  "git_sha": "4a34555c1249800faa1a07480742119642e375ef",
+  "generated_at": "2026-09-20T12:10:40",
+  "git_sha": "66939bbca70855226ceb2da52d6bbd6671d91113",
   "split": {
     "split_version": "phase3-oos-v1",
     "dataset_version": "phase3a_astockdata_cutoff_20260814",
@@ -104,5 +104,5 @@
     "INSUFFICIENT_SAMPLE": 3,
     "EXPLORATORY_NOT_GATED": 12
   },
-  "elapsed_seconds": 171.9
+  "elapsed_seconds": 177.0
 }

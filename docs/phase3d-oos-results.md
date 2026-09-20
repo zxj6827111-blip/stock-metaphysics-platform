@@ -1,6 +1,6 @@
 # Phase 3D · 样本外（OOS）与 Walk-forward 研究结果
 
-> 生成时间：2026-09-20T11:51:03 · commit `4a34555c1249800faa1a07480742119642e375ef`
+> 生成时间：2026-09-20T12:10:40 · commit `66939bbca70855226ceb2da52d6bbd6671d91113`
 > `split_version=phase3-oos-v1` · `calibration_version=cal-v1` · `label_version=phase3d-hfq-adjfactor-v1` · `gate_version=phase3d-oos-gate-v1`
 > 数据快照 `phase3a_astockdata_cutoff_20260814`（universe `v2-phase3a`）
 
@@ -22,7 +22,7 @@
 
 | 项目 | 值 |
 |---|---|
-| commit SHA | `4a34555c1249800faa1a07480742119642e375ef` |
+| commit SHA | `66939bbca70855226ceb2da52d6bbd6671d91113` |
 | TRAIN | 2010-01-01 .. 2018-12-31 |
 | VALIDATION | 2019-01-01 .. 2022-12-31 |
 | OOS | 2023-01-01 .. 2026-08-14 |
