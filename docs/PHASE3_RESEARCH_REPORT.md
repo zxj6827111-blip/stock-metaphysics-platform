@@ -1,6 +1,6 @@
 # Phase 3 · 最终研究报告
 
-> **commit** `981bdac201735c18772d34dde6efa41d1de19b72` · **tag** `phase3-research-v1.0`
+> **commit** `f26e115dc3e7781f5d71e373cca9ab21093185c4`
 > **数据集** `phase3a_astockdata_cutoff_20260814` · **universe** `v2-phase3a` · **calibration** `cal-v1` · **label** `phase3d-hfq-adjfactor-v1`
 > **split** `phase3-oos-v1`（`2010-01-01`..`2018-12-31` / `2019-01-01`..`2022-12-31` / `2023-01-01`..`2026-08-14`）
 > **gate-v1** `phase3d-oos-gate-v1` · **gate-v2** `phase3f-oos-gate-v2` · **mt** `mt-v1`
