@@ -33,15 +33,22 @@
 from __future__ import annotations
 
 import io
+import os
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
 
-#: 默认数据根（本机）；NAS 上以 ``SMP_VENDOR_ROOT`` 覆盖
+#: 供应商原始包根目录（**双向支持**：本机与 NAS 路径不同，必须可配置）。
+#:
+#:   本机   <AStockData>/raw/local_vendor/original_files/incoming/股票历史数据
+#:   NAS    /vol1/1000/股票历史数据（compose 里只读挂载并设 SMP_VENDOR_ROOT）
+#:
+#: 两者是**同一份供应商导出**，只是快照日期不同（NAS 更新），因此不需要重复下载。
 DEFAULT_VENDOR_ROOT = Path(
-    r"E:\AStockData\raw\local_vendor\original_files\incoming\股票历史数据"
+    os.environ.get("SMP_VENDOR_ROOT")
+    or r"E:\AStockData\raw\local_vendor\original_files\incoming\股票历史数据"
 )
 #: 年包目录名与因子包名
 DAILY_DIR = "全A日K"

@@ -250,6 +250,24 @@ class VendorParquetProvider:
             [str(code).strip(), start, end],
         )
 
+    def bars_frame(self, code: str) -> pd.DataFrame:
+        """单只股票的**全部**日线（``trade_date`` / OHLCV），按日期升序。
+
+        研究侧（标签、暴露）用它一次性取全历史，避免自己拼 SQL 或访问私有方法。
+        """
+        return self._query(
+            f"""
+            select trade_date, open, high, low, close, volume, amount
+            from read_parquet('{self._bars_path()}')
+            where stock_code = ? order by trade_date
+            """,
+            [str(code).strip()],
+        )
+
+    def bars_path(self) -> str:
+        """Parquet 行情文件的 DuckDB 可读路径（供外部批量查询复用）。"""
+        return self._bars_path()
+
     def codes(self, *, with_valuation_only: bool = False) -> list[str]:
         catalog = self.catalog()
         if with_valuation_only:
