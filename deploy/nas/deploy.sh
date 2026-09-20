@@ -64,10 +64,14 @@ for i in $(seq 1 60); do
   sleep 3
 done
 
-step "5. 初始化数据库（migration + 种子数据）"
+step "5. 初始化数据库（migration + 种子数据 + 基准指数）"
 ${COMPOSE} exec -T api python -m alembic upgrade head
 ${COMPOSE} exec -T api python -m src.cli seed
-ok "数据库已初始化"
+# 基准指数（沪深300）来自仓库内 data/import/ 的 Phase 1 快照：
+# SQLite 里必须有它，否则 excess_return（超额收益）无法计算。
+# 全市场个股行情由供应商 Parquet 仓库提供，不在此处重复导入。
+${COMPOSE} exec -T api python -m src.cli import-market
+ok "数据库已初始化（含基准指数）"
 
 cat <<TIPS
 
