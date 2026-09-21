@@ -21,6 +21,8 @@ data/backtests/
 # ---- 前端 ----
 apps/web/node_modules/
 apps/web/.next/
+# 验收用的独立构建目录（与 .next 并存，避免 dev/start 互相覆盖产物）
+apps/web/.next-e2e/
 apps/web/out/
 apps/web/next-env.d.ts
 apps/web/test-results/

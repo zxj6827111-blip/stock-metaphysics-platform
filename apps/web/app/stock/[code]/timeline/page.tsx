@@ -1115,6 +1115,10 @@ function WeekRankingCard({
         }
         dense
       />
+      {/* 六列表格在 1440（右栏约 364px）会撑破容器：表格最小宽度按内容计算，
+          父容器不会自动压缩。包一层可横向滚动容器，既不裁掉「共识」列
+          （信息不丢），也不让 main 出现横向溢出。 */}
+      <div className="w-full overflow-x-auto" data-testid="week-ranking-scroll">
       {loading ? (
         <SectionLoading label="正在聚合成周…" rows={4} />
       ) : error ? (
@@ -1124,11 +1128,11 @@ function WeekRankingCard({
           <thead>
             <tr>
               <th>#</th>
-              <th className="whitespace-nowrap">区间</th>
-              <th className="whitespace-nowrap text-right">平均规则强度</th>
-              <th className="whitespace-nowrap text-right">方向加权均值</th>
+              <th>区间</th>
+              <th className="text-right">平均规则强度</th>
+              <th className="text-right">方向加权均值</th>
               <th className="whitespace-nowrap text-right">偏强日</th>
-              <th className="whitespace-nowrap">共识</th>
+              <th>共识</th>
             </tr>
           </thead>
           <tbody>
@@ -1168,6 +1172,7 @@ function WeekRankingCard({
           hint="后端未返回周度窗口（可能是 as_of 之后的交易日历覆盖不足）。"
         />
       )}
+      </div>
     </Card>
   );
 }
