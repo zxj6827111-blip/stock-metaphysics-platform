@@ -217,7 +217,6 @@ function BaziInner() {
           activeTab="bazi"
           onRecalculate={handleRecalculate}
           recalculating={multiLoading || loading}
-          showTabs
         />
       ) : null}
 

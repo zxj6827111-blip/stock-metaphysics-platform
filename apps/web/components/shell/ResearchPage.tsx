@@ -30,6 +30,10 @@ export interface ResearchPageProps {
   title: string;
   subtitle: string;
   seal?: string;
+  /** 页眉右侧竖排短句（参考图中每页不同）。 */
+  couplet?: string[];
+  /** 竖排题词（每行四字，参考图右侧）。 */
+  motto?: string[];
   code: string;
   analysis: ApiMultiAnalysis | null;
   loading: boolean;
@@ -45,6 +49,8 @@ export function ResearchPage({
   title,
   subtitle,
   seal,
+  couplet,
+  motto,
   code,
   analysis,
   loading,
@@ -62,7 +68,7 @@ export function ResearchPage({
   if (isUnsupportedFixture) {
     return (
       <AppShell activeNav={activeNav} dataStatus="bad" statusText="演示模式受限">
-        <PageHero title={title} subtitle={subtitle} seal={seal} />
+        <PageHero title={title} subtitle={subtitle} seal={seal} couplet={couplet} motto={motto} />
         <Card className="my-4 p-6" testId="unsupported-fixture-error">
           <div className="flex items-start gap-3">
             <span className="text-[24px]">⚠️</span>
@@ -105,7 +111,7 @@ export function ResearchPage({
       // 演示来源与真实来源必须在顶部状态就区分开，不能只靠角标
       statusText={error ? "后端未连接" : fixture ? "演示数据（固定样本）" : "数据正常"}
     >
-      <PageHero title={title} subtitle={subtitle} seal={seal} />
+      <PageHero title={title} subtitle={subtitle} seal={seal} couplet={couplet} motto={motto} />
       {ctx ? (
         <StockContextBar
           context={ctx}

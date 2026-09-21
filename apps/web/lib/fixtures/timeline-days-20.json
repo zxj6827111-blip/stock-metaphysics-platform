@@ -1,0 +1,248 @@
+{
+ "analysis_id": "FIXTURE",
+ "stock_code": "600519",
+ "as_of": "2024-11-15T15:00:00",
+ "variant_mode": "forward",
+ "daily_version": "daily-v1",
+ "requested_days": 20,
+ "returned_days": 20,
+ "available_engines": [
+  "bazi",
+  "huangli",
+  "ziwei"
+ ],
+ "days": [
+  {
+   "trade_date": "2024-11-18",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 69.64,
+   "ziwei_score": 58.91,
+   "huangli_score": 56.87
+  },
+  {
+   "trade_date": "2024-11-19",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 1,
+   "combined_direction": 1,
+   "bazi_score": 71.16,
+   "ziwei_score": 58.87,
+   "huangli_score": 64.39
+  },
+  {
+   "trade_date": "2024-11-20",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 0,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 69.33,
+   "ziwei_score": 56.9,
+   "huangli_score": 55.64
+  },
+  {
+   "trade_date": "2024-11-21",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 1,
+   "combined_direction": 1,
+   "bazi_score": 68.21,
+   "ziwei_score": 60.08,
+   "huangli_score": 61.36
+  },
+  {
+   "trade_date": "2024-11-22",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 71.1,
+   "ziwei_score": 60.97,
+   "huangli_score": 52.57
+  },
+  {
+   "trade_date": "2024-11-25",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 68.44,
+   "ziwei_score": 60.19,
+   "huangli_score": 47.17
+  },
+  {
+   "trade_date": "2024-11-26",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 1,
+   "combined_direction": 1,
+   "bazi_score": 69.5,
+   "ziwei_score": 61.92,
+   "huangli_score": 68.12
+  },
+  {
+   "trade_date": "2024-11-27",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 0,
+   "huangli_direction": 1,
+   "combined_direction": 1,
+   "bazi_score": 69.48,
+   "ziwei_score": 57.89,
+   "huangli_score": 63.93
+  },
+  {
+   "trade_date": "2024-11-28",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 71.47,
+   "ziwei_score": 58.97,
+   "huangli_score": 53.74
+  },
+  {
+   "trade_date": "2024-11-29",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 69.35,
+   "ziwei_score": 58.53,
+   "huangli_score": 57.62
+  },
+  {
+   "trade_date": "2024-12-02",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 69.61,
+   "ziwei_score": 59.99,
+   "huangli_score": 53.87
+  },
+  {
+   "trade_date": "2024-12-03",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 0,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 68.5,
+   "ziwei_score": 57.51,
+   "huangli_score": 54.75
+  },
+  {
+   "trade_date": "2024-12-04",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 69.97,
+   "ziwei_score": 59.33,
+   "huangli_score": 54.57
+  },
+  {
+   "trade_date": "2024-12-05",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 1,
+   "combined_direction": 1,
+   "bazi_score": 68.4,
+   "ziwei_score": 58.21,
+   "huangli_score": 61.91
+  },
+  {
+   "trade_date": "2024-12-06",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 69.38,
+   "ziwei_score": 60.41,
+   "huangli_score": 49.22
+  },
+  {
+   "trade_date": "2024-12-09",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 66.82,
+   "ziwei_score": 60.07,
+   "huangli_score": 52.65
+  },
+  {
+   "trade_date": "2024-12-10",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 1,
+   "combined_direction": 1,
+   "bazi_score": 68.6,
+   "ziwei_score": 58.42,
+   "huangli_score": 64.05
+  },
+  {
+   "trade_date": "2024-12-11",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 1,
+   "combined_direction": 1,
+   "bazi_score": 66.49,
+   "ziwei_score": 62.01,
+   "huangli_score": 62.92
+  },
+  {
+   "trade_date": "2024-12-12",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 67.06,
+   "ziwei_score": 63.05,
+   "huangli_score": 54.58
+  },
+  {
+   "trade_date": "2024-12-13",
+   "is_trading_day": true,
+   "bazi_direction": 1,
+   "ziwei_direction": 1,
+   "huangli_direction": 0,
+   "combined_direction": 1,
+   "bazi_score": 68.58,
+   "ziwei_score": 60.09,
+   "huangli_score": 46.06
+  }
+ ],
+ "research_status": "NOT_RUN",
+ "research_status_reasons": [
+  "逐日结果给出的是**该交易日流日的传统规则强度**，不是价格预测，也没有历史统计支持其预测能力。历史有效性必须由研究流水线（事件研究 + 负对照）回答。"
+ ],
+ "methodology": "每个点都是独立求值的**流日**结果（as_of 之后连续的实际交易日，来自实测交易日历 SSE），不是把月度分数插值到每一天。本批数据中可用的引擎：bazi、huangli、ziwei；不可用引擎的分数字段为 null，不参与方向合成、也不以 0 替代。",
+ "warnings": [],
+ "_fixture": {
+  "generated_at": "2026-09-21T09:33:22",
+  "stock_code": "600519",
+  "as_of": "2024-11-15T15:00:00",
+  "note": "演示模式固定样本；数值来自真实确定性计算，冻结于此文件。"
+ }
+}

@@ -242,7 +242,7 @@ test.describe("批次 A 补验专项 2：非支持标的演示模式隔离验证
 });
 
 test.describe("批次 A 补验专项 3：时间窗口演示数据具体值与可用性验证", () => {
-  test("时间窗口页面基准日期展示正常，四个月份三模型评分与方向具体可用，绝不显示「不可用」", async ({ page }) => {
+  test("时间窗口页面基准日期展示正常，月度三模型评分与方向具体可用，绝不显示「不可用」", async ({ page }) => {
     await page.goto(`/stock/600519/timeline${FIXTURE}`, { waitUntil: "load" });
     await expect(page.getByTestId("page-title").first()).toBeVisible();
 
@@ -257,40 +257,26 @@ test.describe("批次 A 补验专项 3：时间窗口演示数据具体值与可
     const monthTable = page.getByTestId("month-table");
     await expect(monthTable).toBeVisible();
 
-    // 逐月断言具体评分、方向与共识状态，坚决排除“不可用”
-    const row202411 = page.getByTestId("month-row-2024-11");
-    await expect(row202411).toBeVisible();
-    const text202411 = await row202411.innerText();
-    expect(text202411).toContain("78");
-    expect(text202411).toContain("72");
-    expect(text202411).toContain("74");
-    expect(text202411).toContain("偏强");
-    expect(text202411).toContain("正向共振");
-    expect(text202411).not.toContain("不可用");
+    // 逐月断言**具体数值**（演示样本由真实后端算出并冻结），坚决排除"不可用"。
+    // 期望值随 fixture 一起更新：改了 lib/fixtures/timeline-months-12.json 就要同步这里。
+    const expectations: [string, string[]][] = [
+      ["2024-12", ["66.73", "55.77", "56.62", "中性"]],
+      ["2025-01", ["68.75", "55.86", "71.98", "中性"]],
+      // 注意：分数由 JS 数字直接渲染，70.8 不会补成 "70.80"、71 不会补成 "71.00"
+      ["2025-02", ["70.8", "53.88", "55.83", "中性"]],
+      ["2025-03", ["71", "58.75", "57.68", "中性"]],
+    ];
+    for (const [month, values] of expectations) {
+      const row = page.getByTestId(`month-row-${month}`);
+      await expect(row).toBeVisible();
+      const text = await row.innerText();
+      for (const v of values) expect(text).toContain(v);
+      expect(text).not.toContain("不可用");
+    }
 
-    const row202412 = page.getByTestId("month-row-2024-12");
-    const text202412 = await row202412.innerText();
-    expect(text202412).toContain("76");
-    expect(text202412).toContain("62");
-    expect(text202412).toContain("70");
-    expect(text202412).toContain("温和偏强");
-    expect(text202412).not.toContain("不可用");
-
-    const row202501 = page.getByTestId("month-row-2025-01");
-    const text202501 = await row202501.innerText();
-    expect(text202501).toContain("58");
-    expect(text202501).toContain("75");
-    expect(text202501).toContain("56");
-    expect(text202501).toContain("中性观察");
-    expect(text202501).not.toContain("不可用");
-
-    const row202502 = page.getByTestId("month-row-2025-02");
-    const text202502 = await row202502.innerText();
-    expect(text202502).toContain("82");
-    expect(text202502).toContain("80");
-    expect(text202502).toContain("76");
-    expect(text202502).toContain("强烈共振");
-    expect(text202502).not.toContain("不可用");
+    // 共识与冲突必须同时可见（不允许用平均分掩盖分歧）
+    const conflictRow = page.getByTestId("month-row-2024-12");
+    await expect(conflictRow).toContainText("有冲突");
   });
 });
 

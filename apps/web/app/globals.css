@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./fonts.css";
 
 /* ==========================================================================
    股票玄学多模型研究平台 · Design Tokens
@@ -61,11 +62,17 @@
   --color-metal: #b9c4cc;
   --color-water: #5b8fd4;
 
-  /* --- 字体 --- */
-  --font-sans: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Hiragino Sans GB",
-    system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* --- 字体 ---
+     自托管子集放在最前面（见 fonts.css 与 public/fonts/README.md）：
+     这样"品牌宋体"在所有平台上都是同一份字形，不再取决于本机装了什么。
+
+     参考图渲染字体未随图提供，因此**不声称**已识别原字体；
+     Noto Sans/Serif SC 是 OFL 授权下与参考图风格最接近、可合法分发的替代字体，
+     残余差异在交付报告中如实列出。 */
+  --font-sans: "SMP Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans SC",
+    "Hiragino Sans GB", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Courier New", monospace;
-  --font-serif-cn: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+  --font-serif-cn: "SMP Serif SC", "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
 
   /* --- 尺寸 --- */
   --spacing-sidebar: 232px;
@@ -297,6 +304,26 @@ body::before {
 
   .smp-scroll {
     scrollbar-width: thin;
+  }
+
+  /* 统一输入框 / 选择框：此前各页各写一套 rounded/border/padding，
+     结果同一个"日期输入"在不同页面高度与边框颜色都不一样。 */
+  .smp-input {
+    @apply rounded-[6px] border px-2.5 py-[6px] text-[12.5px] outline-none transition-colors;
+    border-color: var(--color-border-strong);
+    background: var(--color-surface-1);
+    color: var(--color-ink);
+  }
+  .smp-input::placeholder {
+    color: var(--color-ink-faint);
+  }
+  .smp-input:focus {
+    border-color: var(--color-gold-dim);
+  }
+  /* 原生日期控件的日历图标在深色底上默认是黑图标，需要反色 */
+  .smp-input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.72) sepia(0.35) saturate(2.4) hue-rotate(2deg);
+    cursor: pointer;
   }
 
   .smp-divider {

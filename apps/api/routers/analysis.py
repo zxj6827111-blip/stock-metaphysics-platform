@@ -357,6 +357,101 @@ def get_bazi_chart(
     }
 
 
+@router.get("/api/v1/analysis/{analysis_id}/huangli/outlook",
+            summary="未来交易日黄历（基准日当日或之后的前 N 个有效交易日）")
+def get_huangli_outlook(
+    analysis_id: str,
+    mode: str = Query(
+        "trading_days",
+        pattern="^(today|trading_days|months)$",
+        description="today=仅基准日当日；trading_days=前 N 个交易日；months=未来 N 个自然月的交易日",
+    ),
+    days: int = Query(20, ge=1, le=90, description="trading_days 模式下的交易日数量"),
+    months: int = Query(3, ge=1, le=3, description="months 模式下的自然月数量"),
+    db: Session = Depends(db_session),
+    service: AnalysisService = Depends(get_analysis_service),
+) -> dict:
+    """未来交易日黄历。
+
+    **交易日来自实测日历**（``TradingCalendarProvider``，由指数真实成交日推导），
+    不是"排除周末"的近似：长假、休市日不会出现在日期卡里。
+    基准日不是交易日时从其后首个交易日开始，并在 ``rule_cn`` 中标注。
+    日历覆盖不足时只返回覆盖得到的天数并给出原因，**不补造日期、不填零**。
+    """
+    from src.core.orchestration.huangli_outlook import build_huangli_outlook
+    from src.core.orchestration.result_cache import HUANGLI_CACHE, cache_descriptor
+
+    run = service.load_analysis(db, analysis_id)
+    if run is None:
+        raise NotFoundError(f"分析记录不存在: {analysis_id}")
+
+    exchange = str(run.birth_profile.exchange) if run.birth_profile else "SSE"
+    key = HUANGLI_CACHE.key(
+        "outlook", run.stock_code, run.as_of.isoformat(), exchange, mode, days, months,
+        service.huangli.engine_version, settings.config_version,
+    )
+
+    def _compute() -> dict:
+        return {
+            "analysis_id": analysis_id,
+            "stock_code": run.stock_code,
+            **build_huangli_outlook(
+                as_of=run.as_of, exchange=exchange, mode=mode, days=days, months=months,
+            ),
+        }
+
+    payload, hit = HUANGLI_CACHE.get_or_compute(key, _compute)
+    return {**payload, "cache": cache_descriptor(key, hit)}
+
+
+@router.get("/api/v1/analysis/{analysis_id}/huangli/performance",
+            summary="黄历日课分类的历史表现（描述性统计）")
+def get_huangli_performance(
+    analysis_id: str,
+    window: str = Query("1y", pattern="^(1y|3y|5y|custom)$"),
+    horizon: int = Query(1, description="持有期（交易日）：1 / 5 / 20"),
+    start: str | None = Query(None, description="window=custom 时的起始日 YYYY-MM-DD"),
+    end: str | None = Query(None, description="window=custom 时的结束日 YYYY-MM-DD"),
+    db: Session = Depends(db_session),
+    service: AnalysisService = Depends(get_analysis_service),
+) -> dict:
+    """按版本化日课分类（吉 / 凶）统计未来的持有期收益。
+
+    **这是描述性统计，不是策略回测**：没有组合规则、仓位、交易成本与可执行性检验，
+    因此不产出净值或累计收益曲线。样本只取标签在分析基准日之前**已可观测**的那些。
+    """
+    from src.core.orchestration.result_cache import HUANGLI_CACHE, cache_descriptor
+    from src.research.huangli.day_class_returns import (
+        HUANGLI_PERFORMANCE_VERSION,
+        build_day_class_performance,
+    )
+
+    run = service.load_analysis(db, analysis_id)
+    if run is None:
+        raise NotFoundError(f"分析记录不存在: {analysis_id}")
+
+    key = HUANGLI_CACHE.key(
+        "performance", run.stock_code, run.as_of.isoformat(), window, horizon,
+        start or "", end or "", HUANGLI_PERFORMANCE_VERSION,
+        service.huangli.engine_version,
+    )
+
+    def _compute() -> dict:
+        return {
+            "analysis_id": analysis_id,
+            **build_day_class_performance(
+                stock_code=run.stock_code, as_of=run.as_of,
+                window=window, horizon=horizon, start=start, end=end,
+            ),
+        }
+
+    try:
+        payload, hit = HUANGLI_CACHE.get_or_compute(key, _compute)
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    return {**payload, "cache": cache_descriptor(key, hit)}
+
+
 @router.get("/api/v1/analysis/{analysis_id}/huangli", summary="获取黄历")
 def get_huangli(
     analysis_id: str,
@@ -804,27 +899,39 @@ def get_timeline_months(
         raise InvalidRequestError("该分析记录缺少出生档案，无法构建时间窗口。")
 
     variant = _resolve_timeline_variant(run)
-    response = build_time_windows(
-        stock_code=run.stock_code,
-        as_of=run.as_of,
-        birth_datetime=run.birth_profile.birth_datetime.replace(tzinfo=None),
-        months=months, weeks=0,
-        variant_mode=variant,
-        exchange=str(run.birth_profile.exchange),
-        service=service,
+    from src.core.orchestration.result_cache import TIMELINE_CACHE, cache_descriptor
+
+    key = TIMELINE_CACHE.key(
+        "months", analysis_id, months,
+        run.birth_profile.birth_datetime.isoformat(), run.as_of.isoformat(),
+        *_timeline_versions(run, service),
     )
-    return {
-        "analysis_id": analysis_id,
-        "stock_code": run.stock_code,
-        "as_of": response.as_of.isoformat(),
-        "variant_mode": response.variant_mode,
-        "aggregation_version": response.aggregation_version,
-        "months": [m.model_dump(mode="json") for m in response.months],
-        "research_status": response.research_status,
-        "research_status_reasons": response.research_status_reasons,
-        "methodology": response.methodology,
-        "warnings": [w.model_dump(mode="json") for w in response.warnings],
-    }
+
+    def _compute() -> dict:
+        response = build_time_windows(
+            stock_code=run.stock_code,
+            as_of=run.as_of,
+            birth_datetime=run.birth_profile.birth_datetime.replace(tzinfo=None),
+            months=months, weeks=0,
+            variant_mode=variant,
+            exchange=str(run.birth_profile.exchange),
+            service=service,
+        )
+        return {
+            "analysis_id": analysis_id,
+            "stock_code": run.stock_code,
+            "as_of": response.as_of.isoformat(),
+            "variant_mode": response.variant_mode,
+            "aggregation_version": response.aggregation_version,
+            "months": [m.model_dump(mode="json") for m in response.months],
+            "research_status": response.research_status,
+            "research_status_reasons": response.research_status_reasons,
+            "methodology": response.methodology,
+            "warnings": [w.model_dump(mode="json") for w in response.warnings],
+        }
+
+    payload, hit = TIMELINE_CACHE.get_or_compute(key, _compute)
+    return {**payload, "cache": cache_descriptor(key, hit)}
 
 
 @router.get(
@@ -852,27 +959,39 @@ def get_timeline_weeks(
         raise InvalidRequestError("该分析记录缺少出生档案，无法构建时间窗口。")
 
     variant = _resolve_timeline_variant(run)
-    response = build_time_windows(
-        stock_code=run.stock_code,
-        as_of=run.as_of,
-        birth_datetime=run.birth_profile.birth_datetime.replace(tzinfo=None),
-        months=0, weeks=weeks,
-        variant_mode=variant,
-        exchange=str(run.birth_profile.exchange),
-        service=service,
+    from src.core.orchestration.result_cache import TIMELINE_CACHE, cache_descriptor
+
+    key = TIMELINE_CACHE.key(
+        "weeks", analysis_id, weeks,
+        run.birth_profile.birth_datetime.isoformat(), run.as_of.isoformat(),
+        *_timeline_versions(run, service),
     )
-    return {
-        "analysis_id": analysis_id,
-        "stock_code": run.stock_code,
-        "as_of": response.as_of.isoformat(),
-        "variant_mode": response.variant_mode,
-        "aggregation_version": response.aggregation_version,
-        "weeks": [w.model_dump(mode="json") for w in response.weeks],
-        "research_status": response.research_status,
-        "research_status_reasons": response.research_status_reasons,
-        "methodology": response.methodology,
-        "warnings": [w.model_dump(mode="json") for w in response.warnings],
-    }
+
+    def _compute() -> dict:
+        response = build_time_windows(
+            stock_code=run.stock_code,
+            as_of=run.as_of,
+            birth_datetime=run.birth_profile.birth_datetime.replace(tzinfo=None),
+            months=0, weeks=weeks,
+            variant_mode=variant,
+            exchange=str(run.birth_profile.exchange),
+            service=service,
+        )
+        return {
+            "analysis_id": analysis_id,
+            "stock_code": run.stock_code,
+            "as_of": response.as_of.isoformat(),
+            "variant_mode": response.variant_mode,
+            "aggregation_version": response.aggregation_version,
+            "weeks": [w.model_dump(mode="json") for w in response.weeks],
+            "research_status": response.research_status,
+            "research_status_reasons": response.research_status_reasons,
+            "methodology": response.methodology,
+            "warnings": [w.model_dump(mode="json") for w in response.warnings],
+        }
+
+    payload, hit = TIMELINE_CACHE.get_or_compute(key, _compute)
+    return {**payload, "cache": cache_descriptor(key, hit)}
 
 
 def _resolve_timeline_variant(run: AnalysisRun) -> VariantMode:
@@ -887,6 +1006,96 @@ def _resolve_timeline_variant(run: AnalysisRun) -> VariantMode:
     if raw in ("forward", "reverse", "both"):
         return VariantMode.FORWARD if raw == "both" else VariantMode(raw)
     return VariantMode.FORWARD
+
+
+def _timeline_versions(run: AnalysisRun, service: AnalysisService) -> tuple[str, ...]:
+    """缓存键里的版本分量。
+
+    少任何一个版本都可能把旧口径的结果当新口径返回，因此这里把
+    会改变窗口数值的版本全列出来：三个引擎版本 + 聚合/逐日口径 +
+    因子规则版本（窗口分数由因子规则定义）。
+    """
+    from src.core.schemas.timeline import AGGREGATION_VERSION, DAILY_WINDOW_VERSION
+
+    return (
+        service.bazi.engine_version,
+        service.ziwei.engine_version,
+        service.huangli.engine_version,
+        AGGREGATION_VERSION,
+        DAILY_WINDOW_VERSION,
+        settings.factor_rule_version,
+        settings.ziwei_factor_rule_version,
+        str(run.birth_profile.variant_mode if run.birth_profile else ""),
+    )
+
+@router.get(
+    "/api/v1/analysis/{analysis_id}/timeline/days",
+    summary="逐日时间窗口（as_of 之后连续交易日的三模型流日结果）",
+)
+def get_timeline_days(
+    analysis_id: str,
+    days: int = Query(20, ge=1, le=60),
+    db: Session = Depends(db_session),
+    service: AnalysisService = Depends(get_analysis_service),
+) -> dict:
+    """逐日窗口。
+
+    **粒度声明**：这里的每一天都是独立的**流日**求值结果
+    （该交易日日柱 + 当日黄历 + 当日紫微流日），**不是**把月度分数
+    插值到每一天得到的"每日预测曲线"。不可用的引擎其分数为 ``null``。
+    """
+    from src.core.orchestration.result_cache import TIMELINE_CACHE, cache_descriptor
+    from src.core.orchestration.timeline import build_daily_windows
+
+    run = service.load_analysis(db, analysis_id)
+    if run is None:
+        raise NotFoundError(f"分析记录不存在: {analysis_id}")
+    if run.birth_profile is None:
+        raise InvalidRequestError("该分析记录缺少出生档案，无法构建逐日窗口。")
+
+    variant = _resolve_timeline_variant(run)
+    key = TIMELINE_CACHE.key(
+        "days", analysis_id, days,
+        run.birth_profile.birth_datetime.isoformat(), run.as_of.isoformat(),
+        *_timeline_versions(run, service),
+    )
+
+    def _compute() -> dict:
+        response = build_daily_windows(
+            stock_code=run.stock_code,
+            as_of=run.as_of,
+            birth_datetime=run.birth_profile.birth_datetime.replace(tzinfo=None),
+            days=days,
+            variant_mode=variant,
+            exchange=str(run.birth_profile.exchange),
+            service=service,
+        )
+        return {
+            "analysis_id": analysis_id,
+            "stock_code": run.stock_code,
+            "as_of": response.as_of.isoformat(),
+            "variant_mode": response.variant_mode,
+            "daily_version": response.daily_version,
+            "requested_days": response.requested_days,
+            "returned_days": response.returned_days,
+            "available_engines": sorted(
+                name
+                for name, present in (
+                    ("bazi", any(d.bazi_score is not None for d in response.days)),
+                    ("ziwei", any(d.ziwei_score is not None for d in response.days)),
+                    ("huangli", any(d.huangli_score is not None for d in response.days)),
+                )
+                if present
+            ),
+            "days": [d.model_dump(mode="json") for d in response.days],
+            "research_status": response.research_status,
+            "research_status_reasons": response.research_status_reasons,
+            "methodology": response.methodology,
+            "warnings": [w.model_dump(mode="json") for w in response.warnings],
+        }
+
+    payload, hit = TIMELINE_CACHE.get_or_compute(key, _compute)
+    return {**payload, "cache": cache_descriptor(key, hit)}
 
 
 # ---------------------------------------------------------------------------

@@ -26,6 +26,9 @@ from src.core.schemas.common import SMBaseModel, Warning_
 #: 聚合方法版本。**改动聚合口径必须提升它**，否则"同一个月的分数为什么变了"无法追溯。
 AGGREGATION_VERSION = "agg-v1"
 
+#: 逐日窗口序列化口径版本（字段增删 / 含义变化必须提升）
+DAILY_WINDOW_VERSION = "daily-v1"
+
 #: 大限/流年等窗口类型
 WINDOW_KINDS = ("month", "week")
 
@@ -110,7 +113,6 @@ class TimeWindowRequest(SMBaseModel):
     as_of: str | None = None
     variant_mode: str = "forward"
 
-
 class TimeWindowResponse(SMBaseModel):
     """``GET /api/v1/analysis/{id}/timeline/{months,weeks}`` 的响应。"""
 
@@ -128,7 +130,31 @@ class TimeWindowResponse(SMBaseModel):
     computed_at: datetime = Field(default_factory=datetime.now)
 
 
+class DailyWindowResponse(SMBaseModel):
+    """``GET /api/v1/analysis/{id}/timeline/days`` 的响应（逐日粒度）。
+
+    **逐日 ≠ 把月度分数插值到每一天。** 这里的每一天都是独立的流日结果：
+    以该交易日的日柱 + 当日黄历 + 当日紫微流日为输入重新求值，
+    因此缺哪一个模型就显式缺那一个（``*_score`` 为 ``None``），不填 0。
+    """
+
+    stock_code: str
+    as_of: datetime
+    analysis_id: str = ""
+    variant_mode: str = ""
+    daily_version: str = DAILY_WINDOW_VERSION
+    requested_days: int = 0
+    returned_days: int = 0
+    days: list[DayResult] = Field(default_factory=list)
+    research_status: str = "NOT_RUN"
+    research_status_reasons: list[str] = Field(default_factory=list)
+    methodology: str = ""
+    warnings: list[Warning_] = Field(default_factory=list)
+    computed_at: datetime = Field(default_factory=datetime.now)
+
+
 __all__ = [
     "MonthWindow", "WeekWindow", "DayResult", "TimeWindowRequest",
-    "TimeWindowResponse", "AGGREGATION_VERSION",
+    "TimeWindowResponse", "DailyWindowResponse",
+    "AGGREGATION_VERSION", "DAILY_WINDOW_VERSION",
 ]

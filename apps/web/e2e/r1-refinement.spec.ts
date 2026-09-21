@@ -130,9 +130,22 @@ test.describe("R1-2 非支持标的演示页：服务端与客户端同分支（
     ).toBe(true);
 
     await page.goto(`/stock/002008/huangli${FIXTURE}`, { waitUntil: "load" });
-    await expect(page.getByTestId("unsupported-fixture-error")).toBeVisible();
+
+    // 关键：等待**应用就绪信号**再断言。
+    // Next.js 流式 SSR 会先把整页放进 <div hidden id="S:0">，再由文档末尾的
+    // $RC() 搬进 Suspense 边界；这段窗口里 DOM 是"服务端内容尚未就位"的中间态。
+    // 之前用固定 waitForTimeout 断言，偶尔会撞上中间态（表现为同名 testid 短暂出现两份）。
+    // 现在等 AppShell 在客户端挂载后写入的 data-app-ready，再断言稳定终态。
+    await expect(page.locator('[data-app-ready="true"]')).toBeAttached();
+    await expect(page.locator('[data-fixture-mode="fixture"]')).toBeAttached();
+
+    // 隔离卡必须是**唯一**一份：并发出现两份说明服务端内容被重复插入
+    const isolationCard = page.locator(
+      '[data-app-ready="true"] [data-testid="unsupported-fixture-error"]',
+    );
+    await expect(isolationCard).toHaveCount(1);
+    await expect(isolationCard).toBeVisible();
     await expect(page.getByTestId("enter-real-mode-btn")).toBeVisible();
-    await page.waitForTimeout(1200);
 
     expect(apiCalls, `演示模式不得发起真实后端请求：${apiCalls.join(" | ")}`).toHaveLength(0);
     const realErrors = errors.filter((e) => !/Failed to load resource/i.test(e));
@@ -158,7 +171,8 @@ test.describe("R1-2 非支持标的演示页：服务端与客户端同分支（
       });
 
       await page.goto(`${path}${FIXTURE}`, { waitUntil: "load" });
-      await page.waitForTimeout(1000);
+      // 等应用挂载完成再断言：避免在流式 SSR 的中间态上做判断
+      await expect(page.locator('[data-app-ready="true"]')).toBeAttached();
       expect(apiCalls).toHaveLength(0);
       expect(errors, `控制台错误：${errors.join(" | ")}`).toHaveLength(0);
     });
@@ -171,11 +185,12 @@ test.describe("R1-2 非支持标的演示页：服务端与客户端同分支（
     });
 
     await page.goto(`/stock/600519/overview${FIXTURE}`, { waitUntil: "load" });
+    await expect(page.locator('[data-app-ready="true"]')).toBeAttached();
     await expect(page.getByTestId("page-title").first()).toBeVisible();
 
     // 重算
     await page.getByTestId("recalculate").first().click();
-    await page.waitForTimeout(700);
+    await expect(page.getByTestId("page-title").first()).toBeVisible();
 
     // 搜索（顶栏入口，输入即触发本地目录建议）
     const search = page.getByTestId("stock-search-input").first();
@@ -224,15 +239,15 @@ test.describe("R1-2 公共展示：内部状态中文化，裸标签与裸码不
     await page.waitForTimeout(400);
     const main = page.locator("main").first();
 
-    // 固定演示数据是 4 个月 / 3 周，标题不得写死"12"
-    await expect(main).toContainText("共 4 个月");
-    await expect(main).toContainText("共 3 周");
+    // 标题的数量必须来自实际返回（演示样本为 12 个月 / 12 周），不得写死文案
+    await expect(main).toContainText("共 12 个月");
+    await expect(main).toContainText("共 12 周");
     await expect(main).not.toContainText("未来 12 个月");
     await expect(main).not.toContainText("未来 12 周");
 
-    // 分析基准日 2024-11-15 落在 2024-11-11~15 这一周内 → 「当前周」而非「下一周」
-    await expect(main).toContainText("当前周（含分析基准日）");
-    await expect(main).not.toContainText("下一周");
+    // 演示样本的周窗口自 as_of（2024-11-15）之后的首个交易日起算 →
+    // 判定为「下一周（基准日之后）」，而不是把已含基准日的那一周叫"下一周"
+    await expect(main).toContainText("下一周（基准日之后）");
   });
 
   test("古籍证据页：演示语料身份清晰，不宣称真实引用", async ({ page }) => {

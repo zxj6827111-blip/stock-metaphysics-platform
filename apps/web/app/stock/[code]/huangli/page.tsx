@@ -3,23 +3,31 @@
 /**
  * 黄历 / 日课详情页（复刻 doc/ui-reference/08_huangli_detail.png）。
  *
- * 视觉分区（uiux_spec §19 的要求）：
+ * 视觉分区（uiux_spec §19 的要求）
+ * -------------------------------
  *   ① **传统黄历数据**（建除十二值 / 十二神 / 黄黑道 / 冲煞 / 彭祖百忌 / 吉神方位）
  *      —— 这是历法与通书口径，不是对股票的判断；
- *   ② **与该股票原局的关系**（H_DAY_* / H_MONTH_* 因子）—— 这是本项目的研究映射。
+ *   ② **未来交易日黄历**（基准日之后的前 N 个交易日，来自实测交易日历）；
+ *   ③ **黄历证据与历史表现**（按版本化日课分类的描述性统计）；
+ *   ④ **与该股票原局的关系**（H_DAY_* / H_MONTH_* 因子）—— 本项目的研究映射。
  *
- * 两区之间必须视觉分离，避免读者把"今日宜开市"当成"该股今天会上涨"。
+ * 各区之间必须视觉分离，避免读者把"今日宜开市"当成"该股今天会上涨"。
+ * 每一块都是**区块级三态**：某一块慢或失败不会吞掉其它已加载的数据。
  */
 
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 
 import { Card, CardHeader } from "@/components/cards/Card";
+import { HuangliPerformancePanel } from "@/components/huangli/HuangliPerformancePanel";
+import { HuangliTradingDayGrid } from "@/components/huangli/HuangliTradingDayGrid";
 import { ResearchPage, SectionNote } from "@/components/shell/ResearchPage";
-import { PageLoading, UnavailableBlock } from "@/components/shell/PageState";
+import { PageLoading, ResearchStatusBadge, UnavailableBlock } from "@/components/shell/PageState";
+import { SectionError, SectionLoading } from "@/components/shell/SectionState";
 import { IconCalendar, IconBook, IconTrend } from "@/components/shell/Icons";
 import { api, endpoints } from "@/lib/api";
 import { useAnalysis } from "@/lib/analysisStore";
+import { useAsOfParam } from "@/lib/useAsOfParam";
 import { FIXTURE_QUERY_VALUE, huangliFixture } from "@/lib/fixture";
 
 interface HuangliResponse {
@@ -36,11 +44,16 @@ function HuangliInner() {
   const fixture = searchParams?.get("fixture") === FIXTURE_QUERY_VALUE;
   const code = params?.code ?? "600519";
   const isMoutaiFixture = fixture && code === "600519";
-  const { analysis, loading, error, reload } = useAnalysis(code);
+  // 基准日可由 URL 指定（研究复核 / 验收需要确定的时点）
+  const asOf = useAsOfParam();
+  const { analysis, loading, error, reload } = useAnalysis(code, "forward", asOf);
 
-  const [hl, setHl] = useState<HuangliResponse | null>(isMoutaiFixture ? (huangliFixture as unknown as HuangliResponse) : null);
+  const [hl, setHl] = useState<HuangliResponse | null>(
+    isMoutaiFixture ? (huangliFixture as unknown as HuangliResponse) : null,
+  );
   const [hlLoading, setHlLoading] = useState(!isMoutaiFixture);
   const [hlError, setHlError] = useState<string | null>(null);
+  const [hlNonce, setHlNonce] = useState(0);
 
   const load = useCallback(async (analysisId: string) => {
     if (isMoutaiFixture) {
@@ -66,10 +79,11 @@ function HuangliInner() {
       return;
     }
     if (analysis?.analysis_id) void load(analysis.analysis_id);
-  }, [analysis?.analysis_id, isMoutaiFixture, load]);
+  }, [analysis?.analysis_id, isMoutaiFixture, load, hlNonce]);
 
   const h = (hl?.huangli ?? {}) as Record<string, unknown>;
   const primary = (h.primary ?? h.today ?? h.day ?? h) as Record<string, unknown>;
+  const analysisId = analysis?.analysis_id ?? null;
 
   // 黄历相关因子（H_*）—— 与传统黄历数据分区展示
   const huangliFactors = (analysis?.factors?.observations ?? []).filter((o) =>
@@ -123,6 +137,8 @@ function HuangliInner() {
       title="黄历 / 日课详情"
       subtitle="观天时、择时机，以交易日历研判短中期节奏"
       seal="历"
+      couplet={["观天时", "寻地利", "察人和", "知进退"]}
+      motto={["顺势而为", "知行合一"]}
       code={code}
       analysis={analysis}
       loading={loading}
@@ -130,25 +146,6 @@ function HuangliInner() {
       onReload={reload}
       loadingLabel="正在读取黄历与日课数据…"
     >
-      {hlError ? (
-        <Card testId="huangli-error" className="p-4">
-          <div className="text-[13px]" style={{ color: "var(--color-warn)" }}>
-            黄历数据加载失败：{hlError}
-          </div>
-          {analysis?.analysis_id ? (
-            <div className="mt-2">
-              <button
-                type="button"
-                className="smp-btn smp-btn--primary px-3 py-1 text-[12px]"
-                onClick={() => void load(analysis.analysis_id)}
-              >
-                重试加载黄历
-              </button>
-            </div>
-          ) : null}
-        </Card>
-      ) : null}
-
       {/* ===================== 分区一：传统黄历数据 ===================== */}
       <div
         className="rounded border-l-4 px-4 py-3"
@@ -175,10 +172,17 @@ function HuangliInner() {
           }
           dense
         />
-        {hlLoading ? (
-          <div className="py-3 text-[12.5px]" style={{ color: "var(--color-ink-muted)" }}>
-            正在加载…
-          </div>
+        {hlLoading ? <SectionLoading label="正在加载黄历快照…" rows={2} /> : null}
+        {!hlLoading && hlError ? (
+          <SectionError
+            what="黄历快照"
+            message={hlError}
+            onRetry={() => {
+              setHlNonce((n) => n + 1);
+              if (analysisId) void load(analysisId);
+            }}
+            testId="huangli-error"
+          />
         ) : null}
         {hl ? (
           <div>
@@ -198,9 +202,9 @@ function HuangliInner() {
               <div className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-2" data-testid="traditional-matters">
                 <div
                   className="rounded border p-2.5"
-                  style={{ borderColor: "var(--color-border)", background: "rgba(79,211,155,0.04)" }}
+                  style={{ borderColor: "var(--color-border)", background: "rgba(212,184,122,0.05)" }}
                 >
-                  <div className="text-[11.5px] font-semibold" style={{ color: "var(--color-down)" }}>
+                  <div className="text-[11.5px] font-semibold" style={{ color: "var(--color-gold)" }}>
                     宜（通书事宜）
                   </div>
                   <div className="mt-1 text-[12px] leading-relaxed" style={{ color: "var(--color-ink-sub)" }}>
@@ -211,9 +215,9 @@ function HuangliInner() {
                 </div>
                 <div
                   className="rounded border p-2.5"
-                  style={{ borderColor: "var(--color-border)", background: "rgba(232,88,90,0.04)" }}
+                  style={{ borderColor: "var(--color-border)", background: "rgba(124,143,163,0.05)" }}
                 >
-                  <div className="text-[11.5px] font-semibold" style={{ color: "var(--color-up)" }}>
+                  <div className="text-[11.5px] font-semibold" style={{ color: "var(--color-flat)" }}>
                     忌（通书禁忌）
                   </div>
                   <div className="mt-1 text-[12px] leading-relaxed" style={{ color: "var(--color-ink-sub)" }}>
@@ -225,7 +229,7 @@ function HuangliInner() {
               </div>
             ) : null}
           </div>
-        ) : !hlLoading ? (
+        ) : !hlLoading && !hlError ? (
           <UnavailableBlock
             what="黄历快照"
             reason="本次分析未保存黄历原始快照（可能分析未落库）。"
@@ -235,19 +239,54 @@ function HuangliInner() {
           <SectionNote>
             <b>注意：</b>「宜开市 / 忌动土」这类通书条目描述的是传统择日观念，
             与证券价格没有任何已确认的因果关系。系统把它们作为<strong>研究变量</strong>，
-            其历史有效性由历史验证页回答。
+            其历史有效性由下方「黄历证据与历史表现」回答。
           </SectionNote>
         </div>
       </Card>
 
-      {/* ===================== 分区二：与原局的关系（研究映射） ===================== */}
+      {/* ===================== 分区二：未来交易日黄历 ===================== */}
+      <div
+        className="rounded border-l-4 px-4 py-3"
+        style={{ borderColor: "var(--color-gold)", background: "rgba(212,160,74,0.06)" }}
+        data-testid="section-future-huangli"
+      >
+        <div className="text-[13px] font-semibold" style={{ color: "var(--color-gold)" }}>
+          ② 未来交易日黄历（基准日之后的实际交易日）
+        </div>
+        <div className="mt-0.5 text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+          日期来自<strong>实测</strong>指数成交日序列，不是"排除周末"的近似：长假、休市日不会出现在卡片里。
+          默认口径为「基准日当日或之后的前 20 个有效交易日」。
+        </div>
+      </div>
+
+      <HuangliTradingDayGrid analysisId={analysisId} />
+
+      {/* ===================== 分区三：证据与历史表现 ===================== */}
+      <div
+        className="rounded border-l-4 px-4 py-3"
+        style={{ borderColor: "var(--color-info)", background: "rgba(107,143,212,0.06)" }}
+        data-testid="section-huangli-performance"
+      >
+        <div className="text-[13px] font-semibold" style={{ color: "var(--color-info)" }}>
+          ③ 黄历证据与历史表现（本项目研究统计）
+        </div>
+        <div className="mt-0.5 text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+          把交易日按<strong>版本化的传统日课分类</strong>分组，统计其后持有期收益的分布。
+          这是<strong>描述性统计</strong>，不是策略回测：没有组合规则、仓位与交易成本，
+          因此不提供净值或累计收益曲线。
+        </div>
+      </div>
+
+      <HuangliPerformancePanel analysisId={analysisId} />
+
+      {/* ===================== 分区四：与原局的关系（研究映射） ===================== */}
       <div
         className="rounded border-l-4 px-4 py-3"
         style={{ borderColor: "var(--color-flat)", background: "rgba(124,143,163,0.06)" }}
         data-testid="section-huangli-factors"
       >
         <div className="text-[13px] font-semibold" style={{ color: "var(--color-ink)" }}>
-          ② 与股票原局的关系（本项目研究映射）
+          ④ 与股票原局的关系（本项目研究映射）
         </div>
         <div className="mt-0.5 text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
           以下因子把「当日干支 / 建除 / 黄黑道」与股票原局交叉，属于本项目的<strong>研究变量</strong>，
@@ -256,23 +295,27 @@ function HuangliInner() {
       </div>
 
       <Card>
-        <CardHeader icon={<IconTrend size={15} />} title={`黄历相关因子（${huangliFactors.length} 个）`} dense />
+        <CardHeader
+          icon={<IconTrend size={15} />}
+          title={`黄历相关因子（${huangliFactors.length} 个）`}
+          dense
+        />
         {huangliFactors.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-[12px]" data-testid="huangli-factor-table">
+            <table className="smp-table" data-testid="huangli-factor-table">
               <thead>
-                <tr style={{ color: "var(--color-ink-muted)" }}>
-                  <th className="text-left">因子 ID</th>
-                  <th className="text-left">名称</th>
+                <tr>
+                  <th>因子 ID</th>
+                  <th>名称</th>
                   <th className="text-right">归一化</th>
                   <th className="text-right">规则分</th>
-                  <th className="text-left">说明</th>
+                  <th>说明</th>
                 </tr>
               </thead>
               <tbody>
                 {huangliFactors.map((f) => (
-                  <tr key={f.factor_id} style={{ borderTop: "1px solid var(--color-border)" }}>
-                    <td className="py-1">
+                  <tr key={f.factor_id}>
+                    <td>
                       <code>{f.factor_id}</code>
                     </td>
                     <td>{f.name}</td>
@@ -292,6 +335,12 @@ function HuangliInner() {
             reason="本次分析未产出 H_* 因子（因子层不可用或分析未落库）。"
           />
         )}
+        <div className="mt-2">
+          <ResearchStatusBadge
+            status={analysis?.consensus?.research_status ?? "NOT_RUN"}
+            reasons={consensusReasons(analysis?.consensus)}
+          />
+        </div>
       </Card>
 
       <Card>
@@ -306,6 +355,9 @@ function HuangliInner() {
           <SectionNote>
             原始黄历快照（raw_huangli）已落 <code>chart_artifact</code>，
             可用于审计与复算；业务层只消费结构化字段。
+            未来交易日与历史表现分别由
+            <code> /huangli/outlook </code>与<code> /huangli/performance </code>读出，
+            二者都带口径版本与缓存标识。
           </SectionNote>
         </div>
       </Card>
@@ -332,6 +384,12 @@ function joinText(obj: Record<string, unknown>, keys: string[]): string {
     out.push(typeof v === "string" ? v : JSON.stringify(v));
   }
   return out.join(" · ");
+}
+
+/** 研究状态的原因列表在 `historical_consensus_stats.reasons` 里（后端原样透出）。 */
+function consensusReasons(consensus: { historical_consensus_stats?: Record<string, unknown> } | null | undefined): string[] {
+  const raw = consensus?.historical_consensus_stats?.reasons;
+  return Array.isArray(raw) ? raw.map((x) => String(x)) : [];
 }
 
 export default function HuangliPage() {

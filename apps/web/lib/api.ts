@@ -478,6 +478,173 @@ export interface ApiTimelineWeeks {
   warnings: { code: string; message: string; severity: string }[];
 }
 
+/** 逐日窗口（as_of 之后连续交易日的三模型流日结果）。 */
+export interface ApiTimelineDays {
+  analysis_id: string;
+  stock_code: string;
+  as_of: string;
+  variant_mode: string;
+  daily_version: string;
+  requested_days: number;
+  returned_days: number;
+  available_engines: string[];
+  days: ApiTimeWindowDay[];
+  research_status: string;
+  research_status_reasons: string[];
+  methodology: string;
+  warnings: { code: string; message: string; severity: string }[];
+  cache?: ApiCacheInfo;
+}
+
+export interface ApiCacheInfo {
+  key: string;
+  hit: boolean;
+}
+
+/** 版本化的日课分类口径说明（后端随每次响应下发）。 */
+export interface ApiHuangliClassRule {
+  rule_id: string;
+  basis_field: string;
+  basis_source: string;
+  categories: { code: string; label_cn: string }[];
+  third_category_supported: boolean;
+  difference_note_cn: string;
+  not_a_recommendation_cn: string;
+}
+
+/** 未来交易日黄历的单张日期卡。 */
+export interface ApiHuangliDayCard {
+  date: string;
+  weekday_cn: string;
+  lunar_text: string;
+  year_ganzhi: string;
+  month_ganzhi: string;
+  day_ganzhi: string;
+  jieqi: string;
+  zodiac: string;
+  duty_officer: string;
+  day_tian_shen: string;
+  day_tian_shen_type: string;
+  day_tian_shen_luck: string;
+  xiu: string;
+  xiu_luck: string;
+  day_nayin: string;
+  chong_desc: string;
+  sha_direction: string;
+  pengzu_gan: string;
+  pengzu_zhi: string;
+  cai_shen_direction: string;
+  xi_shen_direction: string;
+  fu_shen_direction: string;
+  day_yi: string[];
+  day_ji: string[];
+  class_code: string | null;
+  class_label_cn: string | null;
+  class_available: boolean;
+  class_basis_cn: string;
+  is_trading_day: boolean;
+  offset_trading_days: number;
+}
+
+export interface ApiHuangliOutlook {
+  analysis_id: string;
+  stock_code: string;
+  outlook_version: string;
+  class_rule_version: string;
+  engine_version: string;
+  exchange: string;
+  as_of: string;
+  anchor_date: string;
+  anchor_is_trading_day: boolean | null;
+  mode: string;
+  requested_days: number | null;
+  requested_months: number | null;
+  returned_days: number;
+  rule_cn: string;
+  coverage: {
+    status: "complete" | "partial" | "unavailable" | string;
+    explanation_cn: string;
+    calendar_loaded: boolean;
+    calendar_source: string;
+    calendar_coverage: { start: string; end: string } | null;
+    unknown_days: number;
+    first_unknown_date: string | null;
+  };
+  class_rule: ApiHuangliClassRule;
+  month_groups: { month: string; dates: string[] }[];
+  days: ApiHuangliDayCard[];
+  warnings: { code: string; message: string; severity: string }[];
+  methodology_cn: string;
+  cache?: ApiCacheInfo;
+}
+
+export interface ApiHuangliPerformanceGroup {
+  class_code: string | null;
+  class_label_cn: string;
+  n: number;
+  mean: number | null;
+  median: number | null;
+  up_share: number | null;
+  mean_excess: number | null;
+  n_excess: number;
+  stats_available: boolean;
+  independent_n: number;
+}
+
+export interface ApiHuangliPerformance {
+  analysis_id: string;
+  stock_code: string;
+  performance_version: string;
+  class_rule_version: string;
+  engine_version: string;
+  as_of: string;
+  window: {
+    id: string;
+    years: number | null;
+    requested_start: string;
+    requested_end: string;
+    effective_start: string | null;
+    effective_end: string | null;
+  };
+  horizon: number;
+  class_rule: ApiHuangliClassRule;
+  labels: {
+    label_version: string;
+    horizon_supported: number[];
+    return_basis_cn: string;
+    bar_source: string | null;
+    bar_adjust: string | null;
+    adj_factor_snapshot: string | null;
+    benchmark_code: string;
+    benchmark_available: boolean;
+    benchmark_note_cn: string;
+    data_cutoff: string | null;
+    label_cutoff: string | null;
+    n_dropped_incomplete_label: number;
+    degraded: boolean;
+  };
+  sample_rule_cn: string;
+  groups: ApiHuangliPerformanceGroup[];
+  series: {
+    dates: string[];
+    by_class: Record<string, (number | null)[]>;
+    counts_by_class: Record<string, number[]>;
+    metric_cn: string;
+  };
+  overlap: {
+    horizon: number;
+    overlap_ratio: number;
+    total_samples?: number;
+    independent_samples?: number;
+    independent_note_cn: string;
+  };
+  key_findings: { level: string; text_cn: string }[];
+  limitations_cn: string[];
+  warnings: { code: string; message: string; severity: string }[];
+  unavailable_reason: string;
+  cache?: ApiCacheInfo;
+}
+
 export interface ApiNarrative {
   analysis_id: string;
   mode: "template" | "llm";
@@ -586,6 +753,24 @@ export const endpoints = {
     `/api/v1/analysis/${id}/timeline/months?months=${months}`,
   timelineWeeks: (id: string, weeks = 12) =>
     `/api/v1/analysis/${id}/timeline/weeks?weeks=${weeks}`,
+  timelineDays: (id: string, days = 20) =>
+    `/api/v1/analysis/${id}/timeline/days?days=${days}`,
+  huangliOutlook: (id: string, mode: string, value: number) =>
+    `/api/v1/analysis/${id}/huangli/outlook?mode=${mode}&${
+      mode === "months" ? "months" : "days"
+    }=${value}`,
+  huangliPerformance: (
+    id: string,
+    opts: { window: string; horizon: number; start?: string; end?: string },
+  ) => {
+    const params = new URLSearchParams({
+      window: opts.window,
+      horizon: String(opts.horizon),
+    });
+    if (opts.start) params.set("start", opts.start);
+    if (opts.end) params.set("end", opts.end);
+    return `/api/v1/analysis/${id}/huangli/performance?${params.toString()}`;
+  },
   evidenceBundle: (id: string) => `/api/v1/analysis/${id}/evidence-bundle`,
   narrative: (id: string) => `/api/v1/analysis/${id}/narrative`,
   report: (id: string, format: "markdown" | "html" = "markdown") =>
