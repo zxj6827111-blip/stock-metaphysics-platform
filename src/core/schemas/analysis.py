@@ -280,6 +280,10 @@ class MultiAnalysisResponse(SMBaseModel):
     as_of: datetime
 
     variant_mode: str = ""
+    #: 研究窗口标签（如 ``20d``）。**只被记录，不参与因子计算**：
+    #: 三个模型的分数不随它变化，事件研究使用自己的持有期集合。
+    #: 回传它是为了让界面能显示"本次分析登记的窗口"，而不是让前端猜测。
+    horizon: str = ""
     bazi_chart: dict | None = None
     ziwei_charts: dict[str, dict] = Field(default_factory=dict, description="variant → 盘面")
     huangli: HuangliSnapshot | None = None

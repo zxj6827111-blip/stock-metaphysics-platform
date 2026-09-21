@@ -36,6 +36,8 @@ import {
 } from "@/components/ziwei/ZiweiChart";
 import type { ApiZiweiChart } from "@/lib/api";
 import { useAnalysis, type AnalysisVariant } from "@/lib/analysisStore";
+import { useBirthBasisParam } from "@/lib/useBirthBasisParam";
+import { useHorizonParam } from "@/lib/useHorizonParam";
 
 const MUTAGEN_TONE: Record<string, string> = {
   禄: "#4FD39B",
@@ -48,7 +50,9 @@ function ZiweiInner() {
   const params = useParams<{ code: string }>();
   const code = params?.code ?? "600519";
   const [variant, setVariant] = useState<AnalysisVariant>("forward");
-  const { analysis, loading, error, reload } = useAnalysis(code, variant);
+  const birthBasis = useBirthBasisParam();
+  const horizon = useHorizonParam();
+  const { analysis, loading, error, reload } = useAnalysis(code, variant, undefined, birthBasis, horizon);
 
   const chart = analysis?.ziwei_charts?.[variant];
   const opinion = analysis?.opinions?.ziwei;

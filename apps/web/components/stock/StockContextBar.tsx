@@ -24,6 +24,7 @@ import { variantModeLabel } from "@/lib/dataSource";
 import { exportReport, type ExportFormat, type ExportTarget } from "@/lib/reportExport";
 import { useWatchlist, WATCHLIST_MAX } from "@/lib/watchlistStore";
 import { IconExport, IconRefresh, IconStar, IconTaiji } from "../shell/Icons";
+import { BirthModelSwitcher, HorizonSwitcher } from "./BirthModelSwitcher";
 import { StockSwitchModal } from "./StockSwitchModal";
 import { KNOWN_STOCK_NAMES } from "@/lib/stockCatalog";
 
@@ -187,6 +188,27 @@ export function StockContextBar({
             ) : null}
             {birthProfile.derivation ? (
               <Field label="推导" value={birthProfile.derivation} />
+            ) : null}
+            {/* 出生模型切换：真实切换研究假设并重新分析（不再是被禁用的占位按钮） */}
+            <span className="w-full">
+              <BirthModelSwitcher />
+            </span>
+            {/* 研究窗口：只登记，不改分数 —— 文案里写明，避免被读成"预测周期" */}
+            <span className="w-full">
+              <HorizonSwitcher />
+            </span>
+            {/* 假设降级必须可见：ipo_date 用上市日近似发行日，是 C 级数据质量 */}
+            {birthProfile.quality !== "A" ? (
+              <span
+                className="w-full rounded border px-2 py-1 text-[11px]"
+                style={{ borderColor: "rgba(224,164,88,0.45)", color: "var(--color-warn)" }}
+                data-testid="birth-basis-quality-note"
+              >
+                当前出生模型的数据质量等级为 {birthProfile.quality}
+                {birthProfile.quality === "C"
+                  ? "（例：ipo_date 以上市日近似发行日）—— 该基准的出生时刻精度不足，结论仅供参考，不得作为正式研究结论。"
+                  : "（存在降级：见下方推导说明）。"}
+              </span>
             ) : null}
           </div>
         ) : null}

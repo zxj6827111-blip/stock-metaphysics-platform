@@ -40,6 +40,8 @@ import {
   type ApiWeekWindow,
 } from "@/lib/api";
 import { useAnalysis } from "@/lib/analysisStore";
+import { useBirthBasisParam } from "@/lib/useBirthBasisParam";
+import { useHorizonParam } from "@/lib/useHorizonParam";
 import { useAsOfParam } from "@/lib/useAsOfParam";
 import { engineCn, variantModeLabel, windowPositionCn } from "@/lib/dataSource";
 import { stripMdEmphasis } from "@/lib/text";
@@ -67,7 +69,9 @@ function TimelineInner() {
   const code = params?.code ?? "600519";
   // 基准日可由 URL 指定（研究复核 / 验收需要确定的时点）
   const asOf = useAsOfParam();
-  const { analysis, loading, error, reload } = useAnalysis(code, "forward", asOf);
+  const birthBasis = useBirthBasisParam();
+  const horizon = useHorizonParam();
+  const { analysis, loading, error, reload } = useAnalysis(code, "forward", asOf, birthBasis, horizon);
 
   const [months, setMonths] = useState<ApiTimelineMonths | null>(null);
   const [weeks, setWeeks] = useState<ApiTimelineWeeks | null>(null);

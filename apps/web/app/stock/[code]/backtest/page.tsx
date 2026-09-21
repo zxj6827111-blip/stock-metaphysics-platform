@@ -38,6 +38,8 @@ import {
   type ApiExperimentSummary,
 } from "@/lib/api";
 import { useAnalysis } from "@/lib/analysisStore";
+import { useBirthBasisParam } from "@/lib/useBirthBasisParam";
+import { useHorizonParam } from "@/lib/useHorizonParam";
 import { engineCn, pct } from "@/lib/dataSource";
 import { isFixtureActive, backtestFixture, experimentFixture } from "@/lib/fixture";
 
@@ -47,7 +49,9 @@ const MIN_SAMPLES = 30;
 function BacktestInner() {
   const params = useParams<{ code: string }>();
   const code = params?.code ?? "600519";
-  const { analysis, loading, error, reload } = useAnalysis(code);
+  const birthBasis = useBirthBasisParam();
+  const horizon = useHorizonParam();
+  const { analysis, loading, error, reload } = useAnalysis(code, "forward", undefined, birthBasis, horizon);
 
   const [es, setEs] = useState<ApiEventStudy | null>(null);
   const [btLoading, setBtLoading] = useState(false);

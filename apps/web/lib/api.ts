@@ -851,6 +851,8 @@ export interface ApiMultiAnalysis {
   birth_profile: ApiBirthProfile;
   as_of: string;
   variant_mode: string;
+  /** 研究窗口标签（如 ``20d``）。**只被记录，不参与因子计算**，见后端 schema 说明。 */
+  horizon?: string;
   bazi_chart: Record<string, unknown> | null;
   ziwei_charts: Record<string, ApiZiweiChart>;
   huangli: Record<string, unknown> | null;
