@@ -22,7 +22,7 @@
 | 工作分支 | `codex/ui-calendar-window-completion`（从 `codex/ui-refinement-r1` 的 HEAD 新建，未创建 worktree、未复制项目） |
 | 基线提交 | `2d90c8f`（= R1 整改 `1acee3d` + 零请求测试 `2d90c8f`） |
 | 基线核实 | `git log --oneline -8` 确认两个提交都在 HEAD；`codex/ui-remediation` 为历史分支，未改动 |
-| 本轮提交 | `0cd1a76`（`feat(ui): 黄历未来交易日与历史表现、时间窗口研究视图、品牌视觉校准`） |
+| 本轮实现提交 | `28f3577`（`feat(ui): 黄历未来交易日与历史表现、时间窗口研究视图、品牌视觉校准`）；其后仅有本报告的哈希同步提交 |
 | 同名分支 | 建立前检查过 `git branch -a --list "*calendar-window*"`，无同名分支，未发生覆盖 |
 
 ---
