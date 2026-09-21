@@ -93,12 +93,18 @@ test.describe("综合研判页", () => {
 
   test("上下文栏展示出生模型与出生时刻（可追溯）", async ({ page }) => {
     const bar = page.getByTestId("stock-context-bar").first();
-    await expect(bar).toContainText("listing_open");
+    // 主行显示中文模型名（内部码不进正文，见 UI 复核任务书 §2），
+    // 原始码仍可在「详情」里读到 —— 可追溯性不丢。
+    await expect(bar).toContainText("上市首日正式开盘");
     await expect(bar).toContainText("2001-08-27 09:30");
     // 参考图的上下文栏展示的是带上时区偏移的时刻；完整时区名放在 title 中
     await expect(bar).toContainText("+08:00");
     const tzTitle = await bar.locator("[title*='Asia/Shanghai']").count();
     expect(tzTitle).toBeGreaterThan(0);
+
+    // 展开详情后必须给出原始内部码（可追溯性）
+    await bar.getByTestId("context-details-toggle").click();
+    await expect(bar.getByTestId("context-birth-fields")).toContainText("listing_open");
   });
 
   test("不显示综合总分，共识与历史验证分列", async ({ page }) => {
