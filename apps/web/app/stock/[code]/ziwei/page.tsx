@@ -67,15 +67,26 @@ function ZiweiInner() {
             <ZiweiChartGrid chart={chart} highlightTrine />
           </div>
         ) : (
-          <UnavailableBlock
-            what="紫微盘面"
-            testId="ziwei-unavailable"
-            reason={
-              opinion?.note ||
-              "本次分析未产出紫微盘面：可能是紫微排盘服务不可用，或未指定方向 variant。" +
-                "系统不会用空盘面或 0 分冒充结果。"
-            }
-          />
+          <div className="space-y-3">
+            <UnavailableBlock
+              what="紫微盘面"
+              testId="ziwei-unavailable"
+              reason={
+                opinion?.note ||
+                "本次分析未产出紫微盘面：可能是紫微排盘服务不可用，或未指定方向 variant。" +
+                  "系统不会用空盘面或 0 分冒充结果。"
+              }
+            />
+            <div className="flex items-center justify-center pb-2">
+              <button
+                type="button"
+                className="smp-btn smp-btn--primary px-4 py-1.5 text-[12.5px] font-medium"
+                onClick={reload}
+              >
+                刷新缓存并重新排盘
+              </button>
+            </div>
+          </div>
         )}
       </Card>
 

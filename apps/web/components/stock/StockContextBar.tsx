@@ -22,12 +22,14 @@ export function StockContextBar({
   activeTab,
   onRecalculate,
   recalculating,
+  onExport,
   showTabs = false,
 }: {
   context: StockContext;
   activeTab?: string;
   onRecalculate?: () => void;
   recalculating?: boolean;
+  onExport?: () => void;
   /** 参考图 02 的上下文栏是单行；03 额外带一行股票切换条。 */
   showTabs?: boolean;
 }) {
@@ -125,7 +127,7 @@ export function StockContextBar({
           <div className="ml-auto flex shrink-0 items-center gap-1.5">
             <button
               type="button"
-              className="smp-btn smp-btn--primary px-2.5 py-1 text-[11.5px]"
+              className="smp-btn px-2.5 py-1 text-[11.5px]"
               onClick={() => setSwitchModalOpen(true)}
               data-testid="switch-stock-btn"
             >
@@ -134,9 +136,12 @@ export function StockContextBar({
             <button type="button" className="smp-btn px-2 py-1 text-[11.5px]" disabled title="Phase 2">
               切换出生模型
             </button>
+            <button type="button" className="smp-btn px-2 py-1 text-[11.5px]" disabled title="Phase 2">
+              切换预测周期
+            </button>
             <button
               type="button"
-              className="smp-btn px-2 py-1 text-[11.5px]"
+              className="smp-btn smp-btn--primary px-3 py-1 text-[11.5px] font-semibold"
               onClick={onRecalculate}
               disabled={recalculating}
               data-testid="recalculate"
@@ -144,7 +149,12 @@ export function StockContextBar({
               <IconRefresh size={12} />
               {recalculating ? "计算中…" : "重新计算"}
             </button>
-            <button type="button" className="smp-btn px-2 py-1 text-[11.5px]" disabled title="Phase 2">
+            <button
+              type="button"
+              className="smp-btn px-2.5 py-1 text-[11.5px]"
+              onClick={onExport}
+              title="导出研究报告"
+            >
               <IconExport size={12} />
               导出报告
             </button>

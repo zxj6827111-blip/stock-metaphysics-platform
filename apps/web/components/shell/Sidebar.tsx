@@ -9,7 +9,8 @@
  */
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { SidebarMountain } from "./Decorations";
 import {
   IconBook,
   IconCalendar,
@@ -69,6 +70,24 @@ const NAV: { group: string; items: NavItem[] }[] = [
 
 export function Sidebar({ activeKey }: { activeKey?: string }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const fixture = searchParams?.get("fixture");
+  const suffix = fixture ? `?fixture=${fixture}` : "";
+
+  // 提取当前正在查看的股票代码，使得侧栏链接自适应当前标的
+  const match = pathname.match(/\/stock\/([^/]+)/);
+  const currentCode = match ? match[1] : "600519";
+
+  const getResolvedHref = (baseHref: string) => {
+    let resolved = baseHref;
+    if (resolved.startsWith("/stock/600519/")) {
+      resolved = resolved.replace("/stock/600519/", `/stock/${currentCode}/`);
+    }
+    if (suffix && !resolved.includes("?")) {
+      resolved = `${resolved}${suffix}`;
+    }
+    return resolved;
+  };
 
   const isActive = (item: NavItem): boolean => {
     if (activeKey) return item.key === activeKey;
@@ -123,10 +142,11 @@ export function Sidebar({ activeKey }: { activeKey?: string }) {
                   </div>
                 );
               }
+              const resolvedHref = getResolvedHref(item.href);
               return (
                 <Link
                   key={item.key}
-                  href={item.href}
+                  href={resolvedHref}
                   className={`smp-nav-item ${active ? "smp-nav-item--active" : ""}`}
                   data-testid={`nav-${item.key}`}
                   aria-current={active ? "page" : undefined}
@@ -140,16 +160,20 @@ export function Sidebar({ activeKey }: { activeKey?: string }) {
         ))}
       </nav>
 
-      <div className="px-4 py-4">
-        <div className="smp-divider mb-4" />
-        <div className="flex items-center gap-2">
-          <IconLayers size={14} style={{ color: "var(--color-gold-dim)" }} />
+      <div className="px-4 py-3">
+        <div className="smp-divider mb-3" />
+        <SidebarMountain />
+        <div className="mt-2 text-center select-none" style={{ fontFamily: "var(--font-serif-cn)" }}>
           <div
-            className="leading-[17px] tracking-[0.12em]"
-            style={{ color: "var(--color-ink-faint)", fontSize: 11 }}
+            className="text-[12px] tracking-[0.24em] font-medium leading-[19px]"
+            style={{ color: "rgba(212,184,122,0.75)" }}
           >
-            数据通玄机
-            <br />
+            数据通天机
+          </div>
+          <div
+            className="text-[12px] tracking-[0.24em] font-medium leading-[19px]"
+            style={{ color: "rgba(212,184,122,0.75)" }}
+          >
             理性见真章
           </div>
         </div>

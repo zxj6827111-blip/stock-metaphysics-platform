@@ -225,14 +225,14 @@ function HomeInner() {
         style={{
           borderColor: "var(--color-border)",
           background:
-            "radial-gradient(420px 320px at calc(100% - 150px) 50%, rgba(212,184,122,0.12), transparent 70%), linear-gradient(180deg, rgba(16,31,43,0.85), rgba(9,19,28,0.92))",
+            "radial-gradient(ellipse 550px 380px at calc(100% - 150px) 45%, rgba(212,184,122,0.18) 0%, rgba(212,184,122,0.05) 50%, transparent 75%), linear-gradient(180deg, rgba(14,28,40,0.95) 0%, rgba(9,19,28,0.98) 100%)",
         }}
       >
-        <MountainSilhouette opacity={0.06} />
+        <MountainSilhouette opacity={0.32} />
 
         {/* 右侧天体星盘与寄语 */}
         <Astrolabe
-          size={270}
+          size={280}
           glow={true}
           className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 hidden xl:block"
         />
@@ -244,37 +244,60 @@ function HomeInner() {
         </div>
 
         <div className="relative max-w-[880px]">
-          {/* 主标与竖排诗文 */}
-          <div className="flex items-center gap-4">
-            <h1
-              className="smp-serif-title smp-gold-shimmer text-[48px] font-bold leading-[1.08] tracking-[0.04em]"
-              style={{
-                color: "var(--color-gold-strong)",
-                fontFamily: "var(--font-serif-cn)",
-                textShadow: "0 3px 24px rgba(212,184,122,0.22)",
-              }}
-              data-testid="home-title"
-            >
-              股票玄学多模型研究平台
-            </h1>
-            <div className="hidden sm:flex items-center gap-2" style={{ fontFamily: "var(--font-serif-cn)" }}>
-              <div
-                className="flex gap-1.5 text-[11px] leading-[13px] tracking-[0.2em]"
-                style={{ writingMode: "vertical-rl", color: "rgba(212,184,122,0.65)" }}
-                aria-hidden="true"
+          {/* 主标与四列题词 */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1
+                className="smp-serif-title smp-gold-shimmer text-[48px] font-bold leading-[1.08] tracking-[0.04em]"
+                style={{
+                  color: "var(--color-gold-strong)",
+                  fontFamily: "var(--font-serif-cn)",
+                  textShadow: "0 3px 24px rgba(212,184,122,0.22)",
+                }}
+                data-testid="home-title"
               >
-                <span>观天时</span>
-                <span>察地利</span>
-                <span>究人道</span>
-                <span>研规律</span>
+                股票玄学多模型研究平台
+              </h1>
+              <p className="mt-1.5 text-[12.5px] tracking-[0.15em]" style={{ color: "var(--color-ink-sub)" }}>
+                融贯东方智慧 · 结合现代量化 · 探索市场的多维可能
+              </p>
+            </div>
+
+            {/* 四列典雅竖排题词 (观天时/察地利/究人道/研规律) 与朱砂印章 */}
+            <div
+              className="hidden sm:flex flex-row-reverse items-start gap-2 select-none pt-1 pr-4 shrink-0"
+              style={{ fontFamily: "var(--font-serif-cn)" }}
+              aria-hidden="true"
+            >
+              <div
+                className="text-[12px] leading-[16px] tracking-[0.22em]"
+                style={{ writingMode: "vertical-rl", color: "rgba(212,184,122,0.85)" }}
+              >
+                观天时
               </div>
-              <SealStamp text="玄" size={24} />
+              <div
+                className="text-[12px] leading-[16px] tracking-[0.22em]"
+                style={{ writingMode: "vertical-rl", color: "rgba(212,184,122,0.85)" }}
+              >
+                察地利
+              </div>
+              <div
+                className="text-[12px] leading-[16px] tracking-[0.22em]"
+                style={{ writingMode: "vertical-rl", color: "rgba(212,184,122,0.85)" }}
+              >
+                究人道
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <div
+                  className="text-[12px] leading-[16px] tracking-[0.22em]"
+                  style={{ writingMode: "vertical-rl", color: "rgba(212,184,122,0.85)" }}
+                >
+                  研规律
+                </div>
+                <SealStamp text="玄" size={20} />
+              </div>
             </div>
           </div>
-
-          <p className="mt-1 text-[12.5px] tracking-[0.15em]" style={{ color: "var(--color-ink-sub)" }}>
-            融贯东方智慧 · 结合现代量化 · 探索市场的多维可能
-          </p>
 
           <div
             className="mt-3 rounded-[8px] border px-4 py-3"

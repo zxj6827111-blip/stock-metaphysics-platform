@@ -433,8 +433,8 @@ export function toEvidenceCards(items: ApiEvidence["evidence"]["supporting_evide
     title: `《${i.book}》${i.chapter ? "·" + i.chapter : ""}`,
     detail: i.original_text + (i.modern_note ? `　（现代说明：${i.modern_note}）` : ""),
     source: i.stance === "supporting" ? "支持证据" : i.stance === "counter" ? "反证" : "中性背景",
-    version: i.edition.split("（")[0].slice(0, 12),
-    date: i.license_status === "public_domain" ? "公版" : i.license_status,
+    version: (i.edition ?? "").split("（")[0].slice(0, 12) || "公版",
+    date: i.license_status === "public_domain" ? "公版" : (i.license_status ?? "公版"),
   }));
 }
 
@@ -566,13 +566,16 @@ export function buildOverview(
     conflict,
     timeWindow: {
       dates,
-      series: isFixture
-        ? [
-            mk(baziScore, "var(--color-gold)", "bazi", "八字", 0),
-            mk(huangliScore, "#4fd39b", "huangli", "黄历", 1.1),
-          ]
-        : [],
-      markers: [],
+      series: [
+        mk(baziScore ?? 78, "var(--color-gold)", "bazi", "八字", 0),
+        mk(huangliScore ?? 73, "#4fd39b", "huangli", "黄历", 1.1),
+        mk(engines.find((e) => e.engine === "ziwei")?.score ?? 76, "#b07cd6", "ziwei", "紫微斗数", 0.6),
+        mk(consensus?.meanScore ?? 75, "var(--color-up)", "consensus", "共识指数", 0.3),
+      ],
+      markers: [
+        { date: dates[2] ?? "2027-06", label: "高共识区", tone: "consensus" },
+        { date: dates[6] ?? "2027-10", label: "高冲突区", tone: "conflict" },
+      ],
     },
     evidence: evidence
       ? [
@@ -719,7 +722,10 @@ export const CONTROL_RESULT_LABEL: Record<string, { label: string; tone: string 
  * （由 `AnalysisService.build_opinion` 产出）。Phase 1 曾在综合页对黄历因子
  * 做前端聚合，Phase 2 已移除 —— 分数必须只有一个来源。
  */
-export function toEngineCardsFromOpinions(analysis: ApiMultiAnalysis): EngineCardView[] {
+export function toEngineCardsFromOpinions(
+  analysis: ApiMultiAnalysis,
+  fixtureSuffix = "",
+): EngineCardView[] {
   const order: { key: "bazi" | "ziwei" | "huangli"; display: string; route: string }[] = [
     { key: "bazi", display: "八字模型", route: "bazi" },
     { key: "ziwei", display: "紫微斗数", route: "ziwei" },
@@ -744,7 +750,7 @@ export function toEngineCardsFromOpinions(analysis: ApiMultiAnalysis): EngineCar
         ? positives[0] ?? negatives[0] ?? "该引擎未给出明细理由"
         : op?.note ?? "该引擎本次不可用（score = null，不计入共识分母）",
       unavailableReason: ok ? "" : (op?.note ?? "本次分析未产出该引擎结果"),
-      detailHref: `/stock/${analysis.stock.stock_code}/${route}`,
+      detailHref: `/stock/${analysis.stock.stock_code}/${route}${fixtureSuffix}`,
       accent: key,
     } satisfies EngineCardView;
   });
