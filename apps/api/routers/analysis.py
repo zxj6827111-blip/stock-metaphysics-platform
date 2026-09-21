@@ -95,6 +95,12 @@ def _resolve_stock(db: Session, market, service: AnalysisService, code: str) -> 
             stock.board = board
         if not stock.wind_code:
             stock.wind_code = wind
+        if stock.name and stock.listing_date:
+            try:
+                service.upsert_stock(db, stock)
+                db.commit()
+            except Exception:
+                pass
     return stock
 
 
@@ -121,26 +127,12 @@ def analyze_bazi(
 
     stock = _resolve_stock(db, market, service, code)
 
-    is_trading_day = None
-    if stock.listing_date is not None:
-        try:
-            history = market.get_daily_bars(
-                stock.stock_code, stock.listing_date,
-                date(min(stock.listing_date.year + 1, date.today().year), stock.listing_date.month, 1),
-            )
-            known = {b.trade_date for b in history.bars}
-            if known:
-                is_trading_day = lambda d: d in known  # noqa: E731
-        except Exception:  # noqa: BLE001
-            is_trading_day = None
-
     profile = build_birth_profile(
         stock,
         BirthProfileCreateRequest(
             birth_basis=req.birth_basis,
             variant_mode=req.variant_mode,
         ),
-        is_trading_day=is_trading_day,
     )
 
     response = service.run_bazi_analysis(
