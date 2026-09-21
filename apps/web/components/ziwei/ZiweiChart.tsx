@@ -17,6 +17,7 @@
 import { useMemo, useState } from "react";
 
 import type { ApiZiweiChart, ApiZiweiPalace, ApiZiweiStar } from "@/lib/api";
+import { IconClose } from "../shell/Icons";
 import { UnavailableBlock } from "../shell/PageState";
 
 /** 地支顺序（index 0 = 寅）—— 与后端 `ZIWEI_PALACE_BRANCHES` 一一对应。 */
@@ -68,43 +69,66 @@ export function ZiweiChartGrid({
     () => new Set(chart.palaces[chart.soul_palace_index]?.trine_indices ?? []),
     [chart],
   );
+  /**
+   * 被展开的宫位索引。
+   *
+   * 宫格高度是定量的（4×116px，为了十二宫整盘进首屏），因此每类星曜只能
+   * 显示一行、多余部分被 `line-clamp-1` 截断。这里给**每一宫**一个可靠的
+   * 明细入口：点击宫格打开该宫完整星曜（含全部辅曜/杂曜与庙旺、四化）。
+   *
+   * 为什么不能只靠 `title` 悬停提示：悬停对触屏与键盘都不可用，而且提示
+   * 无法承载"哪些星属于哪一类、亮度与四化分别是什么"这类结构化信息。
+   * 三方四正卡也不能替代 —— 它只覆盖与本命宫相关的四个宫位，不是十二宫明细。
+   */
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const opened = openIndex === null ? null : chart.palaces[openIndex] ?? null;
 
   return (
-    <div
-      className="grid grid-cols-4 gap-2"
-      style={{ gridTemplateRows: "repeat(4, 116px)" }}
-      data-testid="ziwei-chart-grid"
-    >
-      {RING.flatMap((row, r) =>
-        row.map((idx, c) => {
-          if (idx === null) {
-            // 中央 2×2：只在左上角渲染一次，其余跳过
-            if (r !== 1 || c !== 1) return null;
+    <>
+      <div
+        className="grid grid-cols-4 gap-2"
+        style={{ gridTemplateRows: "repeat(4, 116px)" }}
+        data-testid="ziwei-chart-grid"
+      >
+        {RING.flatMap((row, r) =>
+          row.map((idx, c) => {
+            if (idx === null) {
+              // 中央 2×2：只在左上角渲染一次，其余跳过
+              if (r !== 1 || c !== 1) return null;
+              return (
+                <div
+                  key="center"
+                  className="row-span-2 col-span-2 overflow-hidden rounded border px-3 py-2"
+                  style={{ borderColor: "rgba(212,160,74,0.35)" }}
+                  data-testid="ziwei-center"
+                >
+                  {center ?? <CenterSummary chart={chart} />}
+                </div>
+              );
+            }
+            const palace = chart.palaces[idx];
+            if (!palace) return null;
             return (
-              <div
-                key="center"
-                className="row-span-2 col-span-2 overflow-hidden rounded border px-3 py-2"
-                style={{ borderColor: "rgba(212,160,74,0.35)" }}
-                data-testid="ziwei-center"
-              >
-                {center ?? <CenterSummary chart={chart} />}
-              </div>
+              <PalaceCell
+                key={idx}
+                palace={palace}
+                isSoul={idx === chart.soul_palace_index}
+                isBody={idx === chart.body_palace_index}
+                inTrine={highlightTrine && trine.has(idx)}
+                onExpand={() => setOpenIndex(idx)}
+              />
             );
-          }
-          const palace = chart.palaces[idx];
-          if (!palace) return null;
-          return (
-            <PalaceCell
-              key={idx}
-              palace={palace}
-              isSoul={idx === chart.soul_palace_index}
-              isBody={idx === chart.body_palace_index}
-              inTrine={highlightTrine && trine.has(idx)}
-            />
-          );
-        }),
-      )}
-    </div>
+          }),
+        )}
+      </div>
+      {opened ? (
+        <PalaceDetailModal
+          chart={chart}
+          palace={opened}
+          onClose={() => setOpenIndex(null)}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -135,11 +159,13 @@ function PalaceCell({
   isSoul,
   isBody,
   inTrine,
+  onExpand,
 }: {
   palace: ApiZiweiPalace;
   isSoul: boolean;
   isBody: boolean;
   inTrine: boolean;
+  onExpand: () => void;
 }) {
   const major = palace.major_stars ?? [];
   const minor = palace.minor_stars ?? [];
@@ -149,6 +175,7 @@ function PalaceCell({
   // 四化是**星曜的属性**（后端给的 mutagen），这里只是把本宫已有的四化挑出来显示，
   // 不在前端重新推导哪颗星化什么 —— 那是排盘，属于后端职责（AGENTS.md §9.12）。
   const mutagenStars = [...major, ...minor, ...adjective].filter((s) => s.mutagen);
+  const hiddenAdjective = Math.max(0, adjective.length - 3);
 
   return (
     <div
@@ -161,21 +188,37 @@ function PalaceCell({
       data-palace-name={palace.name}
       data-in-trine={inTrine ? "1" : "0"}
     >
-      <div className="mb-0.5 flex items-center justify-between">
+      <div className="mb-0.5 flex items-center justify-between gap-1">
         <span className="truncate font-semibold" style={{ color: "var(--color-ink)" }}>
           {palace.name}
           {isSoul ? <span style={{ color: "#D4A04A" }}> ·命</span> : null}
           {isBody ? <span style={{ color: "#D4A04A" }}> ·身</span> : null}
         </span>
-        <span className="shrink-0" style={{ color: "var(--color-ink-muted)" }}>
-          {palace.heavenly_stem}
-          {palace.earthly_branch}
+        <span className="flex shrink-0 items-center gap-1">
+          <span style={{ color: "var(--color-ink-muted)" }}>
+            {palace.heavenly_stem}
+            {palace.earthly_branch}
+          </span>
+          {/* 明细入口：宫格是定高的，被截断的星曜必须从这里能完整读到 */}
+          <button
+            type="button"
+            onClick={onExpand}
+            className="rounded-[3px] border px-1 leading-[13px] transition-opacity hover:opacity-80"
+            style={{
+              borderColor: "var(--color-border-strong)",
+              color: "var(--color-gold)",
+            }}
+            aria-label={`展开${palace.name}宫全部星曜`}
+            data-testid={`ziwei-expand-${palace.index}`}
+          >
+            明细
+          </button>
         </span>
       </div>
 
       {/* 每类星曜固定一行高度（line-clamp）：十二宫是**并列**结构，
-          某一宫星多不能把整行撑高、把底排挤出首屏；完整星曜在悬停标题与
-          下方「三方四正与四化」明细里仍然可得，没有丢弃。 */}
+          某一宫星多不能把整行撑高、把底排挤出首屏；完整星曜经上方「明细」
+          按钮可读（悬停标题只是补充，不作为唯一入口）。 */}
       <StarRow label="主星" stars={major} empty="（空宫 · 借对宫安星）" strong />
       {good.length ? <StarRow label="辅星" stars={good} /> : null}
       {bad.length ? <StarRow label="煞曜" stars={bad} malefic /> : null}
@@ -201,8 +244,124 @@ function PalaceCell({
           {adjective.slice(0, 3).map((s) => (
             <PalaceTag key={s.name}>{s.name}</PalaceTag>
           ))}
+          {hiddenAdjective > 0 ? <PalaceTag>+{hiddenAdjective}</PalaceTag> : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 宫位明细弹层：该宫的**全部**星曜（分类 / 庙旺 / 四化）与宫位字段。
+ *
+ * 数据全部来自后端盘面，前端不新增任何推导；空宫如实写「空宫」，
+ * 不用别的宫位的星曜补齐。
+ */
+function PalaceDetailModal({
+  chart,
+  palace,
+  onClose,
+}: {
+  chart: ApiZiweiChart;
+  palace: ApiZiweiPalace;
+  onClose: () => void;
+}) {
+  const groups: { label: string; stars: ApiZiweiStar[]; note: string }[] = [
+    { label: "主星", stars: palace.major_stars ?? [], note: "十四主星" },
+    { label: "辅星", stars: palace.minor_stars ?? [], note: "六吉与其它辅曜" },
+    { label: "杂曜", stars: palace.adjective_stars ?? [], note: "按 iztro adjectiveStars 原样展示" },
+  ];
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      style={{ background: "rgba(3,8,13,0.72)" }}
+      onClick={onClose}
+      data-testid="ziwei-palace-detail-overlay"
+    >
+      <div
+        className="w-full max-w-[520px] overflow-hidden rounded-[12px] border"
+        style={{
+          borderColor: "var(--color-border-strong)",
+          background: "linear-gradient(180deg, rgba(14,26,38,0.98), rgba(9,19,29,0.98))",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.65)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        data-testid="ziwei-palace-detail"
+        data-palace-index={palace.index}
+      >
+        <div
+          className="flex items-center justify-between border-b px-4 py-3"
+          style={{ borderColor: "var(--color-border)" }}
+        >
+          <div className="flex items-baseline gap-2">
+            <span className="text-[14.5px] font-semibold" style={{ color: "var(--color-gold)" }}>
+              {palace.name}宫
+            </span>
+            <span className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+              {palace.heavenly_stem}
+              {palace.earthly_branch} · 第 {palace.index} 宫
+              {palace.is_body_palace ? " · 身宫" : ""}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-7 w-7 items-center justify-center rounded-[4px] transition-colors hover:bg-white/[0.06]"
+            style={{ color: "var(--color-ink-muted)" }}
+            aria-label="关闭"
+            data-testid="ziwei-palace-detail-close"
+          >
+            <IconClose size={15} />
+          </button>
+        </div>
+        <div className="max-h-[60vh] space-y-3 overflow-y-auto px-4 py-3 text-[12.5px]">
+          {groups.map((g) => (
+            <div key={g.label}>
+              <div className="flex items-baseline gap-2">
+                <span className="font-semibold" style={{ color: "var(--color-ink)" }}>
+                  {g.label}
+                </span>
+                <span className="text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
+                  {g.note} · {g.stars.length} 颗
+                </span>
+              </div>
+              <div className="mt-1" data-testid={`palace-detail-${g.label}`}>
+                {g.stars.length ? (
+                  g.stars.map((s) => (
+                    <span key={s.name} className="mr-2 inline-block">
+                      <StarInline star={s} strong={g.label === "主星"} />
+                      {s.brightness ? (
+                        <span className="text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                          {" "}
+                          {s.brightness}
+                        </span>
+                      ) : null}
+                    </span>
+                  ))
+                ) : (
+                  <span style={{ color: "var(--color-ink-muted)" }}>
+                    （本宫无{g.label}：空宫如实保留，不用其它宫的星曜补齐）
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+          <div className="border-t pt-2 text-[11.5px]" style={{ borderColor: "var(--color-border)" }}>
+            <span style={{ color: "var(--color-ink-muted)" }}>长生十二神：</span>
+            <span>{palace.changsheng12 || "—"}</span>
+            <span className="ml-3" style={{ color: "var(--color-ink-muted)" }}>
+              三方四正：
+            </span>
+            <span>
+              {(palace.trine_indices ?? [])
+                .map((i) => chart.palaces[i]?.name ?? `#${i}`)
+                .join(" / ") || "—"}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
