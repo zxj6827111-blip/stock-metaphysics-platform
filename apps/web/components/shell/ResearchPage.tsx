@@ -13,6 +13,7 @@
  */
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/shell/AppShell";
@@ -20,7 +21,7 @@ import { PageError, PageLoading } from "@/components/shell/PageState";
 import { PageHero } from "@/components/shell/TopBar";
 import { StockContextBar } from "@/components/stock/StockContextBar";
 import { Card } from "@/components/cards/Card";
-import { FIXTURE_QUERY_VALUE, isFixtureActive } from "@/lib/fixture";
+import { FIXTURE_QUERY_VALUE } from "@/lib/fixture";
 import { buildContextFromMulti } from "@/lib/dataSource";
 import type { ApiMultiAnalysis } from "@/lib/api";
 
@@ -52,7 +53,12 @@ export function ResearchPage({
   loadingLabel,
   children,
 }: ResearchPageProps) {
-  const isUnsupportedFixture = isFixtureActive() && code !== "600519";
+  // 用 useSearchParams 而不是 window.location：服务端与客户端得到同一份查询参数，
+  // 避免"服务端渲染数据正常 / 客户端渲染演示模式受限"的 hydration 不一致
+  // （见 docs/UI_REAUDIT_2026-09-21.md §2）。
+  const params = useSearchParams();
+  const fixture = params.get("fixture") === FIXTURE_QUERY_VALUE;
+  const isUnsupportedFixture = fixture && code !== "600519";
   if (isUnsupportedFixture) {
     return (
       <AppShell activeNav={activeNav} dataStatus="bad" statusText="演示模式受限">
@@ -96,7 +102,8 @@ export function ResearchPage({
     <AppShell
       activeNav={activeNav}
       dataStatus={error ? "bad" : "ok"}
-      statusText={error ? "后端未连接" : "数据正常"}
+      // 演示来源与真实来源必须在顶部状态就区分开，不能只靠角标
+      statusText={error ? "后端未连接" : fixture ? "演示数据（固定样本）" : "数据正常"}
     >
       <PageHero title={title} subtitle={subtitle} seal={seal} />
       {ctx ? (

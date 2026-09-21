@@ -13,6 +13,7 @@
 import type { ReactNode } from "react";
 
 import { Card } from "../cards/Card";
+import { RawField, SourceMethod } from "./SourceMethod";
 
 export function PageLoading({ label = "加载中…" }: { label?: string }) {
   return (
@@ -142,7 +143,44 @@ export function UnavailableBlock({
   );
 }
 
-/** 研究状态徽标：把 ResearchStatus 显式地摆在读者眼前。 */
+/**
+ * 研究状态徽标：把 ResearchStatus 显式地摆在读者眼前。
+ *
+ * 展示纪律（UI 复核任务书 §2）：
+ *  - 面向人的主标签一律用中文（`INSUFFICIENT_SAMPLE` → 「样本不足」）；
+ *  - 原始状态码 **不丢**，收进「原始状态码与来源」折叠区，保持可追溯；
+ *  - 覆盖后端 `src/research/status.py` 的全部合法枚举值；
+ *    非法/未知状态显式标注为「未知状态」而不是把裸码当结论展示。
+ */
+const RESEARCH_STATUS_TONE: Record<string, { bg: string; fg: string; label: string }> = {
+  NOT_RUN: { bg: "rgba(124,143,163,0.18)", fg: "#9FB0C0", label: "未运行" },
+  NO_REAL_DATA: { bg: "rgba(232,88,90,0.18)", fg: "#E8585A", label: "无真实数据" },
+  INSUFFICIENT_SAMPLE: { bg: "rgba(212,160,74,0.18)", fg: "#D4A04A", label: "样本不足" },
+  INVALID_CONTROL: { bg: "rgba(232,88,90,0.18)", fg: "#E8585A", label: "负对照失效" },
+  NO_SIGNAL: { bg: "rgba(212,160,74,0.18)", fg: "#D4A04A", label: "未发现稳定信号" },
+  INCONCLUSIVE: { bg: "rgba(212,160,74,0.18)", fg: "#D4A04A", label: "结论不明确" },
+  WEAK_EVIDENCE: { bg: "rgba(79,211,155,0.15)", fg: "#4FD39B", label: "弱证据（样本内）" },
+  SUPPORTED_IN_SAMPLE: { bg: "rgba(79,211,155,0.18)", fg: "#4FD39B", label: "样本内支持" },
+  OOS_CANDIDATE_SUPPORTED: {
+    bg: "rgba(79,211,155,0.20)",
+    fg: "#4FD39B",
+    label: "样本外候选（未做 FDR 校正）",
+  },
+  EXPLORATORY_NOT_GATED: {
+    bg: "rgba(124,143,163,0.18)",
+    fg: "#9FB0C0",
+    label: "探索性对象（不套用状态门）",
+  },
+  SUPPORTED_OUT_OF_SAMPLE: { bg: "rgba(79,211,155,0.25)", fg: "#4FD39B", label: "样本外支持" },
+};
+
+/** 研究状态码 → 中文标签（其他页面需要在正文里引用状态时复用同一套映射）。 */
+export function researchStatusLabel(status: string | null | undefined): string {
+  if (!status) return "未运行";
+  const t = RESEARCH_STATUS_TONE[status];
+  return t ? t.label : `未知状态（${status}）`;
+}
+
 export function ResearchStatusBadge({
   status,
   reasons = [],
@@ -152,26 +190,18 @@ export function ResearchStatusBadge({
   reasons?: string[];
   compact?: boolean;
 }) {
-  const tone: Record<string, { bg: string; fg: string; label: string }> = {
-    NOT_RUN: { bg: "rgba(124,143,163,0.18)", fg: "#9FB0C0", label: "未运行" },
-    NO_REAL_DATA: { bg: "rgba(232,88,90,0.18)", fg: "#E8585A", label: "无真实数据" },
-    INSUFFICIENT_SAMPLE: { bg: "rgba(212,160,74,0.18)", fg: "#D4A04A", label: "样本不足" },
-    INVALID_CONTROL: { bg: "rgba(232,88,90,0.18)", fg: "#E8585A", label: "对照失效" },
-    NO_SIGNAL: { bg: "rgba(212,160,74,0.18)", fg: "#D4A04A", label: "未发现稳定信号" },
-    INCONCLUSIVE: { bg: "rgba(212,160,74,0.18)", fg: "#D4A04A", label: "结论不明确" },
-    WEAK_EVIDENCE: { bg: "rgba(79,211,155,0.15)", fg: "#4FD39B", label: "弱证据（样本内）" },
-    SUPPORTED_IN_SAMPLE: { bg: "rgba(79,211,155,0.18)", fg: "#4FD39B", label: "样本内支持" },
-    SUPPORTED_OUT_OF_SAMPLE: { bg: "rgba(79,211,155,0.25)", fg: "#4FD39B", label: "样本外支持" },
-  };
-  const t = tone[status] ?? { bg: "rgba(124,143,163,0.18)", fg: "#9FB0C0", label: status };
+  const t = RESEARCH_STATUS_TONE[status];
+  const unknown = !t;
+  const shown = t ?? { bg: "rgba(124,143,163,0.18)", fg: "#9FB0C0", label: "未知状态" };
   return (
-    <div data-testid="research-status-badge">
+    <div data-testid="research-status-badge" data-status={status}>
       <span
         className="rounded px-2 py-0.5 text-[11.5px] font-semibold"
-        style={{ background: t.bg, color: t.fg }}
+        style={{ background: shown.bg, color: shown.fg }}
         title={reasons.join("\n")}
       >
-        ResearchStatus · {status} · {t.label}
+        研究状态：{shown.label}
+        {unknown ? `（无法识别的状态码 ${status}）` : ""}
       </span>
       {!compact && reasons.length ? (
         <ul className="mt-2 space-y-1 text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
@@ -179,6 +209,12 @@ export function ResearchStatusBadge({
             <li key={r}>· {r}</li>
           ))}
         </ul>
+      ) : null}
+      {!compact ? (
+        <SourceMethod className="mt-2" label="原始状态码与来源" testId="research-status-source">
+          <RawField label="research_status（后端原值）" value={status} />
+          <div>历史有效性由研究流水线（事件研究 + 四类负对照）判定，不由本页前端推断。</div>
+        </SourceMethod>
       ) : null}
     </div>
   );

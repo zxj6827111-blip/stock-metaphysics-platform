@@ -8,7 +8,7 @@ export default function Page() {
       title={"研究实验室"}
       subtitle={"选择因子与股票池，运行事件研究与负对照"}
       activeNav={"research"}
-      reason={"研究流水线的后端已实现（POST /api/v1/research/run，包含随机出生日 / ±7 天 / 随机因子四类负对照），可以通过 OpenAPI 文档直接调用；图形化实验台属于第二轮 UI。"}
+      reason={"研究流水线的后端已实现（事件研究 + 随机出生日 / ±7 天 / 随机因子四类负对照），可通过后端 OpenAPI 文档（/docs）直接调用；图形化实验台属于第二轮 UI。"}
       planned={[
         "选择因子 / 股票池 / 目标窗口 / 市场区间",
         "运行事件研究、负对照、样本外测试",

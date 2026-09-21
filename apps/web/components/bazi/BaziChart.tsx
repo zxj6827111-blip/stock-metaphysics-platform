@@ -8,6 +8,7 @@
  */
 
 import type { BaziPillarView, WuxingBar, FateSummaryRow, TimelineItem } from "@/lib/types";
+import { variantModeLabel } from "@/lib/dataSource";
 import { Chip } from "../cards/Card";
 import { IconDiamond, IconLayers, IconTaiji } from "../shell/Icons";
 
@@ -51,7 +52,7 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
       label: "天干",
       render: (p) => (
         <span
-          className="smp-serif-title text-[28px] font-semibold leading-none"
+          className="smp-serif-title text-[26px] font-semibold leading-none"
           style={{ color: getWuxingColor(p.stem), fontFamily: "var(--font-serif-cn)" }}
           data-testid={`stem-${p.position}`}
           data-char={p.stem}
@@ -64,7 +65,7 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
       label: "地支",
       render: (p) => (
         <span
-          className="smp-serif-title text-[28px] font-semibold leading-none"
+          className="smp-serif-title text-[26px] font-semibold leading-none"
           style={{ color: getWuxingColor(p.branch), fontFamily: "var(--font-serif-cn)" }}
           data-testid={`branch-${p.position}`}
           data-char={p.branch}
@@ -117,13 +118,13 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
         <thead>
           <tr>
             <th
-              className="w-[56px] border-b px-2 py-0.5 text-left text-[11px] font-normal"
+              className="w-[56px] border-b px-2 py-[1px] text-left text-[11px] font-normal"
               style={{ borderColor: "var(--color-border)", color: "var(--color-ink-faint)" }}
             />
             {pillars.map((p) => (
               <th
                 key={p.position}
-                className="border-b border-l px-2 py-0.5 text-center text-[11.5px] font-medium"
+                className="border-b border-l px-2 py-[1px] text-center text-[11.5px] font-medium"
                 style={{ borderColor: "var(--color-border)", color: "var(--color-ink-sub)" }}
                 data-testid={`pillar-${p.position}`}
               >
@@ -141,7 +142,7 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
               }}
             >
               <td
-                className="border-b px-2 py-0.5 text-[11px]"
+                className="border-b px-2 py-[1px] text-[11px]"
                 style={{ borderColor: "var(--color-border)", color: "var(--color-ink-faint)" }}
               >
                 {row.label}
@@ -149,7 +150,7 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
               {pillars.map((p) => (
                 <td
                   key={p.position}
-                  className="border-b border-l px-2 py-0.5 text-center"
+                  className="border-b border-l px-2 py-[1px] text-center"
                   style={{ borderColor: "var(--color-border)" }}
                 >
                   {row.render(p)}
@@ -233,68 +234,68 @@ export function FateSummary({ rows }: { rows: FateSummaryRow[] }) {
   );
 }
 
-export function TimeStructure({
-  items,
-  variantMode,
-  variantNote,
-}: {
-  items: TimelineItem[];
-  variantMode: string;
-  variantNote: string;
-}) {
+export function TimeStructure({ items }: { items: TimelineItem[] }) {
   const iconFor: Record<string, React.ReactNode> = {
-    dayun: <IconLayers size={14} />,
-    year: <IconTaiji size={14} />,
-    month: <IconDiamond size={14} />,
-    day: <IconDiamond size={14} />,
+    dayun: <IconLayers size={13} />,
+    year: <IconTaiji size={13} />,
+    month: <IconDiamond size={13} />,
+    day: <IconDiamond size={13} />,
   };
   return (
-    <div className="px-3 py-2" data-testid="time-structure">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <Chip tone="warn">{variantNote || "股票无天然性别，运限推演基于假设规则"}</Chip>
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="smp-metric-label text-[10.5px]">运限假设</span>
-          <span
-            className="rounded-[3px] border px-1.5 py-[0.5px] text-[10.5px]"
-            style={{ borderColor: "var(--color-border-strong)", color: "var(--color-ink-sub)" }}
-            data-testid="variant-mode"
-          >
-            {variantMode}
-          </span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-4 gap-2">
-        {items.map((it) => (
-          <div
-            key={it.key}
-            className="rounded-[6px] border px-2.5 py-1.5"
-            style={{
-              borderColor: "var(--color-border)",
-              background:
-                it.tone === "gold"
-                  ? "linear-gradient(180deg, rgba(212,184,122,0.10), rgba(212,184,122,0.02))"
-                  : "rgba(0,0,0,0.16)",
-            }}
-            data-testid={`timeline-${it.key}`}
-          >
-            <div className="flex items-center gap-1.5">
-              <span style={{ color: "var(--color-gold-dim)" }}>{iconFor[it.key]}</span>
-              <span className="text-[11.5px]" style={{ color: "var(--color-ink-sub)" }}>
-                {it.title}
+    <div className="px-3 pb-2 pt-0.5">
+      {/* 时间节点 + 连接线：大运 → 流年 → 流月 → 流日 是同一条时间轴的推进，
+          用贯穿线表达"顺序"，比四张并列卡片更贴近参考图（复核任务书 §R1）；
+          变体说明与运限假设标签在卡头，不占数据区高度。 */}
+      <div className="relative px-1 pt-0.5">
+        <div
+          className="pointer-events-none absolute left-[12.5%] right-[12.5%] top-[14px] h-[1px]"
+          style={{
+            background:
+              "linear-gradient(90deg, rgba(212,184,122,0.55), rgba(212,184,122,0.22) 55%, rgba(212,184,122,0.55))",
+          }}
+          aria-hidden="true"
+        />
+        <div className="relative grid grid-cols-4 gap-3">
+          {items.map((it) => (
+            <div
+              key={it.key}
+              className="flex flex-col items-center text-center"
+              data-testid={`timeline-${it.key}`}
+            >
+              <span
+                className="flex h-[28px] w-[28px] items-center justify-center rounded-full"
+                style={{
+                  color: it.tone === "gold" ? "var(--color-gold)" : "var(--color-ink-sub)",
+                  border: `1px solid ${
+                    it.tone === "gold" ? "var(--color-gold-dim)" : "var(--color-border-strong)"
+                  }`,
+                  background:
+                    it.tone === "gold"
+                      ? "radial-gradient(circle, rgba(212,184,122,0.20), rgba(9,19,29,0.95) 75%)"
+                      : "var(--color-surface-1)",
+                }}
+              >
+                {iconFor[it.key]}
               </span>
+              <div className="mt-1 text-[10.5px]" style={{ color: "var(--color-ink-muted)" }}>
+                {it.title}
+              </div>
+              <div className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
+                {it.primary}
+              </div>
+              <div className="text-[11px]" style={{ color: "var(--color-gold)" }}>
+                {it.secondary}
+              </div>
+              <div
+                className="line-clamp-1 text-[10px] leading-[14px]"
+                style={{ color: "var(--color-ink-muted)" }}
+                title={it.note}
+              >
+                {it.note}
+              </div>
             </div>
-            <div className="mt-1 text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
-              {it.primary}
-            </div>
-            <div className="mt-0.5 text-[11.5px]" style={{ color: "var(--color-gold)" }}>
-              {it.secondary}
-            </div>
-            <div className="mt-0.5 text-[10.5px]" style={{ color: "var(--color-ink-muted)" }}>
-              {it.note}
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

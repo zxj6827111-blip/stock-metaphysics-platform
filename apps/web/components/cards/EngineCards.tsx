@@ -371,32 +371,50 @@ export function DataQualityBadge({ quality }: { quality: DataQualityView }) {
   return (
     <Card testId="data-quality-card">
       <CardHeader icon={<IconCheck size={14} />} title="数据质量与风险" action={{ label: "查看详情" }} />
-      <div className="flex gap-4 p-4">
-        <div className="flex w-[128px] shrink-0 flex-col items-center justify-center">
+      {/* 风险摘要前置：风险必须比"质量指标"更早被读到（复核任务书 §P2） */}
+      <div
+        className="mx-3.5 mb-2 flex items-start gap-2 rounded-[6px] border px-3 py-2 text-[11px]"
+        style={{
+          borderColor: "rgba(224,164,88,0.36)",
+          background: "rgba(224,164,88,0.08)",
+          color: "var(--color-warn)",
+        }}
+        data-testid="risk-summary"
+      >
+        <span className="mt-[1px]">
+          <IconWarning size={13} />
+        </span>
+        <span>
+          <span className="font-semibold">风险提示：</span>
+          {quality.riskNote}
+        </span>
+      </div>
+      <div className="flex gap-3.5 px-3.5 pb-3">
+        <div className="flex w-[104px] shrink-0 flex-col items-center justify-center">
           <div
-            className="flex h-[92px] w-[92px] flex-col items-center justify-center rounded-full"
+            className="flex h-[76px] w-[76px] flex-col items-center justify-center rounded-full"
             style={{
               border: `2px solid ${gradeTone}`,
               boxShadow: `0 0 22px ${gradeTone}33`,
               background: "radial-gradient(circle, rgba(79,211,155,0.10), transparent 70%)",
             }}
           >
-            <span className="smp-num text-[34px] font-semibold leading-none" style={{ color: gradeTone }}>
+            <span className="smp-num text-[30px] font-semibold leading-none" style={{ color: gradeTone }}>
               {quality.grade}
             </span>
           </div>
-          <div className="mt-2 text-center">
-            <div className="text-[13px]" style={{ color: "var(--color-ink)" }}>
+          <div className="mt-1.5 text-center">
+            <div className="text-[12.5px]" style={{ color: "var(--color-ink)" }}>
               {quality.title}
             </div>
-            <div className="text-[13px]" style={{ color: gradeTone }}>
+            <div className="text-[12.5px]" style={{ color: gradeTone }}>
               {quality.subtitle}
             </div>
           </div>
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
             {quality.items.map((it) => (
               <div key={it.label} className="flex items-center gap-1.5 text-[11.5px]">
                 <span
@@ -418,27 +436,11 @@ export function DataQualityBadge({ quality }: { quality: DataQualityView }) {
               </div>
             ))}
           </div>
-          <div className="smp-divider my-2.5" />
+          <div className="smp-divider my-2" />
           <p className="text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
             数据完整 · 来源可靠 · 计算一致
           </p>
         </div>
-      </div>
-      <div
-        className="mx-4 mb-3 flex items-start gap-2 rounded-[6px] border px-3 py-2 text-[11px]"
-        style={{
-          borderColor: "rgba(224,164,88,0.36)",
-          background: "rgba(224,164,88,0.08)",
-          color: "var(--color-warn)",
-        }}
-      >
-        <span className="mt-[1px]">
-          <IconWarning size={13} />
-        </span>
-        <span>
-          <span className="font-semibold">风险提示：</span>
-          {quality.riskNote}
-        </span>
       </div>
     </Card>
   );
@@ -480,25 +482,25 @@ export function EvidenceRow({ item }: { item: EvidenceCardView }) {
   const tone = STANCE_TONE[item.stance] ?? "flat";
   return (
     <div
-      className="rounded-[7px] border px-3 py-2"
+      className="rounded-[7px] border px-2.5 py-1.5"
       style={{ borderColor: "var(--color-border)", background: "rgba(0,0,0,0.14)" }}
       data-testid={`evidence-${item.id}`}
     >
       <div className="flex items-start gap-2.5">
         <Chip tone={tone}>{item.stance}</Chip>
         <div className="min-w-0 flex-1">
-          <div className="text-[12.5px]" style={{ color: "var(--color-ink)" }}>
+          <div className="text-[12px] leading-[16px]" style={{ color: "var(--color-ink)" }}>
             {item.title}
           </div>
-          <p className="mt-1 text-[11.5px] leading-[17px]" style={{ color: "var(--color-ink-muted)" }}>
+          <p className="mt-0.5 text-[11px] leading-[15px]" style={{ color: "var(--color-ink-muted)" }}>
             {item.detail}
           </p>
         </div>
-        <div className="w-[92px] shrink-0 text-right">
-          <div className="text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+        <div className="w-[88px] shrink-0 text-right">
+          <div className="text-[10px]" style={{ color: "var(--color-ink-faint)" }}>
             {item.source}
           </div>
-          <div className="smp-num text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+          <div className="smp-num text-[10px]" style={{ color: "var(--color-ink-faint)" }}>
             {item.version} {item.date}
           </div>
         </div>

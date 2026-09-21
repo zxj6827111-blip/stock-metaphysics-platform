@@ -42,6 +42,7 @@ import { FIXTURE_QUERY_VALUE, overviewFixture } from "@/lib/fixture";
 import {
   buildContextFromMulti,
   buildOverview,
+  pickEvidenceSummary,
   toConflictView,
   toConsensusView,
   toDataQualityView,
@@ -49,6 +50,7 @@ import {
 } from "@/lib/dataSource";
 import { api, endpoints, type ApiConsensus, type ApiConflict, type ApiEventStudy, type ApiEvidence } from "@/lib/api";
 import { invalidateAnalysis, loadMultiAnalysis } from "@/lib/analysisStore";
+import { researchStatusLabel } from "@/components/shell/PageState";
 import type { OverviewPageData } from "@/lib/types";
 
 function OverviewInner() {
@@ -65,6 +67,7 @@ function OverviewInner() {
   const [loading, setLoading] = useState(!isMoutaiFixture && !isUnsupportedFixture);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
+  const [evidenceExpanded, setEvidenceExpanded] = useState(false);
   const [analysisId, setAnalysisId] = useState<string>("");
   const [researchStatus, setResearchStatus] = useState<string>("NOT_RUN");
   const [exporting, setExporting] = useState(false);
@@ -297,7 +300,7 @@ function OverviewInner() {
               导出 HTML
             </button>
             <span className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
-              ResearchStatus {researchStatus}
+              研究状态：{researchStatusLabel(researchStatus)}
             </span>
           </div>
         }
@@ -462,6 +465,7 @@ function OverviewInner() {
                   icon={<IconTrend size={14} />}
                   title="历史验证摘要"
                   action={{ label: "历史验证详情" }}
+                  dense
                 />
                 <div className="grid grid-cols-2 gap-2.5 p-3.5 md:grid-cols-5">
                   {metrics.map((m) => (
@@ -489,21 +493,41 @@ function OverviewInner() {
               </Card>
             </div>
 
-            {/* 右列 (42%)：关键证据 + 数据质量 */}
+            {/* 右列 (42%)：关键证据 + 数据质量与风险 */}
             <div className="flex flex-col gap-3">
               <Card testId="key-evidence">
                 <CardHeader
                   icon={<IconBook size={14} />}
-                  title="关键证据"
+                  title={`关键证据${data.evidence.length > 3 ? `（摘要 3 / 共 ${data.evidence.length}）` : ""}`}
                   action={{ label: "查看更多", onClick: () => setDrawer(true) }}
                 />
-                <div className="space-y-2 p-3.5">
+                <div className="space-y-2 p-3">
                   {data.evidence.length === 0 ? (
                     <div className="py-6 text-center text-[12px]" style={{ color: "var(--color-ink-faint)" }}>
                       暂无证据条目
                     </div>
                   ) : (
-                    data.evidence.map((ev) => <EvidenceRow key={ev.id} item={ev} />)
+                    <>
+                      {(evidenceExpanded
+                        ? data.evidence
+                        : pickEvidenceSummary(data.evidence, 3)
+                      ).map((ev) => (
+                        <EvidenceRow key={ev.id} item={ev} />
+                      ))}
+                      {data.evidence.length > 3 ? (
+                        <button
+                          type="button"
+                          className="w-full rounded-[6px] border py-1 text-[11.5px] transition-opacity hover:opacity-80"
+                          style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
+                          onClick={() => setEvidenceExpanded((v) => !v)}
+                          data-testid="evidence-toggle"
+                        >
+                          {evidenceExpanded
+                            ? "收起证据摘要"
+                            : `展开其余 ${data.evidence.length - 3} 条证据`}
+                        </button>
+                      ) : null}
+                    </>
                   )}
                 </div>
               </Card>

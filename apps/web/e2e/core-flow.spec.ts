@@ -170,7 +170,10 @@ test.describe("八字详情页", () => {
     await expect(ts).toContainText("流年");
     await expect(ts).toContainText("流月");
     await expect(ts).toContainText("流日");
-    await expect(page.getByTestId("variant-mode").first()).toHaveText("not_applicable");
+    // 面向人的标签用中文；原始状态码通过 data-* 保留可追溯性（不丢信息）
+    const variant = page.getByTestId("variant-mode").first();
+    await expect(variant).toHaveText("不适用（股票无性别）");
+    await expect(variant).toHaveAttribute("data-variant-mode", "not_applicable");
     await expect(ts).toContainText("股票无天然性别");
   });
 

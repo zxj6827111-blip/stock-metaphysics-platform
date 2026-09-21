@@ -14,16 +14,17 @@
  *    不应该出现在研究系统里。
  */
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 import { Card, CardHeader } from "@/components/cards/Card";
 import { ResearchPage, SectionNote } from "@/components/shell/ResearchPage";
 import { PageLoading, UnavailableBlock } from "@/components/shell/PageState";
+import { RawField, SourceMethod } from "@/components/shell/SourceMethod";
 import { IconBook, IconSearch } from "@/components/shell/Icons";
 import { api, endpoints, type ApiEvidence } from "@/lib/api";
 import { useAnalysis } from "@/lib/analysisStore";
-import { isFixtureActive, evidenceFixture } from "@/lib/fixture";
+import { FIXTURE_QUERY_VALUE, isFixtureActive, evidenceFixture } from "@/lib/fixture";
 
 interface Item {
   entry_id: string;
@@ -42,6 +43,10 @@ interface Item {
 function EvidenceInner() {
   const params = useParams<{ code: string }>();
   const code = params?.code ?? "600519";
+  const searchParams = useSearchParams();
+  // 用查询参数（而不是 window.location）判定演示模式：服务端与客户端一致，
+  // 避免"服务端渲染真实证据 / 客户端渲染演示语料"的 hydration 不一致。
+  const isFixtureDemo = searchParams.get("fixture") === FIXTURE_QUERY_VALUE;
   const { analysis, loading, error, reload } = useAnalysis(code);
 
   const [bundle, setBundle] = useState<ApiEvidence | null>(null);
@@ -119,7 +124,7 @@ function EvidenceInner() {
           title="检索"
           right={
             <span className="text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
-              {ev?.retrieval_method ?? "bm25+topic_match+authority_weight"}
+              支持 {supporting.length} · 反证 {counter.length} · 中性 {neutral.length}
             </span>
           }
           dense
@@ -138,7 +143,7 @@ function EvidenceInner() {
             data-testid="evidence-filter"
           />
           <span className="shrink-0 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
-            支持 {supporting.length} · 反证 {counter.length} · 中性 {neutral.length}
+            {isFixtureDemo ? "演示语料" : "知识库检索"}
           </span>
         </div>
         <div className="mt-2">
@@ -146,6 +151,33 @@ function EvidenceInner() {
             语料只收录<strong>清代及以前</strong>的公版原文；每条都带 source / edition / provenance /
             license_status。检索<strong>必须同时返回支持与反证</strong>，以避免「先有结论后找古籍」。
           </SectionNote>
+        </div>
+        <div className="mt-2">
+          <SourceMethod testId="evidence-source-method">
+            <RawField
+              label="语料来源"
+              value={
+                isFixtureDemo
+                  ? "演示语料（fixture=ui-reference 固定样本，用于版面对照，不构成研究结论）"
+                  : "项目自持公版语料库（KnowledgeProvider 检索）"
+              }
+            />
+            <RawField
+              label="检索方法"
+              value={ev?.retrieval_method ?? "bm25 + topic_match + authority_weight"}
+            />
+            <RawField
+              label="知识库版本"
+              value={
+                (bundle?.evidence as { knowledge_version?: string } | undefined)?.knowledge_version ??
+                "—"
+              }
+            />
+            <RawField
+              label="检索接口"
+              value="GET /api/v1/analysis/{analysis_id}/evidence-bundle"
+            />
+          </SourceMethod>
         </div>
       </Card>
 
@@ -177,7 +209,11 @@ function EvidenceInner() {
           <Card testId="evidence-supporting">
             <CardHeader
               icon={<IconBook size={15} />}
-              title={`支持性证据（真实 KnowledgeProvider 返回，${supporting.length} 条）`}
+              title={
+                isFixtureDemo
+                  ? `支持性证据（演示语料固定样本，${supporting.length} 条）`
+                  : `支持性证据（知识库检索返回，${supporting.length} 条）`
+              }
               dense
             />
             <EvidenceList items={supporting} tone="support" />

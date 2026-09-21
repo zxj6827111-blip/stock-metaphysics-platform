@@ -20,6 +20,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { Card, CardHeader } from "@/components/cards/Card";
 import { ResearchPage, SectionNote } from "@/components/shell/ResearchPage";
 import { PageLoading, ResearchStatusBadge, UnavailableBlock } from "@/components/shell/PageState";
+import { RawField, SourceMethod } from "@/components/shell/SourceMethod";
 import { IconBook, IconChart, IconTarget } from "@/components/shell/Icons";
 import { api, endpoints, type ApiEventStudy } from "@/lib/api";
 import { useAnalysis } from "@/lib/analysisStore";
@@ -211,7 +212,7 @@ function BacktestInner() {
         ) : !btLoading ? (
           <UnavailableBlock
             what="持有期统计"
-            reason="尚无历史验证样本。需要先运行 POST /api/v1/research/run（事件研究 + 四类负对照）积累观测与标签。"
+            reason="尚无历史验证样本。需要先运行研究流水线（事件研究 + 四类负对照）积累观测与标签，产出路径见下方「来源与方法」。"
           />
         ) : null}
         <div className="mt-2">
@@ -269,8 +270,25 @@ function BacktestInner() {
         <div className="mt-2">
           <UnavailableBlock
             what="逐类对照明细"
-            reason="详细对照结果（随机出生日 / ±7 天 / 随机因子）由 POST /api/v1/research/run 产出；本页只显示汇总状态，避免把未运行的对照显示成『通过』。"
+            reason="详细对照结果（随机出生日 / ±7 天 / 随机因子）由研究流水线产出；本页只显示汇总状态，避免把未运行的对照显示成『通过』。"
           />
+        </div>
+        <div className="mt-2">
+          <SourceMethod testId="backtest-source-method">
+            <RawField label="产出接口" value="POST /api/v1/research/run（事件研究 + 四类负对照）" />
+            <RawField label="读取接口" value="GET /api/v1/analysis/{analysis_id}/backtest" />
+            <RawField
+              label="数据真实性"
+              value={
+                es?.data_source?.is_real === undefined
+                  ? "—"
+                  : es.data_source.is_real
+                    ? "真实历史行情"
+                    : "合成 / 降级行情（不构成研究证据）"
+              }
+            />
+            <RawField label="实验标识" value={es?.experiment_id ?? "（尚未运行）"} />
+          </SourceMethod>
         </div>
       </Card>
 
