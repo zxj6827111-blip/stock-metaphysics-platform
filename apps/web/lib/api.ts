@@ -27,23 +27,49 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 请求超时（毫秒）。
+ *
+ * 为什么必须有：`fetch` **没有内置超时**。后端进程卡住（未崩溃、但不再响应）时，
+ * 请求会一直挂起，页面就永远停在 Loading —— 用户看到的是"一直在算"，
+ * 而不是"失败了、可以重试"。这类"永远转圈"属于比报错更差的失败模式：
+ * 它把故障伪装成了进行中的工作。
+ *
+ * 取值：时间窗口逐日批量求值是最慢的只读路径（实测秒级，冷启动更久），
+ * 30 秒足够；再慢就应当以错误暴露出来，而不是继续无提示地等。
+ */
+const REQUEST_TIMEOUT_MS = 30_000;
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
   let res: Response;
+  // 允许调用方传入自己的 signal（与超时信号合并）
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort("timeout"), REQUEST_TIMEOUT_MS);
+  if (init?.signal) {
+    if (init.signal.aborted) controller.abort();
+    else init.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
   try {
     res = await fetch(url, {
       ...init,
       headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
       cache: "no-store",
+      signal: controller.signal,
     });
   } catch (err) {
+    const timedOut = controller.signal.aborted && !init?.signal?.aborted;
     throw new ApiError(
       0,
-      "NETWORK_ERROR",
-      "无法连接后端服务，请确认 apps/api 已启动（默认 http://127.0.0.1:8000）",
+      timedOut ? "NETWORK_TIMEOUT" : "NETWORK_ERROR",
+      timedOut
+        ? `请求超时（${REQUEST_TIMEOUT_MS / 1000} 秒）：后端未在时限内返回。本次分析未被写入，可直接重试。`
+        : "无法连接后端服务，请确认 apps/api 已启动（默认 http://127.0.0.1:8000）",
       String(err),
       true,
     );
+  } finally {
+    clearTimeout(timer);
   }
 
   const text = await res.text();
@@ -67,6 +93,48 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+/**
+ * 纯文本请求（导出报告等 Markdown / HTML 响应）。
+ *
+ * 与 `request()` 共用同一套超时与错误语义：导出报告要在后端拼装
+ * EvidenceBundle（含古籍检索与历史统计），同样可能卡住 ——
+ * 没有超时会表现为"点了导出，永远停在导出中"。
+ */
+async function requestText(path: string): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort("timeout"), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(API_BASE + path, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new ApiError(
+        res.status,
+        `HTTP_${res.status}`,
+        `导出失败 (${res.status})`,
+        await res.text().catch(() => ""),
+        res.status >= 500,
+      );
+    }
+    return res.text();
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    const timedOut = controller.signal.aborted;
+    throw new ApiError(
+      0,
+      timedOut ? "NETWORK_TIMEOUT" : "NETWORK_ERROR",
+      timedOut
+        ? `导出超时（${REQUEST_TIMEOUT_MS / 1000} 秒）：后端未在时限内返回，可直接重试。`
+        : "无法连接后端服务，导出失败。",
+      String(err),
+      true,
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const api = {
   get: <T,>(path: string) => request<T>(path),
   /**
@@ -83,19 +151,7 @@ export const api = {
       body: JSON.stringify(body ?? {}),
     }),
   /** 导出报告等纯文本响应（Markdown / HTML）。 */
-  raw: async (path: string): Promise<string> => {
-    const res = await fetch(API_BASE + path, { cache: "no-store" });
-    if (!res.ok) {
-      throw new ApiError(
-        res.status,
-        `HTTP_${res.status}`,
-        `导出失败 (${res.status})`,
-        await res.text().catch(() => ""),
-        res.status >= 500,
-      );
-    }
-    return res.text();
-  },
+  raw: (path: string): Promise<string> => requestText(path),
 };
 
 /** 后端原始响应类型（只声明 UI 用得到的字段）。 */
