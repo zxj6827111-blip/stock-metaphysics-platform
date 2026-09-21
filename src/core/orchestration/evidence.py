@@ -203,7 +203,8 @@ def load_historical_stats(db: Session, stock_code: str, engine: str = "") -> dic
     """读取与该股票相关的历史验证记录。
 
     ``backtest_result`` 表按 **experiment_id** 关联（不直接存 stock_code）——
-    研究实验的股票池写在 ``backtest_experiment.payload_json`` 里。
+    研究实验的股票池写在 ``backtest_experiment.universe_json`` 里，
+    因子清单写在 ``factor_ids_json`` 里（两者都是 JSON 列，**没有** ``payload_json``）。
     因此这里先用股票池过滤实验，再取结果；**没有记录就如实返回 NOT_RUN**，
     绝不编造统计数字。
     """
@@ -211,11 +212,33 @@ def load_historical_stats(db: Session, stock_code: str, engine: str = "") -> dic
 
     from src.db.models import BacktestExperimentRow, BacktestResultRow
 
+    def _tokens(values) -> list[str]:
+        """把 JSON 列**递归**摊平成字符串集合。
+
+        股票池的写入形态不止一种：早期是 `["600519", ...]`，研究管线后来写的是
+        `[{"stock_code": "600519", ...}, ...]`。只做一层 `str()` 会让第二种形态
+        永远匹配不上（表现为"相关实验存在却报 NOT_RUN"），因此这里递归展开。
+        """
+        if values is None:
+            return []
+        if isinstance(values, dict):
+            out: list[str] = []
+            for v in values.values():
+                out.extend(_tokens(v))
+            return out
+        if isinstance(values, (list, tuple, set)):
+            out = []
+            for v in values:
+                out.extend(_tokens(v))
+            return out
+        return [str(values)]
+
     exps = db.execute(select(BacktestExperimentRow)).scalars().all()
-    matched = [
-        e for e in exps
-        if stock_code in json.dumps(e.payload_json or {}, ensure_ascii=False)
-    ]
+    matched = []
+    for e in exps:
+        pool = set(_tokens(e.universe_json)) | set(_tokens(e.factor_ids_json))
+        if stock_code in pool:
+            matched.append(e)
     if not matched:
         return {
             "status": "NOT_RUN",
@@ -246,12 +269,12 @@ def load_historical_stats(db: Session, stock_code: str, engine: str = "") -> dic
         }
         for r in rows[:40]
     ]
-    payload = matched[0].payload_json or {}
+    universe = _tokens(matched[0].universe_json)
     return {
         "status": "AVAILABLE",
         "engine_filter": engine,
         "experiments": ids,
-        "universe_size": len(payload.get("universe", []) or []),
+        "universe_size": len(universe),
         "results": results,
         "methodology": matched[0].methodology or "",
         "note": (
