@@ -27,6 +27,8 @@ import { SectionError, SectionLoading } from "@/components/shell/SectionState";
 import { IconCalendar, IconBook, IconTrend } from "@/components/shell/Icons";
 import { api, endpoints } from "@/lib/api";
 import { useAnalysis } from "@/lib/analysisStore";
+import { useBirthBasisParam } from "@/lib/useBirthBasisParam";
+import { useHorizonParam } from "@/lib/useHorizonParam";
 import { useAsOfParam } from "@/lib/useAsOfParam";
 import { FIXTURE_QUERY_VALUE, huangliFixture } from "@/lib/fixture";
 
@@ -46,7 +48,9 @@ function HuangliInner() {
   const isMoutaiFixture = fixture && code === "600519";
   // 基准日可由 URL 指定（研究复核 / 验收需要确定的时点）
   const asOf = useAsOfParam();
-  const { analysis, loading, error, reload } = useAnalysis(code, "forward", asOf);
+  const birthBasis = useBirthBasisParam();
+  const horizon = useHorizonParam();
+  const { analysis, loading, error, reload } = useAnalysis(code, "forward", asOf, birthBasis, horizon);
 
   const [hl, setHl] = useState<HuangliResponse | null>(
     isMoutaiFixture ? (huangliFixture as unknown as HuangliResponse) : null,

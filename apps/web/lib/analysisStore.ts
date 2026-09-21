@@ -25,16 +25,55 @@ import { recordAnalysis } from "./historyStore";
 const STORAGE_PREFIX = "smp-analysis:";
 const memory = new Map<string, ApiMultiAnalysis>();
 
+/**: 默认出生模型 —— 与后端 `BirthBasis.LISTING_OPEN` 一致（研究约定，非事实）。 */
+export const DEFAULT_BIRTH_BASIS: AnalysisBirthBasis = "listing_open";
+
+/** 可选研究窗口标签（与后端 `BaziAnalysisRequest.horizon` 的默认值一致）。 */
+export const HORIZON_OPTIONS = ["20d", "60d"] as const;
+export const DEFAULT_HORIZON = "20d";
+
 export type AnalysisVariant = "forward" | "reverse";
+
+/**
+ * 出生模型（研究假设）。
+ *
+ * 与后端 `BirthBasis` 枚举一一对应。**不是所有取值都能算**：
+ * `company_foundation` / `first_trade` 缺少数据源，后端按契约返回
+ * `422 BIRTH_PROFILE_ERROR`（不猜测），前端据此把它们标为不可用并给出原因。
+ */
+export type AnalysisBirthBasis =
+  | "listing_open"
+  | "ipo_date"
+  | "company_foundation"
+  | "first_trade";
+
+/**: 可实际计算的出生模型（其余会在切换器里显示为"不可用 + 原因"）。 */
+export const SUPPORTED_BIRTH_BASES: AnalysisBirthBasis[] = ["listing_open", "ipo_date"];
 
 export interface AnalysisKey {
   code: string;
   variant: AnalysisVariant;
   asOf?: string;
+  /**
+   * 出生模型。
+   *
+   * **必须进缓存键**：不同基准给出不同的出生时刻 → 不同的四柱与紫微盘面
+   * （实测 600519：listing_open 09:30 与 ipo_date 00:00 的八字日主/紫微星曜都不同）。
+   * 少了它就会把「假设 A 的盘」当「假设 B 的盘」返回。
+   */
+  birthBasis?: AnalysisBirthBasis;
+  /**
+   * 研究窗口标签（如 ``20d``）。
+   *
+   * 后端会把它登记进 `analysis_run.horizon` 并在响应里回传，但**不参与因子计算**
+   * （三个模型的分数与它无关，事件研究用自己的持有期集合）。仍进缓存键，
+   * 因为登记值属于"这一份分析的身份"：同一标的不同登记窗口是两次不同的分析记录。
+   */
+  horizon?: string;
 }
 
-function keyOf({ code, variant, asOf }: AnalysisKey): string {
-  return `${code}|${variant}|${asOf ?? ""}`;
+function keyOf({ code, variant, asOf, birthBasis, horizon }: AnalysisKey): string {
+  return `${code}|${variant}|${asOf ?? ""}|${birthBasis ?? ""}|${horizon ?? ""}`;
 }
 
 export async function loadMultiAnalysis(
@@ -46,6 +85,16 @@ export async function loadMultiAnalysis(
     // 演示模式规则：仅 600519 提供完整离线视觉复刻；
     // 其他标的在演示模式下统一阻断真实分析与持久化，绝不静默发起网络请求
     if (key.code === "600519") {
+      const basis = key.birthBasis ?? DEFAULT_BIRTH_BASIS;
+      if (basis !== DEFAULT_BIRTH_BASIS) {
+        // 夹具是**冻结在默认出生模型上的**一份样本。用别的假设请求时返回它，
+        // 等于把「假设 A 的盘」标成「假设 B 的盘」—— 这比报错糟得多。
+        throw new Error(
+          `演示模式（UI 复刻）的样本冻结在默认出生模型「上市首日正式开盘」上，` +
+            `无法提供「${basis}」假设下的结果。请移除 URL 中的 fixture 参数以进入真实分析模式，` +
+            `届时切换出生模型会真实重新分析（出生时刻不同 → 四柱与紫微盘面不同）。`,
+        );
+      }
       return multiAnalysisFixture;
     }
     throw new Error(
@@ -73,6 +122,8 @@ export async function loadMultiAnalysis(
   const body = {
     as_of: key.asOf ?? null,
     variant_mode: key.variant,
+    birth_basis: key.birthBasis ?? DEFAULT_BIRTH_BASIS,
+    horizon: key.horizon ?? DEFAULT_HORIZON,
     persist: opts.persist ?? true,
   };
   const res = await api.post<ApiMultiAnalysis>(endpoints.analyzeMulti(key.code), body);
@@ -117,6 +168,14 @@ export function useAnalysis(
   code: string,
   variant: AnalysisVariant = "forward",
   asOf?: string,
+  /**
+   * 出生模型（研究假设）。默认 `listing_open`。
+   *
+   * 它必须进请求体与缓存键：不同基准给出不同出生时刻，四柱与紫微盘面随之改变
+   * （实测 600519：`listing_open` 09:30 与 `ipo_date` 00:00 的八字与紫微结果不同）。
+   */
+  birthBasis: AnalysisBirthBasis = DEFAULT_BIRTH_BASIS,
+  horizon: string = DEFAULT_HORIZON,
 ): UseAnalysisResult {
   const [analysis, setAnalysis] = useState<ApiMultiAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
@@ -134,7 +193,7 @@ export function useAnalysis(
    * 令牌比较是这类竞态唯一可靠的判据。
    */
   const tokenRef = useRef(0);
-  const contextKey = `${code}|${variant}|${asOf ?? ""}`;
+  const contextKey = `${code}|${variant}|${asOf ?? ""}|${birthBasis}|${horizon}`;
 
   useEffect(() => {
     alive.current = true;
@@ -152,7 +211,7 @@ export function useAnalysis(
     // 同一标的只换变体/基准日时保留旧值（盘面仍在），由 loading 覆盖层提示刷新，
     // 避免整页闪空；竞态本身由 token 比较兜住。
     setAnalysis((prev) => (prev && prev.stock?.stock_code === code ? prev : null));
-    loadMultiAnalysis({ code, variant, asOf })
+    loadMultiAnalysis({ code, variant, asOf, birthBasis, horizon })
       .then((res) => {
         if (cancelled) return;
         if (!alive.current) return;
@@ -176,12 +235,12 @@ export function useAnalysis(
     return () => {
       cancelled = true;
     };
-  }, [contextKey, code, variant, asOf, tick]);
+  }, [contextKey, code, variant, asOf, birthBasis, horizon, tick]);
 
   const reload = useCallback(() => {
-    invalidateAnalysis({ code, variant, asOf });
+    invalidateAnalysis({ code, variant, asOf, birthBasis, horizon });
     setTick((t) => t + 1);
-  }, [code, variant, asOf]);
+  }, [code, variant, asOf, birthBasis, horizon]);
 
   return { analysis, loading, error, reload };
 }

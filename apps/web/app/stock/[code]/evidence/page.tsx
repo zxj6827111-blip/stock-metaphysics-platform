@@ -32,6 +32,8 @@ import { RawField, SourceMethod } from "@/components/shell/SourceMethod";
 import { IconBook, IconSearch } from "@/components/shell/Icons";
 import { api, endpoints, type ApiEvidence, type ApiEvidenceItem } from "@/lib/api";
 import { useAnalysis } from "@/lib/analysisStore";
+import { useBirthBasisParam } from "@/lib/useBirthBasisParam";
+import { useHorizonParam } from "@/lib/useHorizonParam";
 import { FIXTURE_QUERY_VALUE, isFixtureActive, evidenceFixture } from "@/lib/fixture";
 
 /** 三类证据的展示顺序 —— 「全部」模式下也按这个顺序分段，反证永远在最前。 */
@@ -52,7 +54,9 @@ function EvidenceInner() {
   // 用查询参数（而不是 window.location）判定演示模式：服务端与客户端一致，
   // 避免"服务端渲染真实证据 / 客户端渲染演示语料"的 hydration 不一致。
   const isFixtureDemo = searchParams.get("fixture") === FIXTURE_QUERY_VALUE;
-  const { analysis, loading, error, reload } = useAnalysis(code);
+  const birthBasis = useBirthBasisParam();
+  const horizon = useHorizonParam();
+  const { analysis, loading, error, reload } = useAnalysis(code, "forward", undefined, birthBasis, horizon);
 
   const [bundle, setBundle] = useState<ApiEvidence | null>(null);
   const [evLoading, setEvLoading] = useState(false);

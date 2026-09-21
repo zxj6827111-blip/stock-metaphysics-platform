@@ -58,7 +58,9 @@ import {
   type ApiMultiAnalysis,
 } from "@/lib/api";
 import { buildExportTarget } from "@/lib/reportExport";
-import { invalidateAnalysis, loadMultiAnalysis } from "@/lib/analysisStore";
+import { DEFAULT_BIRTH_BASIS, invalidateAnalysis, loadMultiAnalysis } from "@/lib/analysisStore";
+import { useBirthBasisParam } from "@/lib/useBirthBasisParam";
+import { useHorizonParam } from "@/lib/useHorizonParam";
 import { researchStatusLabel } from "@/components/shell/PageState";
 import type { OverviewPageData } from "@/lib/types";
 
@@ -69,6 +71,12 @@ function OverviewInner() {
   const fixture = search.get("fixture") === FIXTURE_QUERY_VALUE;
   const isMoutaiFixture = fixture && code === "600519";
   const isUnsupportedFixture = fixture && code !== "600519";
+  // 出生模型同样属于分析上下文：切换即重新分析
+  const birthBasis = useBirthBasisParam();
+  const horizon = useHorizonParam();
+  // 演示样本冻结在默认出生模型上：换成别的假设时**不能用它冒充**，
+  // 明确显示为「演示模式不适用」并给出进入真实模式的入口。
+  const isFixtureBasisUnsupported = fixture && birthBasis !== DEFAULT_BIRTH_BASIS;
 
   const [data, setData] = useState<OverviewPageData | null>(
     isMoutaiFixture ? overviewFixture : null,
@@ -91,6 +99,10 @@ function OverviewInner() {
   }>({ supporting: [], counter: [], neutral: [] });
 
   const load = useCallback(async (force = false) => {
+    if (isFixtureBasisUnsupported) {
+      setLoading(false);
+      return;
+    }
     if (isMoutaiFixture) {
       setData(overviewFixture);
       // 演示模式同样要有可导出的上下文快照：`multiAnalysisFixture` 是
@@ -113,7 +125,7 @@ function OverviewInner() {
       // BaziOpinion / ZiweiOpinion / HuangliOpinion / Consensus / Conflict，
       // 全部来自正式 ConsensusEngine 与 ConflictDetector，
       // **不再是展示层 fixture aggregation**。
-      const multi = await loadMultiAnalysis({ code, variant: "forward" });
+      const multi = await loadMultiAnalysis({ code, variant: "forward", birthBasis, horizon });
       const aid = multi.analysis_id;
 
       // 三模型观点：直接消费后端 opinion，前端**不重算分数**
@@ -193,11 +205,11 @@ function OverviewInner() {
     } finally {
       setLoading(false);
     }
-  }, [code, fixture, isMoutaiFixture, isUnsupportedFixture]);
+  }, [code, fixture, isMoutaiFixture, isUnsupportedFixture, birthBasis, horizon]);
 
   useEffect(() => {
     if (!isMoutaiFixture && !isUnsupportedFixture) void load();
-  }, [isMoutaiFixture, isUnsupportedFixture, load]);
+  }, [isMoutaiFixture, isUnsupportedFixture, isFixtureBasisUnsupported, load]);
 
   /**
    * 演示模式下也要准备导出快照。
@@ -234,6 +246,45 @@ function OverviewInner() {
   );
 
   const metrics = useMemo(() => data?.backtestMetrics ?? [], [data]);
+
+  if (isFixtureBasisUnsupported) {
+    return (
+      <AppShell activeNav="overview" dataStatus="bad" statusText="演示模式受限">
+        <PageHero
+          title="综合研判"
+          subtitle="八字 · 紫微 · 黄历三模型共识与分歧研究"
+          seal="研"
+        />
+        <Card className="my-4 p-6" testId="fixture-basis-unsupported">
+          <div className="flex items-start gap-3">
+            <span className="text-[24px]">⚠️</span>
+            <div className="space-y-2">
+              <h3 className="text-[16px] font-semibold" style={{ color: "var(--color-warn)" }}>
+                演示模式不提供该出生模型下的结果
+              </h3>
+              <p className="text-[13px] leading-relaxed" style={{ color: "var(--color-ink-sub)" }}>
+                演示样本冻结在默认出生模型<strong>「上市首日正式开盘」</strong>上。用其他假设
+                （当前 URL 指定的是 <code className="smp-num">{birthBasis}</code>）返回这份样本，
+                等于把「假设 A 的盘」标成「假设 B 的盘」—— 系统不会这样做。
+              </p>
+              <div className="flex items-center gap-3 pt-2">
+                <Link
+                  href={`/stock/${code}/overview?fixture=${FIXTURE_QUERY_VALUE}&birthBasis=${DEFAULT_BIRTH_BASIS}`}
+                  className="smp-btn smp-btn-primary"
+                  data-testid="reset-birth-basis-btn"
+                >
+                  回到默认出生模型（演示样本）
+                </Link>
+                <Link href={`/stock/${code}/overview`} className="smp-btn">
+                  移除 fixture 参数并进入真实分析模式
+                </Link>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </AppShell>
+    );
+  }
 
   if (isUnsupportedFixture) {
     return (

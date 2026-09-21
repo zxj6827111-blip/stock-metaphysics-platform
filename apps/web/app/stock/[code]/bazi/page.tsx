@@ -36,6 +36,8 @@ import {
   variantModeLabel,
 } from "@/lib/dataSource";
 import { useAnalysis } from "@/lib/analysisStore";
+import { useBirthBasisParam } from "@/lib/useBirthBasisParam";
+import { useHorizonParam } from "@/lib/useHorizonParam";
 import { api, endpoints, type ApiEvidence, type ApiEventStudy } from "@/lib/api";
 import type { BaziPageData } from "@/lib/types";
 
@@ -47,7 +49,11 @@ function BaziInner() {
   const isMoutaiFixture = fixture && code === "600519";
   const isUnsupportedFixture = fixture && code !== "600519";
 
-  const { analysis, loading: multiLoading, error: multiError, reload } = useAnalysis(code);
+  const birthBasis = useBirthBasisParam();
+  const horizon = useHorizonParam();
+  const { analysis, loading: multiLoading, error: multiError, reload } = useAnalysis(
+    code, "forward", undefined, birthBasis, horizon,
+  );
 
   const [data, setData] = useState<BaziPageData | null>(isMoutaiFixture ? baziFixture : null);
   const [loading, setLoading] = useState(!isMoutaiFixture && !isUnsupportedFixture);

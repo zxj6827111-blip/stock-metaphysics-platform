@@ -30,6 +30,8 @@ import { PageLoading, ResearchStatusBadge, researchStatusLabel } from "@/compone
 import { RawField, SourceMethod } from "@/components/shell/SourceMethod";
 import { IconNodes, IconWarning } from "@/components/shell/Icons";
 import { useAnalysis } from "@/lib/analysisStore";
+import { useBirthBasisParam } from "@/lib/useBirthBasisParam";
+import { useHorizonParam } from "@/lib/useHorizonParam";
 import type { ApiMultiAnalysis } from "@/lib/api";
 
 type ApiMultiAnalysisOpinions = ApiMultiAnalysis["opinions"];
@@ -58,7 +60,11 @@ function ConflictsInner() {
   const params = useParams<{ code: string }>();
   const code = params?.code ?? "600519";
   const searchParams = useSearchParams();
-  const { analysis: rawAnalysis, loading, error, reload } = useAnalysis(code);
+  const birthBasis = useBirthBasisParam();
+  const horizon = useHorizonParam();
+  const { analysis: rawAnalysis, loading, error, reload } = useAnalysis(
+    code, "forward", undefined, birthBasis, horizon,
+  );
 
   // 演示模式下用 ?scenario= 切换三种分歧场景（真实后端不会出现这个参数）
   const scenarioParam = searchParams.get("scenario") as ScenarioKey | null;

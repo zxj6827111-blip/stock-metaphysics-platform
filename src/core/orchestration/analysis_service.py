@@ -989,6 +989,7 @@ class AnalysisService:
             birth_profile=birth_profile,
             as_of=as_of,
             variant_mode=ex_value(variant_mode),
+            horizon=horizon,
             bazi_chart=chart.model_dump(mode="json"),
             ziwei_charts={k: v.model_dump(mode="json") for k, v in ziwei_charts.items()},  # type: ignore[attr-defined]
             huangli=huangli,
