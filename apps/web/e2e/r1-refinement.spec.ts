@@ -163,6 +163,38 @@ test.describe("R1-2 非支持标的演示页：服务端与客户端同分支（
       expect(errors, `控制台错误：${errors.join(" | ")}`).toHaveLength(0);
     });
   }
+
+  test("演示模式的加载 / 重算 / 搜索 / 切换弹窗全程零真实请求", async ({ page }) => {
+    const apiCalls: string[] = [];
+    page.on("request", (r) => {
+      if (r.url().includes("/api/")) apiCalls.push(`${r.method()} ${r.url()}`);
+    });
+
+    await page.goto(`/stock/600519/overview${FIXTURE}`, { waitUntil: "load" });
+    await expect(page.getByTestId("page-title").first()).toBeVisible();
+
+    // 重算
+    await page.getByTestId("recalculate").first().click();
+    await page.waitForTimeout(700);
+
+    // 搜索（顶栏入口，输入即触发本地目录建议）
+    const search = page.getByTestId("stock-search-input").first();
+    await search.click();
+    await search.fill("600519");
+    await page.waitForTimeout(700);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+
+    // 切换股票弹窗（只做交互，不点跳转 —— 跳转会进入不带 fixture 的真实模式）
+    await page.getByTestId("switch-stock-btn").first().click();
+    await expect(page.getByTestId("stock-switch-modal")).toBeVisible();
+    await page.waitForTimeout(500);
+
+    expect(
+      apiCalls,
+      `演示模式（含重算/搜索/切换弹窗）不得发起真实请求：${apiCalls.join(" | ")}`,
+    ).toHaveLength(0);
+  });
 });
 
 test.describe("R1-2 公共展示：内部状态中文化，裸标签与裸码不进入正文", () => {
