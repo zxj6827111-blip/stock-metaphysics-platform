@@ -33,6 +33,7 @@ Phase 1 之前**没有独立交易日历**：
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import threading
 from dataclasses import dataclass, field
@@ -81,6 +82,11 @@ class TradingCalendar:
     published_error: str = ""
     loaded: bool = False
     load_error: str = ""
+    #: 内容指纹（加载时算一次）。**不是**区间+行数：
+    #: "覆盖区间与行数不变、但某些天的开市标志被修正"同样会改变结果，
+    #: 只有对内容本身取哈希才能识别这种更新。
+    observed_fingerprint: str = ""
+    published_fingerprint: str = ""
 
     # ------------------------------------------------------------------
     @property
@@ -127,13 +133,16 @@ class TradingCalendar:
 
         日历更新后，"未来 N 个交易日"的答案会变。缓存键里没有这个指纹，
         就可能把更新前的窗口当成更新后的返回 —— 与漏掉一个引擎版本号同类。
+
+        **为什么必须是对内容取哈希**：早期版本用「区间 + 行数 + 生成时间」，
+        无法识别"覆盖区间与行数都不变、但某几天的开市标志被修正"的更新
+        （例如某日由休市改为开市、或公布层补充了证据）—— 那正是会给出
+        错误交易日集合的一类变化。行数相同不代表内容相同。
         """
-        obs = self.coverage
-        pub = self.published_coverage
         return "|".join([
             self.exchange,
-            f"o:{obs[0]}:{obs[1]}:{len(self._days)}" if obs else "o:none",
-            f"p:{pub[0]}:{pub[1]}:{len(self._published)}" if pub else "p:none",
+            f"o:{self.observed_fingerprint}" if self._days else "o:none",
+            f"p:{self.published_fingerprint}" if self._published else "p:none",
             str(self.published_meta.get("generated_at") or ""),
         ])
 
@@ -298,22 +307,78 @@ def _date_range(start: date, end: date):
         cursor += timedelta(days=1)
 
 
+def _fingerprint(text: str) -> str:
+    """内容指纹（取前 16 位即可：缓存键去重用途，不是安全用途）。"""
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:16]
+
+
+def observed_days_fingerprint(days) -> str:
+    """实测层内容指纹：对全部成交日**排序后**取哈希（与迭代顺序无关）。"""
+    if not days:
+        return ""
+    joined = ",".join(d.isoformat() for d in sorted(days))
+    return _fingerprint(f"obs:{len(days)}:{joined}")
+
+
+def published_flags_fingerprint(flags: dict[date, bool]) -> str:
+    """公布层内容指纹：对「日期:开市标志」**排序后**取哈希。
+
+    开市标志变了（True↔False）哈希就变 —— 这是行数无法区分的更新类型。
+    """
+    if not flags:
+        return ""
+    joined = ",".join(
+        f"{d.isoformat()}:{'1' if flag else '0'}" for d, flag in sorted(flags.items())
+    )
+    return _fingerprint(f"pub:{len(flags)}:{joined}")
+
+
 class TradingCalendarProvider:
-    """按交易所提供交易日历（进程内缓存单例）。"""
+    """按交易所提供交易日历（进程内缓存单例）。
+
+    **缓存会跟着文件变化失效**：只按 exchange 缓存是错的 ——
+    `scripts/update_trading_calendar.py` 更新 CSV 后，已经跑着的 API 进程
+    会一直返回更新前的日历（以及更新前的 `version_token`，于是连"缓存键变了"
+    这条兜底也失效）。这里用文件 mtime 判定是否需要重新加载。
+    """
 
     def __init__(self, calendar_dir: Path | None = None,
                  published_dir: Path | None = None) -> None:
         self._dir = calendar_dir or CALENDAR_DIR
         self._published_dir = published_dir or (self._dir / "published")
         self._cache: dict[str, TradingCalendar] = {}
+        self._mtimes: dict[str, tuple] = {}
+
+    def _source_mtimes(self, exchange: str) -> tuple:
+        """该交易所全部来源文件的 mtime 签名（缺文件用 None 占位）。"""
+        fname = _EXCHANGE_FILES.get(exchange)
+        paths = [
+            self._dir / fname if fname else None,
+            self._published_dir / f"{exchange}.csv",
+            self._published_dir / "_meta.json",
+        ]
+        out = []
+        for p in paths:
+            if p is None:
+                out.append(None)
+                continue
+            try:
+                st = p.stat()
+                out.append((str(p), st.st_mtime_ns, st.st_size))
+            except OSError:
+                out.append((str(p), None, None))
+        return tuple(out)
 
     def for_exchange(self, exchange: str) -> TradingCalendar:
         ex = (exchange or "UNKNOWN").upper()
-        if ex in self._cache:
-            return self._cache[ex]
+        signature = self._source_mtimes(ex)
+        cached = self._cache.get(ex)
+        if cached is not None and self._mtimes.get(ex) == signature:
+            return cached
         cal = self._load(ex)
         self._load_published(cal)
         self._cache[ex] = cal
+        self._mtimes[ex] = signature
         return cal
 
     def _load(self, exchange: str) -> TradingCalendar:
@@ -336,7 +401,10 @@ class TradingCalendarProvider:
                     for row in csv.DictReader(fh)
                     if row.get("trade_date")
                 )
-            return TradingCalendar(exchange=exchange, _days=days, loaded=True)
+            return TradingCalendar(
+                exchange=exchange, _days=days, loaded=True,
+                observed_fingerprint=observed_days_fingerprint(days),
+            )
         except Exception as exc:  # noqa: BLE001
             return TradingCalendar(exchange=exchange, loaded=False,
                                    load_error=f"{type(exc).__name__}: {exc}")
@@ -384,6 +452,7 @@ class TradingCalendarProvider:
             cal._published_evidence = evidence
             cal.published_meta = meta
             cal.published_loaded = bool(flags)
+            cal.published_fingerprint = published_flags_fingerprint(flags)
             if not flags:
                 cal.published_error = f"官方公布日历为空: {path}"
         except Exception as exc:  # noqa: BLE001
