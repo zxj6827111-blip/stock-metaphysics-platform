@@ -17,11 +17,12 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 
 import { Card, CardHeader } from "@/components/cards/Card";
 import { ResearchPage, SectionNote } from "@/components/shell/ResearchPage";
-import { PageLoading, ResearchStatusBadge, UnavailableBlock } from "@/components/shell/PageState";
+import { PageLoading, ResearchStatusBadge, researchStatusLabel, UnavailableBlock } from "@/components/shell/PageState";
+import { RawField, SourceMethod } from "@/components/shell/SourceMethod";
 import { IconCalendar, IconTrend } from "@/components/shell/Icons";
 import { api, endpoints, type ApiTimelineMonths, type ApiTimelineWeeks } from "@/lib/api";
 import { useAnalysis } from "@/lib/analysisStore";
-import { engineCn } from "@/lib/dataSource";
+import { engineCn, variantModeLabel } from "@/lib/dataSource";
 import { isFixtureActive, timelineMonthsFixture, timelineWeeksFixture } from "@/lib/fixture";
 
 const DIR_TONE: Record<string, string> = {
@@ -30,6 +31,22 @@ const DIR_TONE: Record<string, string> = {
   "-1": "var(--color-down)",
 };
 const DIR_CN: Record<string, string> = { "1": "偏强", "0": "中性", "-1": "偏弱" };
+
+/**
+ * 依据返回区间与分析基准日判断该窗口是"当前周/月"还是"下一周/月"。
+ *
+ * 为什么不能写死"下一周"：基准日为 2024-11-15 时，2024-11-11~15 这一周
+ * **已经包含基准日**，把它叫"下一周"会让研究者误判窗口起点（复核任务书 §2）。
+ */
+function windowPositionCn(start: string | undefined, end: string | undefined, asOf: string, unit: "周" | "月"): string {
+  if (!start || !end) return `待定${unit}度窗口`;
+  const a = asOf.slice(0, 10);
+  if (a && start.slice(0, 10) <= a && a <= end.slice(0, 10)) {
+    return `当前${unit}（含分析基准日）`;
+  }
+  if (a && start.slice(0, 10) > a) return `下一${unit}（基准日之后）`;
+  return `${unit}度窗口`;
+}
 
 function TimelineInner() {
   const params = useParams<{ code: string }>();
@@ -70,6 +87,22 @@ function TimelineInner() {
 
   const firstWeek = weeks?.weeks?.[0];
   const firstMonth = months?.months?.[0];
+  const monthList = months?.months ?? [];
+  const weekList = weeks?.weeks ?? [];
+  const asOfDate = months?.as_of ?? weeks?.as_of ?? analysis?.as_of ?? "";
+
+  // 标题必须反映**实际返回的数量与覆盖范围**，不写死"12 个月 / 12 周"
+  // （fixture 只返回 4 个月 / 3 周，写 12 会让读者以为拿全了）。
+  const monthTitle = twLoading
+    ? "月度窗口（加载中…）"
+    : monthList.length
+      ? `月度窗口：共 ${monthList.length} 个月（${monthList[0].month} ~ ${monthList[monthList.length - 1].month}）`
+      : "月度窗口";
+  const weekTitle = twLoading
+    ? "周度窗口（加载中…）"
+    : weekList.length
+      ? `周度窗口：共 ${weekList.length} 周（${weekList[0].week_start} ~ ${weekList[weekList.length - 1].week_end}）`
+      : "周度窗口";
 
   return (
     <ResearchPage
@@ -82,7 +115,7 @@ function TimelineInner() {
       loading={loading}
       error={error}
       onReload={reload}
-      loadingLabel="正在按交易日构建未来 12 个月 / 12 周窗口…"
+      loadingLabel="正在按交易日构建月度 / 周度窗口…"
     >
       <Card testId="timeline-summary">
         <CardHeader
@@ -97,27 +130,49 @@ function TimelineInner() {
         />
         <div className="grid grid-cols-4 gap-3 text-[12.5px]">
           <Metric
-            label="下一周"
+            label={windowPositionCn(firstWeek?.week_start, firstWeek?.week_end, asOfDate, "周")}
             value={firstWeek ? `${firstWeek.week_start} ~ ${firstWeek.week_end}` : "—"}
             hint={firstWeek ? `${firstWeek.trading_days} 个交易日` : "等待数据"}
           />
           <Metric
-            label="下一月"
+            label={windowPositionCn(
+              firstMonth ? `${firstMonth.start_date ?? firstMonth.month + "-01"}` : undefined,
+              firstMonth ? `${firstMonth.end_date ?? firstMonth.month + "-31"}` : undefined,
+              asOfDate,
+              "月",
+            )}
             value={firstMonth?.month ?? "—"}
             hint={firstMonth ? `${firstMonth.trading_days} 个交易日` : "等待数据"}
           />
           <Metric
             label="窗口研究状态"
-            value={months?.research_status ?? "—"}
+            value={researchStatusLabel(months?.research_status)}
             hint="历史有效性由研究流水线回答"
           />
-          <Metric label="本次变体" value={months?.variant_mode ?? "—"} hint="顺行 / 逆行是假设，不是事实" />
+          <Metric
+            label="运限假设"
+            value={variantModeLabel(months?.variant_mode)}
+            hint="顺行 / 逆行是假设，不是事实"
+          />
         </div>
         <div className="mt-2">
           <ResearchStatusBadge
             status={months?.research_status ?? "NOT_RUN"}
             reasons={months?.research_status_reasons ?? []}
           />
+        </div>
+        <div className="mt-2">
+          <SourceMethod testId="timeline-source-method">
+            <RawField label="分析基准日（as_of）" value={asOfDate || "（未返回）"} />
+            <RawField label="variant_mode（后端原值）" value={months?.variant_mode ?? "—"} />
+            <RawField
+              label="数据接口"
+              value={`GET /api/v1/analysis/{id}/timeline/months?months=12 ｜ weeks?weeks=12`}
+            />
+            <div>
+              窗口按实际交易日构建；后端返回多少个月/周就展示多少，不以前端补足凑数。
+            </div>
+          </SourceMethod>
         </div>
       </Card>
 
@@ -130,7 +185,7 @@ function TimelineInner() {
       ) : null}
 
       <Card>
-        <CardHeader icon={<IconCalendar size={15} />} title="未来 12 个月（逐月独立三模型观点）" dense />
+        <CardHeader icon={<IconCalendar size={15} />} title={monthTitle} dense />
         {twLoading ? (
           <div className="py-3 text-[12.5px]" style={{ color: "var(--color-ink-muted)" }}>
             正在计算…
@@ -169,7 +224,9 @@ function TimelineInner() {
                       </td>
                     ))}
                     <td>{m.consensus?.label_cn ?? "—"}</td>
-                    <td style={{ color: "var(--color-ink-muted)" }}>{m.research_status}</td>
+                    <td style={{ color: "var(--color-ink-muted)" }}>
+                      {researchStatusLabel(m.research_status)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -183,7 +240,7 @@ function TimelineInner() {
       <Card>
         <CardHeader
           icon={<IconTrend size={15} />}
-          title="未来 12 周（交易日流日聚合）"
+          title={weekTitle}
           right={
             <span className="text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
               聚合版本 {weeks?.aggregation_version ?? "—"}

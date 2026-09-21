@@ -19,6 +19,7 @@ import { Card, CardHeader } from "@/components/cards/Card";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHero } from "@/components/shell/TopBar";
 import { PageError, PageLoading } from "@/components/shell/PageState";
+import { RawField, SourceMethod } from "@/components/shell/SourceMethod";
 import { IconGrid, IconSearch } from "@/components/shell/Icons";
 import { api, endpoints } from "@/lib/api";
 import { engineCn } from "@/lib/dataSource";
@@ -114,7 +115,6 @@ function FactorsInner() {
       activeNav="factors"
       dataStatus={error ? "bad" : "ok"}
       statusText={error ? "后端未连接" : "数据正常"}
-      footerLeft="股票玄学多模型研究平台 v0.2.0 · Phase 2"
     >
       <PageHero
         title="因子字典"
@@ -258,13 +258,14 @@ function FactorsInner() {
                   >
                     <b>质量审计与历史统计</b>
                     <br />
-                    逐因子审计（activation_rate / null_rate / 唯一取值数 / 相关系数）由
-                    <code> scripts/factor_quality_audit.py</code> 与
-                    <code> scripts/ziwei_factor_quality_audit.py</code> 在<strong>真实快照</strong>上生成，
-                    结果写入 <code>docs/factor_quality_report.md</code> 与
-                    <code> docs/ziwei-factor-dictionary.md</code>。
-                    <br />
+                    逐因子审计（激活率 / 空值率 / 唯一取值数 / 相关系数）在<strong>真实快照</strong>上生成；
                     本页刻意<strong>不显示未运行的统计数字</strong> —— 没有跑过的数字不能出现在研究终端里。
+                    <div className="mt-1.5">
+                      <SourceMethod label="审计脚本与产物路径">
+                        <RawField label="审计脚本" value="scripts/factor_quality_audit.py、scripts/ziwei_factor_quality_audit.py" />
+                        <RawField label="审计产物" value="docs/factor_quality_report.md、docs/ziwei-factor-dictionary.md" />
+                      </SourceMethod>
+                    </div>
                   </div>
                 </div>
               ) : (

@@ -438,6 +438,39 @@ export function toEvidenceCards(items: ApiEvidence["evidence"]["supporting_evide
   }));
 }
 
+/**
+ * 取证据摘要（首屏只展示 limit 条，其余展开）。
+ *
+ * **按立场轮询取样**，而不是直接切前 N 条：证据列表通常是
+ * 「先全部支持证据、再全部反证」，直接切片会让首屏只剩利多 ——
+ * 等于把反证从第一屏删掉，违反研究纪律（支持与反证必须并列）。
+ */
+export function pickEvidenceSummary(
+  items: EvidenceCardView[],
+  limit: number,
+): EvidenceCardView[] {
+  if (items.length <= limit) return items;
+  const buckets = new Map<string, EvidenceCardView[]>();
+  for (const it of items) {
+    const bucket = buckets.get(it.stance);
+    if (bucket) bucket.push(it);
+    else buckets.set(it.stance, [it]);
+  }
+  const out: EvidenceCardView[] = [];
+  for (let round = 0; out.length < limit; round++) {
+    let progressed = false;
+    for (const bucket of buckets.values()) {
+      const item = bucket[round];
+      if (!item) continue;
+      out.push(item);
+      progressed = true;
+      if (out.length >= limit) break;
+    }
+    if (!progressed) break;
+  }
+  return out;
+}
+
 /* -------------------------------------------------------------------------- */
 /* 顶层加载器                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -699,6 +732,34 @@ export const ENGINE_CN: Record<string, string> = {
 
 export function engineCn(key: string): string {
   return ENGINE_CN[key] ?? key;
+}
+
+/** 运限假设变体 → 中文表达（`forward` 这类内部码不直接进正文）。 */
+const VARIANT_MODE_LABEL: Record<string, string> = {
+  not_applicable: "不适用（股票无性别）",
+  forward: "顺行（假设规则）",
+  reverse: "逆行（假设规则）",
+  both: "顺逆并列（假设规则）",
+};
+
+export function variantModeLabel(mode: string | null | undefined): string {
+  if (!mode) return "未标注";
+  return VARIANT_MODE_LABEL[mode] ?? mode;
+}
+
+/** 冲突级别 → 中文表达；`none` 不再是正文里的裸英文。 */
+const CONFLICT_LEVEL_LABEL: Record<string, string> = {
+  none: "无冲突",
+  minor: "轻微分歧",
+  moderate: "中度分歧",
+  major: "明显分歧",
+  severe: "严重分歧",
+};
+
+export function conflictLevelLabel(level: string | null | undefined, hasConflict: boolean): string {
+  if (!hasConflict) return "无冲突";
+  if (!level) return "存在分歧";
+  return CONFLICT_LEVEL_LABEL[level] ?? level;
 }
 
 /** 把 0–1 的比例渲染成百分数；**null 必须显示为"—"而不是 0%**。 */

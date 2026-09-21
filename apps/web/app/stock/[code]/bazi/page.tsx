@@ -33,6 +33,7 @@ import {
   buildContext,
   loadAnalysis,
   invalidateBaziAnalysisCache,
+  variantModeLabel,
 } from "@/lib/dataSource";
 import { useAnalysis } from "@/lib/analysisStore";
 import { api, endpoints, type ApiEvidence, type ApiEventStudy } from "@/lib/api";
@@ -272,38 +273,49 @@ function BaziInner() {
             </Card>
           </div>
 
-          {/* 第二层：时间结构 */}
-          <Card className="mt-3" testId="time-structure-card">
+          {/* 第二层：时间结构（说明与运限假设并入卡头，把首屏留给数据） */}
+          <Card className="mt-2" testId="time-structure">
             <CardHeader
               icon={<IconDiamond size={14} />}
               title="时间结构"
               dense
               right={
-                <div className="flex items-center gap-2">
-                  <Chip tone="gold">Variant A（阳男）</Chip>
-                  <Chip tone="flat">Variant B（阴女）</Chip>
-                  <span className="text-[10px]" style={{ color: "var(--color-ink-faint)" }}>
-                    Phase 2 将并行回测两种假设
+                <div className="flex flex-wrap items-center gap-2 text-[10.5px]">
+                  <span style={{ color: "var(--color-warn)" }}>
+                    {data.variantNote || "股票无天然性别，运限推演基于假设规则"}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="smp-metric-label text-[10px]">运限假设</span>
+                    <span
+                      className="rounded-[3px] border px-1.5 text-[10px]"
+                      style={{ borderColor: "var(--color-border-strong)", color: "var(--color-ink-sub)" }}
+                      data-testid="variant-mode"
+                      data-variant-mode={data.variantMode}
+                      title={`后端原值：${data.variantMode}`}
+                    >
+                      {variantModeLabel(data.variantMode)}
+                    </span>
                   </span>
                 </div>
               }
             />
-            <TimeStructure
-              items={data.timeline}
-              variantMode={data.variantMode}
-              variantNote={data.variantNote}
-            />
+            <TimeStructure items={data.timeline} />
           </Card>
 
-          {/* 第三层：正负因素 */}
-          <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+          {/* 第三层：正负因素（首屏各 3 条，其余可展开） */}
+          <div className="mt-2 grid grid-cols-1 gap-3 xl:grid-cols-2">
             <Card testId="positive-factors">
               <CardHeader
                 icon={<span style={{ color: "var(--color-up)" }}>↑</span>}
                 title="正向因素（利多）"
                 right={<span className="text-[11px]" style={{ color: "var(--color-ink-faint)" }}>按规则强度排序</span>}
               />
-              <FactorList factors={data.positiveFactors} tone="positive" emptyText="暂无正向因子" />
+              <FactorList
+                factors={data.positiveFactors}
+                tone="positive"
+                emptyText="暂无正向因子"
+                initialVisible={3}
+              />
             </Card>
 
             <Card testId="negative-factors">
@@ -312,25 +324,28 @@ function BaziInner() {
                 title="负向因素（利空）"
                 right={<span className="text-[11px]" style={{ color: "var(--color-ink-faint)" }}>按规则强度排序</span>}
               />
-              <FactorList factors={data.negativeFactors} tone="negative" emptyText="暂无负向因子" />
+              <FactorList
+                factors={data.negativeFactors}
+                tone="negative"
+                emptyText="暂无负向因子"
+                initialVisible={3}
+              />
             </Card>
           </div>
 
-          <div className="mt-3">
-            <Card testId="factor-disclaimer-card">
-              <FactorDisclaimer />
-            </Card>
+          <div className="mt-1" data-testid="factor-disclaimer-card">
+            <FactorDisclaimer />
           </div>
 
           {/* 第四层：古籍证据 + 历史统计 */}
-          <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <div className="mt-1.5 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
             <Card testId="bazi-evidence">
               <CardHeader
                 icon={<IconBook size={14} />}
                 title="古籍证据"
                 action={{ label: "更多古籍证据", onClick: () => setDrawer(true) }}
               />
-              <div className="space-y-3 p-4">
+              <div className="space-y-2 p-3">
                 {data.evidence.length === 0 ? (
                   <div className="py-4 text-center text-[12px]" style={{ color: "var(--color-ink-faint)" }}>
                     暂无可展示的古籍条目
@@ -350,7 +365,7 @@ function BaziInner() {
 
             <Card testId="bazi-statistics">
               <CardHeader icon={<IconLayers size={14} />} title="历史统计" />
-              <div className="p-4">
+              <div className="p-3">
                 {data.statistics.map((s) => (
                   <div
                     key={s.label}

@@ -181,14 +181,14 @@ export function StockSearch({
     <div ref={boxRef} className="relative w-full">
       <div
         className={`flex items-center gap-2 rounded-[8px] border px-3 ${
-          isHero ? "h-[52px]" : "h-[38px]"
+          isHero ? "h-[60px] px-4" : "h-[38px]"
         }`}
         style={{
           borderColor: open ? "var(--color-gold-dim)" : "var(--color-border-strong)",
           background: "rgba(6,14,21,0.72)",
         }}
       >
-        <IconSearch size={isHero ? 17 : 15} style={{ color: "var(--color-ink-muted)" }} />
+        <IconSearch size={isHero ? 18 : 15} style={{ color: "var(--color-ink-muted)" }} />
         <input
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -199,7 +199,7 @@ export function StockSearch({
           }}
           placeholder="搜索股票代码 / 名称 / 关键词…"
           className={`min-w-0 flex-1 bg-transparent outline-none ${
-            isHero ? "text-[14px]" : "text-[12.5px]"
+            isHero ? "text-[15px]" : "text-[12.5px]"
           }`}
           style={{ color: "var(--color-ink)" }}
           aria-label="股票搜索"
@@ -218,7 +218,7 @@ export function StockSearch({
         {isHero ? (
           <button
             type="button"
-            className="smp-btn smp-btn--primary h-[38px] px-5"
+            className="smp-btn smp-btn--primary h-[46px] px-6 text-[14px]"
             onClick={submit}
             data-testid="stock-search-submit"
           >

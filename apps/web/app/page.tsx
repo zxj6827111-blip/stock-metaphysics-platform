@@ -78,12 +78,12 @@ function RecentCard({ item }: { item: RecentAnalysisItem }) {
   );
 
   return (
-    <Card className="p-3" testId={`recent-${item.code}`}>
+    <Card className="p-3.5" testId={`recent-${item.code}`}>
       <div className="flex items-center gap-2">
-        <span className="smp-num text-[13.5px] font-medium" style={{ color: "var(--color-gold)" }}>
+        <span className="smp-num text-[14px] font-medium" style={{ color: "var(--color-gold)" }}>
           {item.code}
         </span>
-        <span className="text-[13.5px] font-medium" style={{ color: "var(--color-ink)" }}>
+        <span className="text-[14px] font-medium" style={{ color: "var(--color-ink)" }}>
           {item.name}
         </span>
         <span className="ml-auto">
@@ -91,35 +91,35 @@ function RecentCard({ item }: { item: RecentAnalysisItem }) {
         </span>
       </div>
 
-      <div className="mt-1 flex items-center gap-2 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+      <div className="mt-1.5 flex items-center gap-2 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
         <span className="smp-num">{item.analyzedAt}</span>
       </div>
 
-      <div className="mt-1.5 flex items-end gap-2">
-        <span className="smp-num text-[21px] font-semibold leading-none" style={{ color: priceColor }}>
+      <div className="mt-2 flex items-end gap-2">
+        <span className="smp-num text-[24px] font-semibold leading-none" style={{ color: priceColor }}>
           {item.price}
         </span>
-        <span className="smp-num text-[12px]" style={{ color: priceColor }}>
+        <span className="smp-num text-[13px]" style={{ color: priceColor }}>
           {item.changePct}
         </span>
       </div>
 
       {item.price !== "—" ? (
-        <div className="mt-1">
-          <MiniTrend values={spark} tone={item.trend === "down" ? "down" : "up"} height={44} />
+        <div className="mt-1.5">
+          <MiniTrend values={spark} tone={item.trend === "down" ? "down" : "up"} height={62} />
         </div>
       ) : (
         <div
-          className="mt-1 flex h-[44px] items-center justify-center rounded border border-dashed text-[11px]"
+          className="mt-1.5 flex h-[62px] items-center justify-center rounded border border-dashed text-[11.5px]"
           style={{ borderColor: "var(--color-border)", color: "var(--color-ink-faint)" }}
         >
           暂无实时分时走势
         </div>
       )}
 
-      <div className="mt-1.5 flex items-center gap-3 border-t pt-1.5" style={{ borderColor: "var(--color-border)" }}>
+      <div className="mt-2 flex items-center gap-3 border-t pt-2" style={{ borderColor: "var(--color-border)" }}>
         {item.engines.map((e) => (
-          <span key={e.key} className="flex items-center gap-1 text-[11px]">
+          <span key={e.key} className="flex items-center gap-1 text-[11.5px]">
             <span style={{ color: "var(--color-ink-muted)" }}>{ENGINE_MINILABEL[e.key] ?? e.label}</span>
             <span
               style={{
@@ -221,7 +221,7 @@ function HomeInner() {
     <AppShell activeNav="home" dataStatus={dataStatus} statusText={statusText}>
       {/* Hero */}
       <section
-        className="relative mb-2.5 overflow-hidden rounded-[10px] border px-6 py-4"
+        className="relative mb-3 overflow-hidden rounded-[10px] border px-6 py-6"
         style={{
           borderColor: "var(--color-border)",
           background:
@@ -300,10 +300,10 @@ function HomeInner() {
           </div>
 
           <div
-            className="mt-3 rounded-[8px] border px-4 py-3"
+            className="mt-4 rounded-[8px] border px-4 py-4"
             style={{ borderColor: "var(--color-border-strong)", background: "rgba(6,14,21,0.65)" }}
           >
-            <div className="mb-2 flex items-center gap-1.5 text-[12px]" style={{ color: "var(--color-ink-sub)" }}>
+            <div className="mb-2.5 flex items-center gap-1.5 text-[13px]" style={{ color: "var(--color-ink-sub)" }}>
               <IconSearch size={13} style={{ color: "var(--color-ink-muted)" }} />
               输入股票代码，查看八字、紫微、黄历与历史回测综合研究
             </div>
@@ -311,12 +311,12 @@ function HomeInner() {
               <div className="min-w-0 flex-1">
                 <StockSearch variant="hero" defaultValue="600519" />
               </div>
-              <button type="button" className="smp-btn h-[48px] px-4 text-[12px]" disabled title="Phase 2">
-                <IconGrid size={14} />
+              <button type="button" className="smp-btn h-[60px] px-5 text-[13px]" disabled title="Phase 2">
+                <IconGrid size={15} />
                 高级设置
               </button>
             </div>
-            <div className="mt-2 flex items-center gap-3.5 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
+            <div className="mt-3 flex items-center gap-3.5 text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
               <span>示例：</span>
               <span className="smp-num">600519 贵州茅台</span>
               <span className="smp-num">000001 平安银行</span>
@@ -327,7 +327,7 @@ function HomeInner() {
       </section>
 
       {/* 最近分析 + 系统状态 (2.1 : 1 比例) */}
-      <div className="grid grid-cols-1 gap-2.5 xl:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
         <Card testId="recent-analysis">
           <CardHeader
             icon={<IconDatabase size={14} />}
@@ -335,13 +335,13 @@ function HomeInner() {
             action={fixture ? { label: "查看更多" } : undefined}
           />
           {recent.length > 0 ? (
-            <div className="grid grid-cols-1 gap-2.5 p-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 p-3.5 md:grid-cols-3">
               {recent.map((r) => (
                 <RecentCard key={r.code} item={r} />
               ))}
             </div>
           ) : (
-            <div className="flex h-[160px] flex-col items-center justify-center p-4 text-center" data-testid="recent-empty">
+            <div className="flex h-[200px] flex-col items-center justify-center p-4 text-center" data-testid="recent-empty">
               <p className="text-[13px]" style={{ color: "var(--color-ink-sub)" }}>
                 暂无最近分析记录
               </p>
@@ -367,25 +367,25 @@ function HomeInner() {
               </span>
             }
           />
-          <div className="px-3 py-1.5">
+          <div className="px-3 py-2">
             {systemStatus.map((s) => {
               const Icon = SYSTEM_ICONS[s.key] ?? IconTaiji;
               const ok = s.state === "ok";
               return (
                 <div
                   key={s.key}
-                  className="flex items-center gap-2 border-b py-[6.5px] last:border-b-0"
+                  className="flex items-center gap-2 border-b py-[12.5px] last:border-b-0"
                   style={{ borderColor: "rgba(30,52,68,0.55)" }}
                   data-testid={`system-${s.key}`}
                 >
                   <span style={{ color: ok ? "var(--color-gold-dim)" : "var(--color-ink-faint)" }}>
-                    <Icon size={14} />
+                    <Icon size={15} />
                   </span>
-                  <span className="text-[12px]" style={{ color: ok ? "var(--color-ink-sub)" : "var(--color-ink-faint)" }}>
+                  <span className="text-[12.5px]" style={{ color: ok ? "var(--color-ink-sub)" : "var(--color-ink-faint)" }}>
                     {s.label}
                   </span>
                   <span
-                    className="ml-auto flex h-[16px] w-[16px] items-center justify-center rounded-full"
+                    className="ml-auto flex h-[17px] w-[17px] items-center justify-center rounded-full"
                     style={{
                       color: ok ? "var(--color-down)" : "var(--color-ink-faint)",
                       border: `1px solid ${ok ? "rgba(79,211,155,0.5)" : "var(--color-border-strong)"}`,
@@ -397,7 +397,7 @@ function HomeInner() {
                   <span className="w-[100px] text-[11.5px]" style={{ color: ok ? "var(--color-ink-sub)" : "var(--color-ink-faint)" }}>
                     {s.note}
                   </span>
-                  <span className="smp-num w-[44px] text-right text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
+                  <span className="smp-num w-[46px] text-right text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
                     {s.latency}
                   </span>
                 </div>
@@ -408,33 +408,33 @@ function HomeInner() {
       </div>
 
       {/* 平台能力 */}
-      <Card className="mt-2.5" testId="capabilities">
+      <Card className="mt-3" testId="capabilities">
         <CardHeader
           icon={<IconGrid size={14} />}
           title="平台能力"
           action={{ label: "探索更多研究可能" }}
         />
-        <div className="grid grid-cols-1 gap-2.5 p-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 p-3.5 md:grid-cols-2 xl:grid-cols-4">
           {homeFixture.capabilities.map((c) => {
             const Icon = CAP_ICONS[c.key] ?? IconLayers;
             const t = CAP_TONE[c.tone];
             return (
               <div
                 key={c.key}
-                className="flex items-center gap-3 rounded-[8px] border px-3 py-2.5"
+                className="flex items-center gap-3.5 rounded-[8px] border px-4 py-[18px]"
                 style={{ borderColor: "var(--color-border)", background: t.bg }}
               >
                 <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
                   style={{ color: t.color, border: `1px solid ${t.color}55`, background: `${t.color}14` }}
                 >
-                  <Icon size={19} />
+                  <Icon size={22} />
                 </span>
                 <div className="min-w-0">
-                  <div className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
+                  <div className="text-[15px] font-medium" style={{ color: "var(--color-ink)" }}>
                     {c.title}
                   </div>
-                  <div className="mt-0.5 text-[11px] leading-[15px]" style={{ color: "var(--color-ink-muted)" }}>
+                  <div className="mt-1 text-[12px] leading-[17px]" style={{ color: "var(--color-ink-muted)" }}>
                     {c.desc}
                     <br />
                     {homeCapabilitySub[c.key] ?? ""}

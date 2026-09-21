@@ -18,10 +18,11 @@ import { Suspense } from "react";
 
 import { Card, CardHeader } from "@/components/cards/Card";
 import { ResearchPage, SectionNote } from "@/components/shell/ResearchPage";
-import { PageLoading, ResearchStatusBadge } from "@/components/shell/PageState";
+import { PageLoading, ResearchStatusBadge, researchStatusLabel } from "@/components/shell/PageState";
+import { RawField, SourceMethod } from "@/components/shell/SourceMethod";
 import { IconNodes, IconWarning } from "@/components/shell/Icons";
 import { useAnalysis } from "@/lib/analysisStore";
-import { engineCn } from "@/lib/dataSource";
+import { conflictLevelLabel, engineCn } from "@/lib/dataSource";
 
 const DIR_CN: Record<string, string> = { "1": "偏强 ↑", "0": "中性 →", "-1": "偏弱 ↓" };
 const DIR_TONE: Record<string, string> = { "1": "var(--color-up)", "0": "var(--color-flat)", "-1": "var(--color-down)" };
@@ -33,6 +34,8 @@ function ConflictsInner() {
 
   const conflict = analysis?.conflict;
   const opinions = analysis?.opinions ?? {};
+  const histStats = conflict?.historical_conflict_stats as { status?: string } | undefined;
+  const histStatus = histStats?.status ?? "NOT_RUN";
 
   return (
     <ResearchPage
@@ -54,8 +57,11 @@ function ConflictsInner() {
             <div className="text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
               冲突级别
             </div>
-            <div className="text-[26px] font-bold" style={{ color: conflict?.has_conflict ? "var(--color-warn)" : "var(--color-flat)" }}>
-              {conflict?.has_conflict ? (conflict.conflict_level ?? "minor") : "none"}
+            <div
+              className="text-[26px] font-bold"
+              style={{ color: conflict?.has_conflict ? "var(--color-warn)" : "var(--color-flat)" }}
+            >
+              {conflictLevelLabel(conflict?.conflict_level, !!conflict?.has_conflict)}
             </div>
           </div>
           <div>
@@ -78,8 +84,11 @@ function ConflictsInner() {
           </div>
           <div className="ml-auto max-w-[420px]">
             <SectionNote>
-              {analysis?.consensus?.interpretation ??
-                "共识与历史有效性是两件事：方向一致度高<strong>不代表</strong>历史统计支持。"}
+              {analysis?.consensus?.interpretation ?? (
+                <>
+                  共识与历史有效性是两件事：方向一致度高<strong>不代表</strong>历史统计支持。
+                </>
+              )}
             </SectionNote>
           </div>
         </div>
@@ -100,9 +109,11 @@ function ConflictsInner() {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-[13px] font-semibold">{engineCn(key)}</span>
-                  <span className="text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
-                    {op?.engine_version || ""}
-                  </span>
+                  {op?.availability === "ok" ? null : (
+                    <span className="text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                      未产出
+                    </span>
+                  )}
                 </div>
                 {ok ? (
                   <>
@@ -126,6 +137,21 @@ function ConflictsInner() {
               </div>
             );
           })}
+        </div>
+        <div className="mt-2 px-1">
+          <SourceMethod label="引擎版本与来源">
+            {["bazi", "ziwei", "huangli"].map((key) => (
+              <RawField
+                key={key}
+                label={`${engineCn(key)} engine_version`}
+                value={opinions[key]?.engine_version ?? "（本次未产出）"}
+              />
+            ))}
+            <RawField
+              label="analysis_id"
+              value={analysis?.analysis_id ?? "（尚未加载）"}
+            />
+          </SourceMethod>
         </div>
       </Card>
 
@@ -190,14 +216,16 @@ function ConflictsInner() {
       <Card>
         <CardHeader icon={<IconWarning size={15} />} title="历史类似冲突" dense />
         <ResearchStatusBadge status={analysis?.consensus?.research_status ?? "NOT_RUN"} />
-        <div className="mt-2">
+        <div className="mt-2 space-y-2">
           <SectionNote>
-            「历史类似冲突的后续表现」需要单独的历史统计。当前状态：
-            <code>{JSON.stringify(conflict?.historical_conflict_stats ?? { status: "NOT_RUN" })}</code>
-            <br />
-            未运行时，本页面<strong>不会</strong>给出任何「历史上冲突后如何」的说法 ——
-            那属于研究结论，必须由 <code>POST /api/v1/research/consensus</code> 产出。
+            当前状态：{researchStatusLabel(histStatus)}。未运行时，本页面
+            <strong>不会</strong>给出任何「历史上冲突后如何」的说法 ——
+            那属于研究结论，必须由研究流水线产出。
           </SectionNote>
+          <SourceMethod testId="conflict-source-method">
+            <RawField label="historical_conflict_stats.status" value={histStatus} />
+            <RawField label="产出接口" value="POST /api/v1/research/consensus" />
+          </SourceMethod>
         </div>
       </Card>
     </ResearchPage>

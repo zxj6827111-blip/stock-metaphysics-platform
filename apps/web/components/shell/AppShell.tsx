@@ -9,6 +9,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
+import { APP_FOOTER_CENTER, APP_FOOTER_LEFT, APP_FOOTER_RIGHT } from "@/lib/appMeta";
 import { FooterNote, TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 
@@ -29,9 +30,10 @@ function ShellInner({
   dataStatus,
   statusText,
   asOf,
-  footerLeft = "股票玄学多模型研究平台  v1.0.0",
-  footerCenter = "让东方智慧与现代科学，在资本市场中相遇",
-  footerRight = "“道生一，一生二，二生三，三生万物。” ——《道德经》",
+  // 版本号统一来自 lib/appMeta（不要再在页面里硬编码 v1.0.0 / v0.2.0）
+  footerLeft = APP_FOOTER_LEFT,
+  footerCenter = APP_FOOTER_CENTER,
+  footerRight = APP_FOOTER_RIGHT,
 }: AppShellProps) {
   const params = useSearchParams();
   const fixture = params.get("fixture") === "ui-reference";
@@ -41,7 +43,7 @@ function ShellInner({
       <TopBar dataStatus={dataStatus} statusText={statusText} asOf={asOf} />
       <div className="flex min-h-0 flex-1">
         <Sidebar activeKey={activeNav} />
-        <main className="smp-scroll min-w-0 flex-1 overflow-y-auto px-[14px] pb-2 pt-3">
+        <main className="smp-scroll min-w-0 flex-1 overflow-y-auto px-[14px] pb-2 pt-2.5">
           {children}
           <FooterNote left={footerLeft} center={footerCenter} right={footerRight} />
         </main>
