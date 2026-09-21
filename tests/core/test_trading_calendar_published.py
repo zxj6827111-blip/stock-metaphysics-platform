@@ -218,3 +218,103 @@ class TestCoverageDescriptor:
         assert q.source and "published_exchange_calendar" in q.source
         assert q.degraded_reason and "未知" not in q.degraded_reason or q.degraded_reason
         assert "未计入交易日" in q.degraded_reason
+
+
+# ----------------------------------------------------------------------
+# 7. 缓存身份：内容变了（区间与行数不变）也必须换键、换数据
+# ----------------------------------------------------------------------
+class TestCalendarCacheIdentity:
+    """反例驱动的回归：**覆盖区间和行数不变、但日历内容发生变化**。
+
+    这是会给出错误答案的一类更新：
+      * 公布层某天由休市改为开市（或反之）→ 行数不变、区间不变；
+      * 实测层同一天数但日期不同（数据源修订/回填调整）；
+      * 文件被 `update_trading_calendar.py` 重写后，已运行的进程必须重新加载。
+
+    旧实现用「区间 + 行数 + 生成时间」做指纹，上述前两类都识别不出来，
+    运行中的实例还会一直用内存里的旧日历（连"指纹变了"都无从得知）。
+    """
+
+    def _write(self, root: Path, days: list[str], published: dict[str, bool]) -> None:
+        (root / "published").mkdir(parents=True, exist_ok=True)
+        (root / "SSE.csv").write_text(
+            "trade_date\n" + "".join(f"{d}\n" for d in days), encoding="utf-8"
+        )
+        rows = ["trade_date,is_open,evidence"]
+        rows += [f"{d},{'1' if flag else '0'},test" for d, flag in published.items()]
+        (root / "published" / "SSE.csv").write_text("\n".join(rows) + "\n", encoding="utf-8")
+        (root / "published" / "_meta.json").write_text(
+            json.dumps({"generated_at": "2026-09-21T00:00:00", "verified": True}), encoding="utf-8"
+        )
+
+    def test_fingerprint_changes_when_flag_flips_with_same_shape(self, tmp_path: Path):
+        """同区间同行数、只翻转一天的开市标志 → 指纹必须变。"""
+        from src.core.stock.trading_calendar import published_flags_fingerprint
+
+        a = {date(2026, 10, 1): True, date(2026, 10, 2): False}
+        b = {date(2026, 10, 1): False, date(2026, 10, 2): True}  # 同行数、同区间
+        assert len(a) == len(b)
+        assert published_flags_fingerprint(a) != published_flags_fingerprint(b)
+
+    def test_fingerprint_changes_when_observed_day_swapped(self):
+        """实测层同一天数但换了一天 → 指纹必须变（区间端点也可能不变）。"""
+        from src.core.stock.trading_calendar import observed_days_fingerprint
+
+        a = [date(2026, 9, 1), date(2026, 9, 2), date(2026, 9, 3)]
+        b = [date(2026, 9, 1), date(2026, 9, 2), date(2026, 9, 4)]
+        assert len(a) == len(b)
+        assert observed_days_fingerprint(a) != observed_days_fingerprint(b)
+
+    def test_fingerprint_stable_regardless_of_input_order(self):
+        """指纹必须只取决于内容：集合/字典的迭代顺序不能影响它。"""
+        from src.core.stock.trading_calendar import (
+            observed_days_fingerprint,
+            published_flags_fingerprint,
+        )
+
+        days = {date(2026, 9, 3), date(2026, 9, 1), date(2026, 9, 2)}
+        assert observed_days_fingerprint(days) == observed_days_fingerprint(
+            frozenset(days)
+        )
+        flags = {date(2026, 10, 2): True, date(2026, 10, 1): False}
+        assert published_flags_fingerprint(flags) == published_flags_fingerprint(
+            {date(2026, 10, 1): False, date(2026, 10, 2): True}
+        )
+
+    def test_version_token_changes_on_content_only_update(self, tmp_path: Path):
+        """端到端：文件重写（区间/行数不变、内容变）后 version_token 必须不同。"""
+        root = tmp_path / "cal"
+        days = ["2026-09-01", "2026-09-02"]
+        self._write(root, days, {"2026-09-03": True})
+
+        p = TradingCalendarProvider(calendar_dir=root)
+        cal1 = p.for_exchange("SSE")
+        token1 = cal1.version_token
+        assert cal1.published_loaded
+        assert cal1.is_trading_day(date(2026, 9, 3)).value is True
+
+        # 同样两天、同一区间；只把公布层的 9-3 由开市改为休市
+        self._write(root, days, {"2026-09-03": False})
+        cal2 = p.for_exchange("SSE")
+        assert cal2.version_token != token1, "内容变了但指纹没变 → 会把旧结果当新结果返回"
+        assert cal2.is_trading_day(date(2026, 9, 3)).value is False
+
+    def test_provider_reloads_after_source_file_rewrite(self, tmp_path: Path):
+        """已运行实例必须加载到更新后的日历（不能永远用内存里的旧文件）。"""
+        root = tmp_path / "cal"
+        self._write(root, ["2026-09-01"], {"2026-09-02": False})
+        p = TradingCalendarProvider(calendar_dir=root)
+        assert p.for_exchange("SSE").is_trading_day(date(2026, 9, 2)).value is False
+
+        self._write(root, ["2026-09-01", "2026-09-02"], {"2026-09-02": True})
+        cal = p.for_exchange("SSE")
+        assert cal.is_trading_day(date(2026, 9, 2)).source == "observed_index_days"
+        assert cal.coverage[1] == date(2026, 9, 2)
+
+    def test_provider_reload_is_idempotent_when_files_unchanged(self, tmp_path: Path):
+        """文件没变时不应反复重建（保持缓存语义，避免每次请求都读盘解析）。"""
+        root = tmp_path / "cal"
+        self._write(root, ["2026-09-01"], {"2026-09-02": True})
+        p = TradingCalendarProvider(calendar_dir=root)
+        first = p.for_exchange("SSE")
+        assert p.for_exchange("SSE") is first
