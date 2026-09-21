@@ -27,6 +27,22 @@ export function Card({
   );
 }
 
+export function CardBody({
+  children,
+  className = "",
+  dense = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  dense?: boolean;
+}) {
+  return (
+    <div className={`smp-card-body ${dense ? "smp-card-body--dense" : ""} ${className}`}>
+      {children}
+    </div>
+  );
+}
+
 export function CardHeader({
   icon,
   title,

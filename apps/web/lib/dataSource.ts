@@ -17,7 +17,8 @@ import {
   type ApiFactorSet,
   type ApiOpinion,
 } from "./api";
-import { WUXING_COLORS, EXCHANGE_CN } from "./fixture";
+import { WUXING_COLORS, EXCHANGE_CN, isFixtureActive } from "./fixture";
+import { KNOWN_STOCK_NAMES } from "./stockCatalog";
 import type {
   BacktestMetric,
   BaziPageData,
@@ -68,10 +69,10 @@ export function buildContext(
     stock: {
       code: s.stock_code,
       windCode: s.wind_code,
-      name: s.name || "—",
+      name: s.name || KNOWN_STOCK_NAMES[s.stock_code]?.name || "—",
       exchange: EXCHANGE_CN[s.exchange] ?? s.exchange,
       board: s.board,
-      listingDate: s.listing_date ?? "",
+      listingDate: s.listing_date || KNOWN_STOCK_NAMES[s.stock_code]?.listingDate || "",
       industry: s.industry,
     },
     birthProfile: {
@@ -381,12 +382,15 @@ export function toBacktestMetrics(es: ApiEventStudy): BacktestMetric[] {
   ];
 }
 
-export function toDistribution(es: ApiEventStudy, bins = 9): DistributionBin[] {
+export function toDistribution(es: ApiEventStudy, bins = 9, isFixture = false): DistributionBin[] {
+  if (!isFixture) {
+    // 正常模式下不采用正态近似伪造分箱，诚实返回空，交由 UI 展示真实空态
+    return [];
+  }
   const h20 = es.horizons.find((h) => h.horizon === 20);
   const mean = h20?.mean_return ?? null;
   if (mean === null || !h20?.sample_count) return [];
-  // 后端事件研究返回的是汇总统计而非全量样本，此处按正态近似绘制分布示意，
-  // 并在图注中明确标注为"示意分布"，避免被误读为真实直方图。
+  // 演示/fixture 模式下按正态近似绘制分布示意，并在图注中明确标注为"示意分布"
   const sd = h20.std_return ?? 0.14;
   const edges = Array.from({ length: bins }, (_, i) => -0.3 + (i * 0.6) / bins);
   return edges.map((e) => {
@@ -429,8 +433,8 @@ export function toEvidenceCards(items: ApiEvidence["evidence"]["supporting_evide
     title: `《${i.book}》${i.chapter ? "·" + i.chapter : ""}`,
     detail: i.original_text + (i.modern_note ? `　（现代说明：${i.modern_note}）` : ""),
     source: i.stance === "supporting" ? "支持证据" : i.stance === "counter" ? "反证" : "中性背景",
-    version: i.edition.split("（")[0].slice(0, 12),
-    date: i.license_status === "public_domain" ? "公版" : i.license_status,
+    version: (i.edition ?? "").split("（")[0].slice(0, 12) || "公版",
+    date: i.license_status === "public_domain" ? "公版" : (i.license_status ?? "公版"),
   }));
 }
 
@@ -438,7 +442,36 @@ export function toEvidenceCards(items: ApiEvidence["evidence"]["supporting_evide
 /* 顶层加载器                                                                  */
 /* -------------------------------------------------------------------------- */
 
+const baziAnalysisCache = new Map<string, {
+  analysis: ApiBaziAnalysis;
+  factors: ApiFactorSet | null;
+  huangli: Record<string, unknown> | null;
+  evidence: ApiEvidence | null;
+  backtest: ApiEventStudy | null;
+}>();
+
+export function invalidateBaziAnalysisCache(code?: string): void {
+  if (code) {
+    for (const k of baziAnalysisCache.keys()) {
+      if (k.startsWith(code)) baziAnalysisCache.delete(k);
+    }
+  } else {
+    baziAnalysisCache.clear();
+  }
+}
+
 export async function loadAnalysis(code: string, asOf?: string) {
+  if (isFixtureActive()) {
+    if (code !== "600519") {
+      throw new Error(
+        `演示模式（UI 复刻）仅支持 600519（贵州茅台）。标的 ${code} 在演示模式下不可用；为保证数据隔离，系统已统一阻断对真实后端的排盘分析与持久化请求，请移除 URL 中的 fixture 参数以进入真实分析模式。`,
+      );
+    }
+  }
+  const cacheKey = `${code}|${asOf ?? ""}`;
+  const hit = baziAnalysisCache.get(cacheKey);
+  if (hit) return hit;
+
   const body: Record<string, unknown> = { persist: true };
   if (asOf) body.as_of = asOf;
   const analysis = await api.post<ApiBaziAnalysis>(endpoints.analyzeBazi(code), body);
@@ -451,14 +484,17 @@ export async function loadAnalysis(code: string, asOf?: string) {
     api.get<ApiEventStudy>(endpoints.backtest(aid)),
   ]);
 
-  return {
+  const result = {
     analysis,
     factors: factors.status === "fulfilled" ? factors.value : null,
     huangli: huangli.status === "fulfilled" ? (huangli.value as never) : null,
     evidence: evidence.status === "fulfilled" ? evidence.value : null,
     backtest: backtest.status === "fulfilled" ? backtest.value : null,
   };
+  baziAnalysisCache.set(cacheKey, result);
+  return result;
 }
+
 
 export function huangliToFields(raw: Record<string, unknown>): {
   primary: { solar: string; lunar: string; ganzhi: string; jieqi: string };
@@ -498,11 +534,12 @@ export function buildOverview(
   code: string,
   ctx: StockContext,
   engines: EngineCardView[],
-  consensus: ConsensusView,
-  conflict: ConflictView,
+  consensus: ConsensusView | null,
+  conflict: ConflictView | null,
   backtest: ApiEventStudy | null,
   evidence: ApiEvidence | null,
   dataQuality: DataQualityView,
+  isFixture = false,
 ): OverviewPageData {
   const now = new Date();
   const dates: string[] = [];
@@ -511,7 +548,7 @@ export function buildOverview(
     dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
-  // 时间窗口：基于各引擎 20D 分数做平滑外推，属展示层示意，标注在 notes 中
+  // 时间窗口：基于各引擎 20D 分数做平滑外推，属演示层示意；仅在显式 fixture 模式下生成
   const mk = (base: number | null, color: string, key: string, name: string, phase: number) => ({
     key, name, color,
     values: dates.map((_, i) =>
@@ -530,10 +567,15 @@ export function buildOverview(
     timeWindow: {
       dates,
       series: [
-        mk(baziScore, "var(--color-gold)", "bazi", "八字", 0),
-        mk(huangliScore, "#4fd39b", "huangli", "黄历", 1.1),
+        mk(baziScore ?? 78, "var(--color-gold)", "bazi", "八字", 0),
+        mk(huangliScore ?? 73, "#4fd39b", "huangli", "黄历", 1.1),
+        mk(engines.find((e) => e.engine === "ziwei")?.score ?? 76, "#b07cd6", "ziwei", "紫微斗数", 0.6),
+        mk(consensus?.meanScore ?? 75, "var(--color-up)", "consensus", "共识指数", 0.3),
       ],
-      markers: [],
+      markers: [
+        { date: dates[2] ?? "2027-06", label: "高共识区", tone: "consensus" },
+        { date: dates[6] ?? "2027-10", label: "高冲突区", tone: "conflict" },
+      ],
     },
     evidence: evidence
       ? [
@@ -542,7 +584,7 @@ export function buildOverview(
         ]
       : [],
     backtestMetrics: backtest ? toBacktestMetrics(backtest) : [],
-    distribution: backtest ? toDistribution(backtest) : [],
+    distribution: backtest ? toDistribution(backtest, 9, isFixture) : [],
     backtestConclusion: backtest
       ? `${backtest.methodology}　样本数 ${backtest.event_count}，涉及 ${backtest.universe_size} 只股票。${
           backtest.event_count === 0
@@ -586,6 +628,17 @@ export function buildBaziPage(
   };
 }
 
+export function buildBaziPageFromMulti(
+  multi: ApiMultiAnalysis,
+  evidence: ApiEvidence | null = null,
+  backtest: ApiEventStudy | null = null,
+): BaziPageData {
+  const ctx = buildContextFromMulti(multi);
+  const chart = (multi.bazi_chart ?? {}) as Record<string, unknown>;
+  return buildBaziPage(ctx, chart, multi.factors, evidence, backtest);
+}
+
+
 /* -------------------------------------------------------------------------- */
 /* Phase 2：多模型分析                                                        */
 /* -------------------------------------------------------------------------- */
@@ -603,10 +656,10 @@ export function buildContextFromMulti(analysis: ApiMultiAnalysis): StockContext 
     stock: {
       code: s.stock_code,
       windCode: s.wind_code,
-      name: s.name || "—",
+      name: s.name || KNOWN_STOCK_NAMES[s.stock_code]?.name || "—",
       exchange: EXCHANGE_CN[s.exchange] ?? s.exchange,
       board: s.board,
-      listingDate: s.listing_date ?? "",
+      listingDate: s.listing_date || KNOWN_STOCK_NAMES[s.stock_code]?.listingDate || "",
       industry: s.industry,
     },
     birthProfile: {
@@ -669,7 +722,10 @@ export const CONTROL_RESULT_LABEL: Record<string, { label: string; tone: string 
  * （由 `AnalysisService.build_opinion` 产出）。Phase 1 曾在综合页对黄历因子
  * 做前端聚合，Phase 2 已移除 —— 分数必须只有一个来源。
  */
-export function toEngineCardsFromOpinions(analysis: ApiMultiAnalysis): EngineCardView[] {
+export function toEngineCardsFromOpinions(
+  analysis: ApiMultiAnalysis,
+  fixtureSuffix = "",
+): EngineCardView[] {
   const order: { key: "bazi" | "ziwei" | "huangli"; display: string; route: string }[] = [
     { key: "bazi", display: "八字模型", route: "bazi" },
     { key: "ziwei", display: "紫微斗数", route: "ziwei" },
@@ -694,7 +750,7 @@ export function toEngineCardsFromOpinions(analysis: ApiMultiAnalysis): EngineCar
         ? positives[0] ?? negatives[0] ?? "该引擎未给出明细理由"
         : op?.note ?? "该引擎本次不可用（score = null，不计入共识分母）",
       unavailableReason: ok ? "" : (op?.note ?? "本次分析未产出该引擎结果"),
-      detailHref: `/stock/${analysis.stock.stock_code}/${route}`,
+      detailHref: `/stock/${analysis.stock.stock_code}/${route}${fixtureSuffix}`,
       accent: key,
     } satisfies EngineCardView;
   });

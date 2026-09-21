@@ -23,6 +23,7 @@ import { PageLoading, UnavailableBlock } from "@/components/shell/PageState";
 import { IconBook, IconSearch } from "@/components/shell/Icons";
 import { api, endpoints, type ApiEvidence } from "@/lib/api";
 import { useAnalysis } from "@/lib/analysisStore";
+import { isFixtureActive, evidenceFixture } from "@/lib/fixture";
 
 interface Item {
   entry_id: string;
@@ -49,6 +50,11 @@ function EvidenceInner() {
   const [q, setQ] = useState("");
 
   const load = useCallback(async (analysisId: string) => {
+    if (isFixtureActive() && code === "600519") {
+      setBundle(evidenceFixture);
+      setEvLoading(false);
+      return;
+    }
     setEvLoading(true);
     setEvError(null);
     try {
@@ -125,7 +131,7 @@ function EvidenceInner() {
             placeholder="在当前结果内筛选关键词，如：财帛宫 / 四化 / 庙旺"
             className="w-full rounded border px-3 py-1.5 text-[12.5px] outline-none"
             style={{
-              borderColor: "var(--color-line)",
+              borderColor: "var(--color-border)",
               background: "transparent",
               color: "var(--color-ink)",
             }}
@@ -137,8 +143,8 @@ function EvidenceInner() {
         </div>
         <div className="mt-2">
           <SectionNote>
-            语料只收录**清代及以前**的公版原文；每条都带 source / edition / provenance /
-            license_status。检索**必须同时返回支持与反证**，以避免「先有结论后找古籍」。
+            语料只收录<strong>清代及以前</strong>的公版原文；每条都带 source / edition / provenance /
+            license_status。检索<strong>必须同时返回支持与反证</strong>，以避免「先有结论后找古籍」。
           </SectionNote>
         </div>
       </Card>
@@ -188,7 +194,7 @@ function EvidenceInner() {
               <div className="mt-2">
                 <SectionNote>
                   未检索到反证 —— 这本身需要警惕：反证为空可能意味着检索词覆盖不足，
-                  **不得**据此认为「古籍一致支持」。系统不会把"没有反证"渲染成利好。
+                  <strong>不得</strong>据此认为「古籍一致支持」。系统不会把"没有反证"渲染成利好。
                 </SectionNote>
               </div>
             ) : null}
@@ -207,7 +213,7 @@ function EvidenceInner() {
             <CardHeader icon={<IconBook size={15} />} title="检索说明" dense />
             <SectionNote>{ev.note ?? "（无说明）"}</SectionNote>
             <SectionNote>
-              古籍条文只说明传统术数的说法，**不构成对股票收益的任何判断**。
+              古籍条文只说明传统术数的说法，<strong>不构成对股票收益的任何判断</strong>。
               本页所有文本均来自项目自持的公有领域语料，未逐字校勘，
               正式引用前必须完成校勘（见 knowledge/*/classical_seed.json 的 _meta）。
             </SectionNote>
@@ -218,13 +224,24 @@ function EvidenceInner() {
   );
 }
 
-function EvidenceList({ items, tone }: { items: Item[]; tone: "support" | "counter" | "neutral" }) {
+function EvidenceList({
+  items,
+  tone,
+}: {
+  items: Item[];
+  tone: "support" | "counter" | "neutral";
+}) {
   const accent =
-    tone === "support" ? "var(--color-up)" : tone === "counter" ? "var(--color-down)" : "var(--color-flat)";
+    tone === "support"
+      ? "var(--color-up)"
+      : tone === "counter"
+        ? "var(--color-down)"
+        : "var(--color-flat)";
+
   if (!items.length) {
     return (
-      <div className="py-2 text-[12.5px]" style={{ color: "var(--color-ink-muted)" }}>
-        本类暂无条目。
+      <div className="py-4 text-center text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+        暂无该类目证据条目
       </div>
     );
   }
@@ -234,7 +251,7 @@ function EvidenceList({ items, tone }: { items: Item[]; tone: "support" | "count
         <li
           key={it.entry_id}
           className="rounded border p-3"
-          style={{ borderColor: "var(--color-line)" }}
+          style={{ borderColor: "var(--color-border)" }}
           data-testid={`evidence-item-${it.entry_id}`}
         >
           <div className="flex items-baseline justify-between gap-3">

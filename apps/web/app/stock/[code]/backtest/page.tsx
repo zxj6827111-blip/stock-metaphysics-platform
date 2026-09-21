@@ -24,6 +24,7 @@ import { IconBook, IconChart, IconTarget } from "@/components/shell/Icons";
 import { api, endpoints, type ApiEventStudy } from "@/lib/api";
 import { useAnalysis } from "@/lib/analysisStore";
 import { CONTROL_RESULT_LABEL, pct } from "@/lib/dataSource";
+import { isFixtureActive, backtestFixture } from "@/lib/fixture";
 
 interface HorizonRow {
   horizon: number;
@@ -45,6 +46,10 @@ function BacktestInner() {
   const [btError, setBtError] = useState<string | null>(null);
 
   const loadBacktest = useCallback(async (analysisId: string) => {
+    if (isFixtureActive() && code === "600519") {
+      setEs(backtestFixture);
+      return;
+    }
     setBtLoading(true);
     setBtError(null);
     try {
@@ -88,7 +93,7 @@ function BacktestInner() {
           ① 术数规则强度（确定性结果）
         </div>
         <div className="mt-0.5 text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
-          以下数字由确定性代码产生，含义是「传统规则怎么看」，**与收益无关**。
+          以下数字由确定性代码产生，含义是「传统规则怎么看」，<strong>与收益无关</strong>。
         </div>
       </div>
 
@@ -99,7 +104,7 @@ function BacktestInner() {
             const op = analysis?.opinions?.[k];
             const ok = op && op.availability === "ok";
             return (
-              <div key={k} className="rounded border p-2" style={{ borderColor: "var(--color-line)" }}>
+              <div key={k} className="rounded border p-2" style={{ borderColor: "var(--color-border)" }}>
                 <div style={{ color: "var(--color-ink-muted)" }}>{k}</div>
                 <div className="text-[18px] font-semibold">{ok ? `${op!.score}/100` : "不可用"}</div>
                 <div className="text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
@@ -108,7 +113,7 @@ function BacktestInner() {
               </div>
             );
           })}
-          <div className="rounded border p-2" style={{ borderColor: "var(--color-line)" }}>
+          <div className="rounded border p-2" style={{ borderColor: "var(--color-border)" }}>
             <div style={{ color: "var(--color-ink-muted)" }}>共识</div>
             <div className="text-[18px] font-semibold">
               {analysis?.consensus?.label_cn ?? "—"}
@@ -120,7 +125,7 @@ function BacktestInner() {
         </div>
         <div className="mt-2">
           <SectionNote>
-            规则强度**不是**上涨概率、不是预期收益率。它的历史有效性只能由下方统计回答。
+            规则强度<strong>不是</strong>上涨概率、不是预期收益率。它的历史有效性只能由下方统计回答。
           </SectionNote>
         </div>
       </Card>
@@ -153,8 +158,8 @@ function BacktestInner() {
         <ResearchStatusBadge status={status} reasons={topReasons} />
         <div className="mt-2">
           <SectionNote>
-            若状态为 <code>NO_SIGNAL</code>，表示**真实因子未优于随机对照** ——
-            这是如实输出，不是系统故障。某个持有期平均收益为正**不构成**"验证有效"。
+            若状态为 <code>NO_SIGNAL</code>，表示<strong>真实因子未优于随机对照</strong> ——
+            这是如实输出，不是系统故障。某个持有期平均收益为正<strong>不构成</strong>"验证有效"。
           </SectionNote>
         </div>
       </Card>
@@ -190,7 +195,7 @@ function BacktestInner() {
               </thead>
               <tbody>
                 {horizons.map((h) => (
-                  <tr key={h.horizon} style={{ borderTop: "1px solid var(--color-line)" }}>
+                  <tr key={h.horizon} style={{ borderTop: "1px solid var(--color-border)" }}>
                     <td className="py-1">{h.horizon}D</td>
                     <td className="smp-num text-right">{h.sample_count}</td>
                     <td className="smp-num text-right">{pct(h.up_rate)}</td>
@@ -216,7 +221,7 @@ function BacktestInner() {
                 `平均收益 ${pct(h20.mean_return)}，超额收益 ${pct(h20.mean_excess_return)}。`
               : "超额收益 / 最大回撤只在 20 日持有期给出（指标口径不混用）。"}
             <br />
-            这些统计**没有交易成本假设**，且 Phase 1/2 均未做样本外验证。
+            这些统计<strong>没有交易成本假设</strong>，且 Phase 1/2 均未做样本外验证。
           </SectionNote>
         </div>
       </Card>
@@ -224,7 +229,7 @@ function BacktestInner() {
       <Card>
         <CardHeader icon={<IconTarget size={15} />} title="负对照" dense />
         <SectionNote>
-          没有负对照的"回测有效"在本项目中**不被承认**。
+          没有负对照的"回测有效"在本项目中<strong>不被承认</strong>。
           负对照必须与真实事件集合不同（Jaccard &gt; 0.9 判为对照失效）。
         </SectionNote>
         <div className="mt-2 text-[12.5px]" style={{ color: "var(--color-ink-muted)" }}>

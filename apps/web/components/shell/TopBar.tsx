@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { IconLing, IconSearch, IconSettings, IconTaiji } from "./Icons";
 import { StockSearch } from "../stock/StockSearch";
+import { Astrolabe, MountainSilhouette, SealStamp } from "./Decorations";
 
 export function TopBar({
   dataStatus = "ok",
@@ -72,8 +73,8 @@ export function TopBar({
         </span>
         <span className="flex flex-col leading-tight">
           <span
-            className="text-[19px] font-semibold tracking-[0.06em]"
-            style={{ color: "var(--color-ink)" }}
+            className="smp-serif-title smp-gold-shimmer text-[19px] font-semibold tracking-[0.06em]"
+            style={{ fontFamily: "var(--font-serif-cn)" }}
           >
             股票玄学多模型研究平台
           </span>
@@ -135,50 +136,97 @@ export function TopBar({
   );
 }
 
-/** 页面级 Hero 标题区（参考图中首页/综合研判/八字页共用的大标题块）。 */
+/** 页面级 Hero 标题区（参考图中首页/综合研判/八字/紫微/黄历等共用的大标题块）。 */
 export function PageHero({
   title,
   subtitle,
   right,
-  seal,
+  seal = "紫",
+  couplet = ["观天时", "察地利", "究人道", "研规律"],
+  motto = "东方智慧 · 现代方法 · 更深入的市场认知",
+  showDecorations = true,
 }: {
   title: string;
   subtitle?: string;
   right?: React.ReactNode;
   seal?: string;
+  couplet?: string[];
+  motto?: string;
+  showDecorations?: boolean;
 }) {
   return (
-    <div className="relative mb-3 flex items-start justify-between gap-4 px-1 pt-1">
-      <div className="min-w-0">
-        <h1
-          className="text-[40px] font-bold leading-[1.12] tracking-[0.04em]"
-          style={{
-            color: "var(--color-gold-strong)",
-            textShadow: "0 2px 18px rgba(212,184,122,0.18)",
-          }}
-          data-testid="page-title"
-        >
-          {title}
-        </h1>
-        {subtitle ? (
-          <p className="mt-1.5 text-[13px] tracking-[0.06em]" style={{ color: "var(--color-ink-sub)" }}>
-            {subtitle}
-          </p>
-        ) : null}
+    <div
+      className="relative mb-1.5 overflow-hidden rounded-[8px] border px-4 py-1 smp-card"
+      style={{
+        background: "linear-gradient(135deg, rgba(16,31,43,0.92) 0%, rgba(13,26,37,0.96) 100%)",
+        borderColor: "var(--color-border)",
+      }}
+    >
+      {showDecorations && (
+        <>
+          <MountainSilhouette opacity={0.24} />
+          <Astrolabe
+            size={160}
+            glow={true}
+            className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 hidden xl:block"
+          />
+          {motto && (
+            <div
+              className="pointer-events-none absolute right-6 bottom-1.5 hidden text-right text-[11px] tracking-[0.14em] xl:block"
+              style={{ color: "var(--color-ink-muted)" }}
+            >
+              {motto}
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="relative z-10 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1
+            className="smp-serif-title smp-gold-shimmer text-[34px] font-bold leading-[1.12] tracking-[0.04em]"
+            style={{
+              color: "var(--color-gold-strong)",
+              fontFamily: "var(--font-serif-cn)",
+              textShadow: "0 2px 18px rgba(212,184,122,0.2)",
+            }}
+            data-testid="page-title"
+          >
+            {title}
+          </h1>
+          {subtitle ? (
+            <p className="mt-1 text-[13px] tracking-[0.08em]" style={{ color: "var(--color-ink-sub)" }}>
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex items-center gap-4 shrink-0">
+          {right}
+
+          {showDecorations && couplet && couplet.length > 0 && (
+            <div
+              className="hidden sm:flex flex-row-reverse items-start gap-2 select-none pr-2 shrink-0 xl:mr-44"
+              style={{ fontFamily: "var(--font-serif-cn)" }}
+              aria-hidden="true"
+            >
+              {couplet.map((col, idx) => (
+                <div key={idx} className="flex flex-col items-center gap-1.5">
+                  <div
+                    className="text-[12px] leading-[15px] tracking-[0.2em]"
+                    style={{ writingMode: "vertical-rl", color: "rgba(212,184,122,0.85)" }}
+                  >
+                    {col}
+                  </div>
+                  {idx === couplet.length - 1 && seal ? (
+                    <SealStamp text={seal} size={19} />
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      {right}
-      {seal ? (
-        <span
-          className="absolute right-2 top-1 flex h-7 w-7 items-center justify-center rounded-[3px] text-[11px]"
-          style={{
-            color: "#f0d9b0",
-            background: "linear-gradient(180deg,#8d2f28,#6d211c)",
-            border: "1px solid #a8453b",
-          }}
-        >
-          {seal}
-        </span>
-      ) : null}
     </div>
   );
 }

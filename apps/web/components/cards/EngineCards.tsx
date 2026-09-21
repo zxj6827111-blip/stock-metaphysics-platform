@@ -54,15 +54,15 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
   const dirTone = engine.direction > 0 ? "up" : engine.direction < 0 ? "down" : "flat";
 
   return (
-    <Card className="flex min-h-[186px] flex-col p-4" testId={`engine-card-${engine.engine}`}>
-      <div className="flex items-center gap-2">
+    <Card className="flex min-h-[148px] flex-col p-2.5" testId={`engine-card-${engine.engine}`}>
+      <div className="flex items-center gap-1.5">
         <span
-          className="flex h-7 w-7 items-center justify-center rounded-full"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
           style={{ color: accent, border: `1px solid ${accent}55`, background: `${accent}18` }}
         >
-          <Icon size={15} />
+          <Icon size={13} />
         </span>
-        <span className="text-[14px] font-medium" style={{ color: "var(--color-ink)" }}>
+        <span className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
           {engine.displayName}
         </span>
         {engine.available && engine.score !== null ? (
@@ -76,22 +76,22 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
 
       {engine.available && engine.score !== null ? (
         <>
-          <div className="mt-3 flex items-end gap-1.5">
+          <div className="mt-1.5 flex items-end gap-1">
             <span
-              className="smp-num text-[32px] font-semibold leading-none"
+              className="smp-num text-[26px] font-semibold leading-none"
               style={{ color: engine.direction > 0 ? "var(--color-up)" : engine.direction < 0 ? "var(--color-down)" : "var(--color-ink)" }}
               data-testid={`engine-score-${engine.engine}`}
             >
               {engine.score.toFixed(0)}
             </span>
-            <span className="pb-[3px] text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+            <span className="pb-[2px] text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
               /100
             </span>
           </div>
 
-          <div className="mt-2.5">
-            <div className="smp-metric-label">信心指数</div>
-            <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1">
+            <div className="flex items-center gap-1.5">
+              <span className="smp-metric-label text-[10px]">信心</span>
               <div className="h-[3px] flex-1 rounded-full" style={{ background: "var(--color-surface-4)" }}>
                 <div
                   className="h-full rounded-full"
@@ -101,25 +101,25 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
                   }}
                 />
               </div>
-              <span className="smp-num text-[11.5px]" style={{ color: "var(--color-ink-sub)" }}>
+              <span className="smp-num text-[10.5px]" style={{ color: "var(--color-ink-sub)" }}>
                 {Math.round((engine.confidence ?? 0) * 100)}%
               </span>
             </div>
           </div>
 
-          <p className="mt-2.5 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
+          <p className="mt-1 text-[11px] leading-[15px] line-clamp-1" style={{ color: "var(--color-ink-muted)" }}>
             {engine.summary}
           </p>
 
-          <div className="mt-auto flex items-center gap-3 whitespace-nowrap pt-3 text-[11px]">
-            <span className="flex items-center gap-1">
-              <span style={{ color: "var(--color-ink-muted)" }}>正向因素</span>
+          <div className="mt-auto flex items-center gap-2 whitespace-nowrap pt-1 text-[10.5px]">
+            <span className="flex items-center gap-0.5">
+              <span style={{ color: "var(--color-ink-muted)" }}>正向</span>
               <span className="smp-num" style={{ color: "var(--color-up)" }}>
                 {engine.positiveCount}
               </span>
             </span>
-            <span className="flex items-center gap-1">
-              <span style={{ color: "var(--color-ink-muted)" }}>负向因素</span>
+            <span className="flex items-center gap-0.5">
+              <span style={{ color: "var(--color-ink-muted)" }}>负向</span>
               <span className="smp-num" style={{ color: "var(--color-down)" }}>
                 {engine.negativeCount}
               </span>
@@ -129,18 +129,18 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
               className="ml-auto"
               style={{ color: "var(--color-ink-muted)" }}
             >
-              查看详情→
+              详情→
             </Link>
           </div>
         </>
       ) : (
-        <div className="mt-4 flex-1">
-          <div className="text-[13px]" style={{ color: "var(--color-ink-muted)" }}>
+        <div className="mt-2 flex-1">
+          <div className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
             该引擎当前不可用
           </div>
-          <p className="mt-2 text-[11.5px] leading-[18px]" style={{ color: "var(--color-ink-faint)" }}>
+          <p className="mt-1 text-[11px] leading-[16px]" style={{ color: "var(--color-ink-faint)" }}>
             {engine.unavailableReason ??
-              "引擎未启用或计算失败。本卡片不会以 0 分参与任何聚合，其他模型结果不受影响。"}
+              "引擎未启用或计算失败。本卡片不会以 0 分参与任何聚合。"}
           </p>
         </div>
       )}
@@ -148,7 +148,28 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
   );
 }
 
-export function ConsensusCard({ consensus }: { consensus: ConsensusView }) {
+export function ConsensusCard({ consensus }: { consensus: ConsensusView | null }) {
+  if (!consensus) {
+    return (
+      <Card className="flex min-h-[148px] flex-col p-2.5" testId="consensus-card">
+        <div className="flex items-center gap-1.5">
+          <span className="smp-card-title-icon">
+            <IconTarget size={14} />
+          </span>
+          <span className="text-[13px] font-medium">多模型共识</span>
+        </div>
+        <div className="my-auto py-2 text-center">
+          <div className="text-[12px] font-medium" style={{ color: "var(--color-ink-muted)" }}>
+            共识服务未产生结论
+          </div>
+          <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
+            模型输入存在缺失或计算降级，系统不提供虚构共识。
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   const tone =
     consensus.label.includes("POSITIVE")
       ? "up"
@@ -159,15 +180,15 @@ export function ConsensusCard({ consensus }: { consensus: ConsensusView }) {
           : "flat";
 
   return (
-    <Card className="flex min-h-[186px] flex-col p-4" testId="consensus-card">
-      <div className="flex items-center gap-2">
+    <Card className="flex min-h-[148px] flex-col p-2.5" testId="consensus-card">
+      <div className="flex items-center gap-1.5">
         <span className="smp-card-title-icon">
-          <IconTarget size={15} />
+          <IconTarget size={14} />
         </span>
-        <span className="text-[14px] font-medium">多模型共识</span>
+        <span className="text-[13px] font-medium">多模型共识</span>
         {consensus.displayOnly ? (
           <span
-            className="ml-auto text-[10.5px]"
+            className="ml-auto text-[10px]"
             style={{ color: "var(--color-ink-faint)" }}
             title="Phase 1 未实现正式 ConsensusEngine，此处仅为展示层聚合"
           >
@@ -176,11 +197,11 @@ export function ConsensusCard({ consensus }: { consensus: ConsensusView }) {
         ) : null}
       </div>
 
-      <div className="mt-3 flex gap-4">
+      <div className="mt-1.5 flex gap-2.5">
         {/* 共识徽记 */}
-        <div className="flex w-[118px] shrink-0 items-center justify-center">
+        <div className="flex w-[88px] shrink-0 items-center justify-center">
           <div
-            className="flex h-[104px] w-[104px] flex-col items-center justify-center rounded-full text-center"
+            className="flex h-[82px] w-[82px] flex-col items-center justify-center rounded-full text-center"
             style={{
               border: `1px solid ${tone === "up" ? "var(--color-up-dim)" : tone === "down" ? "var(--color-down-dim)" : "var(--color-border-strong)"}`,
               background:
@@ -189,12 +210,12 @@ export function ConsensusCard({ consensus }: { consensus: ConsensusView }) {
                   : tone === "down"
                     ? "radial-gradient(circle, rgba(79,211,155,0.22), rgba(79,211,155,0.03) 70%)"
                     : "radial-gradient(circle, rgba(124,143,163,0.2), rgba(124,143,163,0.03) 70%)",
-              boxShadow: "0 0 26px rgba(232,88,90,0.12)",
+              boxShadow: "0 0 20px rgba(232,88,90,0.10)",
             }}
             data-testid="consensus-badge"
           >
             <span
-              className="text-[17px] font-semibold leading-tight"
+              className="text-[15px] font-semibold leading-tight"
               style={{
                 color:
                   tone === "up" ? "var(--color-up)" : tone === "down" ? "var(--color-down)" : "var(--color-ink)",
@@ -206,31 +227,31 @@ export function ConsensusCard({ consensus }: { consensus: ConsensusView }) {
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             {consensus.directions.map((d) => (
-              <div key={d.engine} className="flex items-center gap-2">
-                <span className="w-[68px] text-[12px]" style={{ color: "var(--color-ink-sub)" }}>
+              <div key={d.engine} className="flex items-center gap-1.5 text-[11px]">
+                <span className="w-[56px]" style={{ color: "var(--color-ink-sub)" }}>
                   {d.displayName}
                 </span>
-                <DirectionMark direction={d.direction} size={13} />
-                <span className="smp-num text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+                <DirectionMark direction={d.direction} size={11} />
+                <span className="smp-num" style={{ color: "var(--color-ink-muted)" }}>
                   {d.direction > 0 ? "+" : d.direction < 0 ? "−" : "0"}
                 </span>
               </div>
             ))}
             {consensus.unavailableEngines.map((e) => (
-              <div key={e} className="flex items-center gap-2">
-                <span className="w-[68px] text-[12px]" style={{ color: "var(--color-ink-faint)" }}>
+              <div key={e} className="flex items-center gap-1.5 text-[11px]">
+                <span className="w-[56px]" style={{ color: "var(--color-ink-faint)" }}>
                   {e}
                 </span>
-                <span className="text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
-                  未启用（不计入）
+                <span className="text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                  未启用
                 </span>
               </div>
             ))}
           </div>
 
-          <div className="mt-3 space-y-1 border-t pt-2.5" style={{ borderColor: "var(--color-border)" }}>
+          <div className="mt-1.5 space-y-0.5 border-t pt-1 text-[10.5px]" style={{ borderColor: "var(--color-border)" }}>
             <MetaRow label="一致性" value={consensus.agreement} />
             <MetaRow label="历史验证" value={consensus.historicalValidity} />
             <MetaRow label="数据质量" value={consensus.dataQuality} />
@@ -239,7 +260,7 @@ export function ConsensusCard({ consensus }: { consensus: ConsensusView }) {
       </div>
 
       <p
-        className="mt-auto pt-3 text-center text-[11.5px] tracking-[0.1em]"
+        className="mt-auto pt-1 text-center text-[10.5px] tracking-[0.06em]"
         style={{ color: "var(--color-ink-muted)" }}
       >
         {consensus.note}
@@ -250,68 +271,87 @@ export function ConsensusCard({ consensus }: { consensus: ConsensusView }) {
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between text-[11.5px]">
+    <div className="flex items-center justify-between text-[11px]">
       <span style={{ color: "var(--color-ink-muted)" }}>{label}：</span>
       <span style={{ color: "var(--color-ink)" }}>{value}</span>
     </div>
   );
 }
 
-export function ConflictCard({ conflict }: { conflict: ConflictView }) {
+export function ConflictCard({ conflict }: { conflict: ConflictView | null }) {
+  if (!conflict) {
+    return (
+      <Card className="flex min-h-[148px] flex-col p-2.5" testId="conflict-card">
+        <div className="flex items-center gap-1.5">
+          <span className="smp-card-title-icon">
+            <IconWarning size={14} />
+          </span>
+          <span className="text-[13px] font-medium">模型分歧监测</span>
+        </div>
+        <div className="my-auto py-2 text-center">
+          <div className="text-[12px] font-medium" style={{ color: "var(--color-ink-muted)" }}>
+            分歧检测未产生结果
+          </div>
+          <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
+            冲突检测服务未返回，系统不假定一致或冲突。
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   if (!conflict.hasConflict) {
     return (
-      <Card className="flex min-h-[186px] flex-col p-4" testId="conflict-card">
-        <div className="flex items-center gap-2">
+      <Card className="flex min-h-[148px] flex-col p-2.5" testId="conflict-card">
+        <div className="flex items-center gap-1.5">
           <span className="smp-card-title-icon">
-            <IconWarning size={15} />
+            <IconWarning size={14} />
           </span>
-          <span className="text-[14px] font-medium">模型分歧监测</span>
+          <span className="text-[13px] font-medium">模型分歧监测</span>
         </div>
-        <div className="mt-6 flex flex-col items-center justify-center">
+        <div className="mt-3 flex flex-col items-center justify-center">
           <span
-            className="flex h-14 w-14 items-center justify-center rounded-full"
+            className="flex h-10 w-10 items-center justify-center rounded-full"
             style={{
               color: "var(--color-down)",
               border: "1px solid rgba(79,211,155,0.5)",
               background: "rgba(79,211,155,0.1)",
             }}
           >
-            <IconCheck size={26} />
+            <IconCheck size={20} />
           </span>
-          <div className="mt-3 text-[14px]" style={{ color: "var(--color-ink)" }}>
+          <div className="mt-1.5 text-[13px]" style={{ color: "var(--color-ink)" }}>
             {conflict.headline}
           </div>
         </div>
         <p
-          className="mt-auto pt-4 text-center text-[11.5px] leading-[18px]"
+          className="mt-auto pt-2 text-center text-[10.5px] leading-[15px]"
           style={{ color: "var(--color-ink-muted)" }}
         >
-          各模型结论趋于一致，
-          <br />
-          未发现需要重点关注的分类。
+          各模型结论趋于一致，未发现显著冲突。
         </p>
       </Card>
     );
   }
 
   return (
-    <Card className="flex min-h-[186px] flex-col p-4" testId="conflict-card">
-      <div className="flex items-center gap-2">
+    <Card className="flex min-h-[148px] flex-col p-2.5" testId="conflict-card">
+      <div className="flex items-center gap-1.5">
         <span style={{ color: "var(--color-conflict)" }}>
-          <IconWarning size={15} />
+          <IconWarning size={14} />
         </span>
-        <span className="text-[14px] font-medium">⚠ 模型存在明显分歧</span>
+        <span className="text-[13px] font-medium">⚠ 模型存在明显分歧</span>
       </div>
-      <div className="mt-3 space-y-2">
+      <div className="mt-2 space-y-1">
         {conflict.reasons.map((r, i) => (
-          <div key={i} className="text-[11.5px] leading-[18px]">
+          <div key={i} className="text-[11px] leading-[16px]">
             <span style={{ color: "var(--color-ink)" }}>{r.engine}：{r.direction}</span>
             <br />
             <span style={{ color: "var(--color-ink-muted)" }}>{r.text}</span>
           </div>
         ))}
       </div>
-      <p className="mt-auto pt-3 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
+      <p className="mt-auto pt-1 text-[10.5px]" style={{ color: "var(--color-ink-muted)" }}>
         系统禁止用平均分掩盖分歧，以上方向并列展示。
       </p>
     </Card>

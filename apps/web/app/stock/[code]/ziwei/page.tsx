@@ -67,15 +67,26 @@ function ZiweiInner() {
             <ZiweiChartGrid chart={chart} highlightTrine />
           </div>
         ) : (
-          <UnavailableBlock
-            what="紫微盘面"
-            testId="ziwei-unavailable"
-            reason={
-              opinion?.note ||
-              "本次分析未产出紫微盘面：可能是紫微排盘服务不可用，或未指定方向 variant。" +
-                "系统不会用空盘面或 0 分冒充结果。"
-            }
-          />
+          <div className="space-y-3">
+            <UnavailableBlock
+              what="紫微盘面"
+              testId="ziwei-unavailable"
+              reason={
+                opinion?.note ||
+                "本次分析未产出紫微盘面：可能是紫微排盘服务不可用，或未指定方向 variant。" +
+                  "系统不会用空盘面或 0 分冒充结果。"
+              }
+            />
+            <div className="flex items-center justify-center pb-2">
+              <button
+                type="button"
+                className="smp-btn smp-btn--primary px-4 py-1.5 text-[12.5px] font-medium"
+                onClick={reload}
+              >
+                刷新缓存并重新排盘
+              </button>
+            </div>
+          </div>
         )}
       </Card>
 
@@ -101,7 +112,7 @@ function ZiweiInner() {
             <ZiweiHoroscope chart={chart} />
             <div className="mt-2">
               <SectionNote>
-                小限层在 iztro 中**不提供流曜**，因此该层的星曜为空 —— 这是如实保留的缺失，
+                小限层在 iztro 中<strong>不提供流曜</strong>，因此该层的星曜为空 —— 这是如实保留的缺失，
                 不用其他层的星曜补全（见 docs/calculation-differences-phase2-ziwei.md D1）。
               </SectionNote>
             </div>

@@ -22,6 +22,7 @@ import { IconCalendar, IconTrend } from "@/components/shell/Icons";
 import { api, endpoints, type ApiTimelineMonths, type ApiTimelineWeeks } from "@/lib/api";
 import { useAnalysis } from "@/lib/analysisStore";
 import { engineCn } from "@/lib/dataSource";
+import { isFixtureActive, timelineMonthsFixture, timelineWeeksFixture } from "@/lib/fixture";
 
 const DIR_TONE: Record<string, string> = {
   "1": "var(--color-up)",
@@ -41,6 +42,12 @@ function TimelineInner() {
   const [twLoading, setTwLoading] = useState(false);
 
   const loadWindows = useCallback(async (analysisId: string) => {
+    if (isFixtureActive() && code === "600519") {
+      setMonths(timelineMonthsFixture);
+      setWeeks(timelineWeeksFixture);
+      setTwLoading(false);
+      return;
+    }
     setTwLoading(true);
     setTwError(null);
     try {
@@ -149,7 +156,7 @@ function TimelineInner() {
                 {months.months.map((m) => (
                   <tr
                     key={m.month}
-                    style={{ borderTop: "1px solid var(--color-line)" }}
+                    style={{ borderTop: "1px solid var(--color-border)" }}
                     data-testid={`month-row-${m.month}`}
                   >
                     <td className="py-1 font-semibold">{m.month}</td>
@@ -189,7 +196,7 @@ function TimelineInner() {
             <b>聚合口径：</b>
             {firstWeek.aggregation_method}
             <br />
-            传统术数**没有「流周」这一层**：周是聚合结果，不是独立运限。
+            传统术数<strong>没有「流周」这一层</strong>：周是聚合结果，不是独立运限。
           </SectionNote>
         ) : null}
         {weeks?.weeks?.length ? (
@@ -212,7 +219,7 @@ function TimelineInner() {
                 {weeks.weeks.map((w) => (
                   <tr
                     key={w.week_index}
-                    style={{ borderTop: "1px solid var(--color-line)" }}
+                    style={{ borderTop: "1px solid var(--color-border)" }}
                     data-testid={`week-row-${w.week_index}`}
                   >
                     <td className="smp-num">{w.week_index}</td>
@@ -284,7 +291,7 @@ function fmt(v: number | null | undefined): string {
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded border p-2" style={{ borderColor: "var(--color-line)" }}>
+    <div className="rounded border p-2" style={{ borderColor: "var(--color-border)" }}>
       <div className="text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
         {label}
       </div>

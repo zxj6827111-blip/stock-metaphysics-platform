@@ -79,8 +79,12 @@ async function main() {
     page.on("pageerror", onPageError);
 
     await page.goto(url, { waitUntil: "load", timeout: 60000 });
-    await page.waitForSelector("[data-testid=page-title]", { timeout: 30000 }).catch(() => null);
-    // 等字体与 ECharts 渲染稳定
+    // 严格等待页面核心标题出现，超时必须失败抛出异常，严禁静默吞掉
+    await page.waitForSelector("[data-testid=page-title], [data-testid=home-title]", { timeout: 30000 });
+    // 严格等待加载中状态脱离 DOM，超时必须失败
+    await page.locator("[data-testid=page-loading]").waitFor({ state: "detached", timeout: 15000 });
+    // 确保网页字体已解析就绪，等字体与 ECharts 渲染稳定
+    await page.evaluate(() => document.fonts.ready).catch(() => null);
     await page.waitForTimeout(1400);
 
     await page.screenshot({ path: path.join(dir, "current.png"), fullPage: false });
@@ -92,7 +96,7 @@ async function main() {
       fs.copyFileSync(refSrc, path.join(dir, "reference.png"));
     }
 
-    const title = await page.locator("[data-testid=page-title]").first().textContent().catch(() => null);
+    const title = await page.locator("[data-testid=page-title], [data-testid=home-title]").first().textContent().catch(() => null);
     const fixtureBanner = await page
       .locator("[data-testid=fixture-banner]")
       .count()
@@ -125,7 +129,7 @@ async function main() {
     for (const e of r.consoleErrors.slice(0, 4)) process.stdout.write(`      ${e}\n`);
   }
   process.stdout.write(`\n截图已保存到 ${OUT_ROOT}\n`);
-  if (CI && results.some((r) => r.consoleErrors.length)) process.exit(1);
+  if (CI && (results.some((r) => r.consoleErrors.length) || results.some((r) => !r.title))) process.exit(1);
 }
 
 main().catch((err) => {

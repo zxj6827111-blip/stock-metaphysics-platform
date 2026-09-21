@@ -14,8 +14,31 @@ import type {
   OverviewPageData,
   FactorRowView,
 } from "./types";
+import type {
+  ApiMultiAnalysis,
+  ApiZiweiChart,
+  ApiEventStudy,
+  ApiConflict,
+  ApiConsensus,
+  ApiEvidence,
+  ApiTimelineMonths,
+  ApiTimelineWeeks,
+  ApiOpinion,
+} from "./api";
+import rawAnalyze from "./fixtures/analyze.json";
+import rawZiweiForward from "./fixtures/ziwei-forward.json";
+import rawZiweiReverse from "./fixtures/ziwei-reverse.json";
 
 export const FIXTURE_QUERY_VALUE = "ui-reference";
+
+export function isFixtureActive(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return new URLSearchParams(window.location.search).get("fixture") === FIXTURE_QUERY_VALUE;
+  } catch {
+    return false;
+  }
+}
 
 export const WUXING_COLORS: Record<string, string> = {
   木: "var(--color-wood)",
@@ -462,4 +485,634 @@ export const EXCHANGE_CN: Record<string, string> = {
   SZSE: "深圳证券交易所",
   BSE: "北京证券交易所",
   UNKNOWN: "未知交易所",
+};
+
+/* -------------------------------------------------------------------------- */
+/* 十页显式 Fixture 数据集（离线 UI 验收用，不入库）                              */
+/* -------------------------------------------------------------------------- */
+
+export const ziweiForwardFixture = rawZiweiForward as unknown as ApiZiweiChart;
+export const ziweiReverseFixture = rawZiweiReverse as unknown as ApiZiweiChart;
+
+export const multiAnalysisFixture: ApiMultiAnalysis = {
+  ...(rawAnalyze as unknown as ApiMultiAnalysis),
+  as_of: "2024-11-15 14:32:00",
+  ziwei_charts: {
+    forward: ziweiForwardFixture,
+    reverse: ziweiReverseFixture,
+  },
+  opinions: {
+    bazi: {
+      engine: "bazi",
+      engine_version: "smx-bazi-native-1.0.0",
+      availability: "ok",
+      direction: 1,
+      score: 81.2,
+      confidence: 0.85,
+      top_positive_reasons: [{ text: "日主偏旺，食神生财", factor_ids: ["B_MONTH_003"] }],
+      top_negative_reasons: [{ text: "火土过旺，注意估值波动", factor_ids: ["B_FIRE_001"] }],
+      factor_ids: ["B_MONTH_003", "B_YEAR_001"],
+      note: "食神生财格，格局清纯，金水流通有情",
+    },
+    ziwei: {
+      engine: "ziwei",
+      engine_version: "smx-ziwei-native-1.0.0",
+      availability: "ok",
+      direction: 1,
+      score: 74.0,
+      confidence: 0.78,
+      top_positive_reasons: [{ text: "命宫天府，三方四正吉星拱照", factor_ids: ["Z_PALACE_001"] }],
+      top_negative_reasons: [{ text: "擎羊落陷，注意暗耗", factor_ids: ["Z_SHA_002"] }],
+      factor_ids: ["Z_PALACE_001"],
+      note: "本命财帛禄存，田宅武曲化禄，主基业稳固",
+    },
+    huangli: {
+      engine: "huangli",
+      engine_version: "huangli-engine-1.0.0",
+      availability: "ok",
+      direction: 1,
+      score: 73.0,
+      confidence: 0.76,
+      top_positive_reasons: [{ text: "成日明堂黄道吉星", factor_ids: ["H_DAY_001"] }],
+      top_negative_reasons: [{ text: "日支相刑，天干相冲", factor_ids: ["H_CHONG_001"] }],
+      factor_ids: ["H_DAY_001"],
+      note: "天时吉星相生，日课建除成日有利开拓",
+    },
+  },
+  consensus: {
+    display_only: true,
+    label: "POSITIVE_CONSENSUS",
+    label_cn: "正向共振",
+    agreement: "高",
+    historical_validity: "中等",
+    data_quality: "A",
+    directions: { bazi: 1, ziwei: 1, huangli: 1 },
+    unavailable_engines: [],
+    note: "三才同顺 · 趋势可期",
+    mean_score: 76.1,
+    available_engine_count: 3,
+    agreement_score: 0.88,
+  } as unknown as ApiConsensus,
+  conflict: {
+    display_only: true,
+    has_conflict: false,
+    severity: "none",
+    conflict_level: "none",
+    conflicting_engines: [],
+    directions: { bazi: 1, ziwei: 1, huangli: 1 },
+    reasons: [],
+    note: "各模型结论趋于一致，未发现需要重点关注的分类。",
+  } as unknown as ApiConflict,
+};
+
+export const huangliFixture = {
+  chart_id: "HL-600519-20241115",
+  engine_version: "huangli-engine-1.0.0",
+  config_version: "cfg-2026.09",
+  as_of: "2024-11-15T14:32:00",
+  huangli:
+    (rawAnalyze as unknown as { huangli?: Record<string, unknown> }).huangli ??
+    (rawAnalyze as unknown as { raw_huangli?: Record<string, unknown> }).raw_huangli ??
+    {},
+};
+
+export const backtestFixture: ApiEventStudy = {
+  experiment_id: "EXP-20241115-01",
+  factor_ids: ["COMBO_BAZI_ZIWEI_HUANGLI"],
+  event_count: 312,
+  universe_size: 500,
+  research_status: "VALIDATED",
+  research_status_reasons: ["通过随机置换负对照检验", "样本容量达到统计阈值"],
+  horizons: [
+    {
+      horizon: 1,
+      sample_count: 312,
+      up_rate: 0.542,
+      excess_up_rate: 0.038,
+      mean_return: 0.008,
+      median_return: 0.005,
+      std_return: 0.021,
+      mean_excess_return: 0.004,
+      max_drawdown: -0.032,
+      note: "超短期脉冲，受大盘日内噪音主导",
+    },
+    {
+      horizon: 5,
+      sample_count: 312,
+      up_rate: 0.598,
+      excess_up_rate: 0.071,
+      mean_return: 0.032,
+      median_return: 0.026,
+      std_return: 0.048,
+      mean_excess_return: 0.021,
+      max_drawdown: -0.058,
+      note: "周度效应初显，胜率具备初步统计显著性",
+    },
+    {
+      horizon: 10,
+      sample_count: 312,
+      up_rate: 0.635,
+      excess_up_rate: 0.095,
+      mean_return: 0.068,
+      median_return: 0.052,
+      std_return: 0.076,
+      mean_excess_return: 0.045,
+      max_drawdown: -0.092,
+      note: "半月度窗口，多模型共振胜率进一步提升",
+    },
+    {
+      horizon: 20,
+      sample_count: 312,
+      up_rate: 0.689,
+      excess_up_rate: 0.124,
+      mean_return: 0.126,
+      median_return: 0.098,
+      std_return: 0.112,
+      mean_excess_return: 0.084,
+      max_drawdown: -0.142,
+      note: "主研究窗口：历史同类共振结构平均跑赢基准 8.4%",
+    },
+    {
+      horizon: 60,
+      sample_count: 280,
+      up_rate: 0.612,
+      excess_up_rate: 0.088,
+      mean_return: 0.158,
+      median_return: 0.114,
+      std_return: 0.185,
+      mean_excess_return: 0.062,
+      max_drawdown: -0.228,
+      note: "季度窗口，易受行业周期与宏观Beta稀释",
+    },
+  ],
+  methodology: "事件研究法：以多模型共振信号为触发锚点，计算持有期超额收益与最大回撤",
+  warnings: [],
+  data_source: {
+    is_real: true,
+    benchmark_degraded: false,
+    label_rows: 312,
+  },
+};
+
+export const conflictsFixture: ApiConflict = {
+  display_only: true,
+  has_conflict: false,
+  severity: "none",
+  conflict_level: "none",
+  conflicting_engines: [],
+  directions: { bazi: 1, ziwei: 1, huangli: 1 },
+  reasons: [],
+  note: "当前八字、紫微、黄历三引擎结论一致为正向，未检出跨模型冲突与假设分歧。",
+  notes: [
+    "方向一致性：八字(+1)、紫微(+1)、黄历(+1)均指向温和偏强",
+    "时间尺度共振：月柱与当前流年均处于生旺阶段",
+    "假设敏感度：顺行与逆行变体在核心三方四正上无致命冲突",
+  ],
+};
+
+export const evidenceFixture: ApiEvidence = {
+  analysis_id: "AN-20241115143200-600519-987e89",
+  driver_factors: [
+    { factor_id: "B_STRUCT_002", name: "食神生财格", normalized_value: 1, direction: 1 },
+    { factor_id: "B_MONTH_003", name: "月令申金泄秀", normalized_value: 1, direction: 1 },
+    { factor_id: "Z_PALACE_001", name: "命宫天府庙旺", normalized_value: 1, direction: 1 },
+  ],
+  evidence: {
+    query: {
+      query: "食神生财 月令申金 命宫天府",
+      factor_ids: ["B_STRUCT_002", "B_MONTH_003", "Z_PALACE_001"],
+      topics: ["格局", "用神", "星曜"],
+    },
+    supporting_evidence: [
+      {
+        entry_id: "EV-SUP-01",
+        book: "渊海子平",
+        chapter: "卷三·论食神",
+        school: "子平法",
+        topic: ["食神", "财帛"],
+        original_text: "食神生旺，胜过财官。食神生财，财源自丰，乃富贵之格也。",
+        modern_note: "日主得食神泄秀而转生财星，喻主营业务具备自主造血与现金流扩张能力。",
+        score: 8.8,
+        authority_weight: 1.0,
+        stance: "support",
+        source: "公版",
+        edition: "明代崇祯本",
+        provenance: "国家图书馆藏本",
+        license_status: "公版",
+      },
+      {
+        entry_id: "EV-SUP-02",
+        book: "三命通会",
+        chapter: "卷五·论十干坐支",
+        school: "子平法",
+        topic: ["五行", "流通"],
+        original_text: "土旺得金，泄秀生财，富厚可期；金逢水润，流通无滞。",
+        modern_note: "五行相生有情，资产结构扎实且周转顺畅。",
+        score: 8.2,
+        authority_weight: 1.0,
+        stance: "support",
+        source: "公版",
+        edition: "清文渊阁四库全书本",
+        provenance: "文渊阁本",
+        license_status: "公版",
+      },
+      {
+        entry_id: "EV-SUP-03",
+        book: "紫微斗数全书",
+        chapter: "卷一·诸星问答",
+        school: "中州派",
+        topic: ["天府", "命宫"],
+        original_text: "天府南斗令星，主延寿解厄，在命宫主厚重沉着，财帛丰盈。",
+        modern_note: "天府为财库之官，防守力强，在实体企业命盘中往往象征厚实的资产壁垒。",
+        score: 8.5,
+        authority_weight: 1.0,
+        stance: "support",
+        source: "公版",
+        edition: "清同治刻本",
+        provenance: "公版古籍",
+        license_status: "公版",
+      },
+    ],
+    counter_evidence: [
+      {
+        entry_id: "EV-CNT-01",
+        book: "滴天髓",
+        chapter: "通变篇·论衰旺",
+        school: "子平法",
+        topic: ["衰旺", "过旺"],
+        original_text: "太旺者衰其势，火土燥烈无水以济，物极必反，反生破耗。",
+        modern_note: "若火土过盛而缺乏持续水源润泽，可能面临估值过热或资金面边际收紧的隐忧。",
+        score: 8.0,
+        authority_weight: 1.0,
+        stance: "counter",
+        source: "公版",
+        edition: "清道光陈素庵辑本",
+        provenance: "清刻本",
+        license_status: "公版",
+      },
+    ],
+    neutral_evidence: [
+      {
+        entry_id: "EV-NEU-01",
+        book: "神峰通考",
+        chapter: "卷二·评断篇",
+        school: "命理古籍",
+        topic: ["运限", "变迁"],
+        original_text: "运逢吉宿尚须防微杜渐，时逢凶煞亦有绝处逢生，吉凶相倚，非一成不变。",
+        modern_note: "历史规律受宏观环境制约，术数结构推断需结合实际基本面动态跟踪。",
+        score: 7.5,
+        authority_weight: 1.0,
+        stance: "neutral",
+        source: "公版",
+        edition: "明万历刊本",
+        provenance: "公版藏书",
+        license_status: "公版",
+      },
+    ],
+    total_candidates: 3,
+    retrieval_method: "公版古籍确定性倒排索引检索（规则与因子严格对齐）",
+    knowledge_version: "v2026.09.1",
+    note: "本检索依据清代及以前公版原文，遵循同时输出支持与反证原则，不作单向偏袒。",
+  },
+  disclaimer: "古籍条文只说明传统术数文献论述，不构成对证券资产未来收益率或涨跌的任何预测或保证。",
+};
+
+function createTimelineOpinion(
+  engine: "bazi" | "ziwei" | "huangli",
+  direction: number,
+  score: number,
+  note: string,
+  reasons: { text: string; factor_ids: string[] }[],
+): ApiOpinion {
+  return {
+    engine,
+    engine_version:
+      engine === "bazi"
+        ? "smx-bazi-native-1.0.0"
+        : engine === "ziwei"
+          ? "smx-ziwei-native-1.0.0"
+          : "huangli-engine-1.0.0",
+    availability: "ok",
+    direction,
+    score,
+    confidence: 0.8,
+    top_positive_reasons: direction > 0 ? reasons : [],
+    top_negative_reasons: direction < 0 ? reasons : [],
+    factor_ids: reasons.flatMap((r) => r.factor_ids),
+    note,
+  };
+}
+
+function createTimelineConsensus(
+  label: string,
+  label_cn: string,
+  agreement: string,
+  directions: Record<string, number>,
+  note: string,
+): ApiConsensus {
+  return {
+    display_only: true,
+    label,
+    label_cn,
+    agreement,
+    historical_validity: "中等",
+    data_quality: "A",
+    directions,
+    participating_engines: Object.keys(directions),
+    unavailable_engines: [],
+    mean_score: 75.0,
+    note,
+    agreement_score: agreement === "高" ? 0.9 : 0.6,
+    available_engine_count: 3,
+  };
+}
+
+function createTimelineConflict(
+  has_conflict: boolean,
+  directions: Record<string, number>,
+  severity = "none",
+  conflicting_engines: string[] = [],
+  reasons: string[] = [],
+): ApiConflict {
+  return {
+    display_only: true,
+    has_conflict,
+    severity,
+    conflicting_engines,
+    directions,
+    reasons,
+    note: has_conflict ? "多模型在当前周期存在方向分歧" : "无显著冲突",
+    conflict_level: has_conflict ? "minor" : "none",
+  };
+}
+
+export const timelineMonthsFixture: ApiTimelineMonths = {
+  analysis_id: "AN-20241115143200-600519-987e89",
+  stock_code: "600519",
+  as_of: "2024-11-15",
+  variant_mode: "forward",
+  aggregation_version: "v1.2.0",
+  months: [
+    {
+      month: "2024-11",
+      month_index: 1,
+      start_date: "2024-11-01",
+      end_date: "2024-11-30",
+      bazi: createTimelineOpinion("bazi", 1, 78, "食神生财，流月顺畅", [
+        { text: "月柱印比生扶", factor_ids: ["B_MONTH_001"] },
+      ]),
+      ziwei: createTimelineOpinion("ziwei", 1, 72, "天府坐命，三合生旺", [
+        { text: "天府在命宫化吉", factor_ids: ["Z_PALACE_001"] },
+      ]),
+      huangli: createTimelineOpinion("huangli", 1, 74, "建除成日，天德吉星", [
+        { text: "成日利于拓展", factor_ids: ["H_DAY_001"] },
+      ]),
+      consensus: createTimelineConsensus(
+        "POSITIVE",
+        "正向共振",
+        "高",
+        { bazi: 1, ziwei: 1, huangli: 1 },
+        "三模型同向偏强",
+      ),
+      conflict: createTimelineConflict(false, { bazi: 1, ziwei: 1, huangli: 1 }),
+      research_status: "VALIDATED",
+      trading_days: 21,
+      sample_dates: ["2024-11-01", "2024-11-15"],
+      warnings: [],
+    },
+    {
+      month: "2024-12",
+      month_index: 2,
+      start_date: "2024-12-01",
+      end_date: "2024-12-31",
+      bazi: createTimelineOpinion("bazi", 1, 76, "正印生身，格局稳定", [
+        { text: "冬令金水相生", factor_ids: ["B_MONTH_002"] },
+      ]),
+      ziwei: createTimelineOpinion("ziwei", 0, 62, "星曜平位，防暗耗", [
+        { text: "擎羊对冲财帛", factor_ids: ["Z_SHA_001"] },
+      ]),
+      huangli: createTimelineOpinion("huangli", 1, 70, "开日明堂，适宜守正", [
+        { text: "吉神偏东有利", factor_ids: ["H_DAY_002"] },
+      ]),
+      consensus: createTimelineConsensus(
+        "MODERATE",
+        "温和偏强",
+        "中",
+        { bazi: 1, ziwei: 0, huangli: 1 },
+        "八字与黄历偏强，紫微中性",
+      ),
+      conflict: createTimelineConflict(false, { bazi: 1, ziwei: 0, huangli: 1 }),
+      research_status: "VALIDATED",
+      trading_days: 22,
+      sample_dates: ["2024-12-02", "2024-12-16"],
+      warnings: [],
+    },
+    {
+      month: "2025-01",
+      month_index: 3,
+      start_date: "2025-01-01",
+      end_date: "2025-01-31",
+      bazi: createTimelineOpinion("bazi", 0, 58, "气机交接，中性观察", [
+        { text: "丑未相刑需谨慎", factor_ids: ["B_CLASH_001"] },
+      ]),
+      ziwei: createTimelineOpinion("ziwei", 1, 75, "武曲化禄，财帛转强", [
+        { text: "财帛禄存加会", factor_ids: ["Z_PALACE_002"] },
+      ]),
+      huangli: createTimelineOpinion("huangli", 0, 56, "闭日闭塞，静候变化", [
+        { text: "白虎临门防波动", factor_ids: ["H_DAY_003"] },
+      ]),
+      consensus: createTimelineConsensus(
+        "MIXED",
+        "中性观察",
+        "中",
+        { bazi: 0, ziwei: 1, huangli: 0 },
+        "多模型意见分化",
+      ),
+      conflict: createTimelineConflict(
+        true,
+        { bazi: 0, ziwei: 1, huangli: 0 },
+        "minor",
+        ["ziwei", "bazi"],
+        ["紫微偏多而八字偏平"],
+      ),
+      research_status: "VALIDATED",
+      trading_days: 18,
+      sample_dates: ["2025-01-02", "2025-01-15"],
+      warnings: [],
+    },
+    {
+      month: "2025-02",
+      month_index: 4,
+      start_date: "2025-02-01",
+      end_date: "2025-02-28",
+      bazi: createTimelineOpinion("bazi", 1, 82, "木火通明，食伤吐秀", [
+        { text: "寅申相生有情", factor_ids: ["B_MONTH_003"] },
+      ]),
+      ziwei: createTimelineOpinion("ziwei", 1, 80, "左右同宫，三方聚吉", [
+        { text: "吉化会合身宫", factor_ids: ["Z_PALACE_003"] },
+      ]),
+      huangli: createTimelineOpinion("huangli", 1, 76, "满日金匮，诸事大吉", [
+        { text: "日值金匮黄道", factor_ids: ["H_DAY_004"] },
+      ]),
+      consensus: createTimelineConsensus(
+        "STRONG",
+        "强烈共振",
+        "高",
+        { bazi: 1, ziwei: 1, huangli: 1 },
+        "三模型高度共振",
+      ),
+      conflict: createTimelineConflict(false, { bazi: 1, ziwei: 1, huangli: 1 }),
+      research_status: "VALIDATED",
+      trading_days: 15,
+      sample_dates: ["2025-02-03", "2025-02-17"],
+      warnings: [],
+    },
+  ],
+  research_status: "VALIDATED",
+  research_status_reasons: [],
+  methodology: "交易日月度窗口：按交易日提取逐日流日因子并使用加权法聚合",
+  warnings: [],
+};
+
+export const timelineWeeksFixture: ApiTimelineWeeks = {
+  analysis_id: "AN-20241115143200-600519-987e89",
+  stock_code: "600519",
+  as_of: "2024-11-15",
+  variant_mode: "forward",
+  aggregation_version: "v1.2.0",
+  weeks: [
+    {
+      week_index: 1,
+      week_start: "2024-11-11",
+      week_end: "2024-11-15",
+      trading_days: 5,
+      daily_results: [],
+      aggregation_method: "交易日时间加权聚合（传统术数无原生流周）",
+      aggregation_version: "v1.2.0",
+      mean: 73.6,
+      median: 73.0,
+      min: 71.0,
+      max: 77.0,
+      positive_day_ratio: 0.8,
+      weighted_mean: 74.2,
+      consensus: { label: "POSITIVE", label_cn: "正向共振", agreement: "高" } as unknown as ApiConsensus,
+      research_status: "VALIDATED",
+      warnings: [],
+    },
+    {
+      week_index: 2,
+      week_start: "2024-11-18",
+      week_end: "2024-11-22",
+      trading_days: 5,
+      daily_results: [],
+      aggregation_method: "交易日时间加权聚合（传统术数无原生流周）",
+      aggregation_version: "v1.2.0",
+      mean: 71.3,
+      median: 75.0,
+      min: 60.0,
+      max: 79.0,
+      positive_day_ratio: 0.67,
+      weighted_mean: 72.0,
+      consensus: { label: "POSITIVE", label_cn: "偏多共振", agreement: "中" } as unknown as ApiConsensus,
+      research_status: "VALIDATED",
+      warnings: [],
+    },
+    {
+      week_index: 3,
+      week_start: "2024-11-25",
+      week_end: "2024-11-29",
+      trading_days: 5,
+      daily_results: [],
+      aggregation_method: "交易日时间加权聚合（传统术数无原生流周）",
+      aggregation_version: "v1.2.0",
+      mean: 65.0,
+      median: 68.0,
+      min: 55.0,
+      max: 72.0,
+      positive_day_ratio: 0.5,
+      weighted_mean: 66.0,
+      consensus: { label: "MODERATE", label_cn: "中性偏温和", agreement: "中" } as unknown as ApiConsensus,
+      research_status: "VALIDATED",
+      warnings: [],
+    },
+  ],
+  research_status: "VALIDATED",
+  research_status_reasons: [],
+  methodology: "交易日周度窗口：周度为交易日聚合结果，非独立运限",
+  warnings: [],
+};
+
+export const factorsDictionaryFixture = {
+  total: 4,
+  total_all: 114,
+  by_category: {
+    natal: 1,
+    month: 1,
+    day: 1,
+    palace: 1,
+  },
+  disclaimer: "因子规则分仅表达传统文化模型结构强度，不代表预期收益率或上涨概率。",
+  rule_version: "v2026.09.1",
+  items: [
+    {
+      factor_id: "B_STRUCT_002",
+      name: "食神生财格",
+      engine: "bazi",
+      category: "natal",
+      definition: "日主有气，月令食神透出或得禄，并生助正偏财星之格局。",
+      computation: "判定月令本气或透干十神为食神，且天干见财星无枭印克夺。",
+      raw_unit: "布尔/分值",
+      normalized_hint: "[-1, 1]",
+      default_direction: 1,
+      rule_score_meaning: "表示原局现金流与创利结构清纯度，不代表预期收益率。",
+      rule_version: "1.0.0",
+      requires: ["chart.pattern", "chart.ten_gods"],
+      tags: ["格局", "财星", "食神"],
+    },
+    {
+      factor_id: "B_MONTH_003",
+      name: "月令申金生财",
+      engine: "bazi",
+      category: "month",
+      definition: "月令为申金，为壬水之长生、戊土之食神泄秀之所。",
+      computation: "月支为申，日主五行对应生助关系。",
+      raw_unit: "分值",
+      normalized_hint: "[-1, 1]",
+      default_direction: 1,
+      rule_score_meaning: "反映月令天时支持度，不代表短期股价上涨概率。",
+      rule_version: "1.0.0",
+      requires: ["chart.month_pillar"],
+      tags: ["月令", "五行"],
+    },
+    {
+      factor_id: "H_DAY_001",
+      name: "建除明堂吉神",
+      engine: "huangli",
+      category: "day",
+      definition: "流日建除十二值临成日，十二天神临明堂黄道吉星。",
+      computation: "当日值日为成，天神为明堂黄道。",
+      raw_unit: "类别",
+      normalized_hint: "[-1, 1]",
+      default_direction: 1,
+      rule_score_meaning: "传统通书择日吉位强度，不构成证券交易买入建议。",
+      rule_version: "1.0.0",
+      requires: ["huangli.primary"],
+      tags: ["黄历", "建除", "黄道"],
+    },
+    {
+      factor_id: "Z_PALACE_001",
+      name: "命宫天府庙旺",
+      engine: "ziwei",
+      category: "palace",
+      definition: "命宫主星天府坐守，处于庙旺状态，三方四正吉星拱照。",
+      computation: "命宫主星为天府，brightness为庙旺。",
+      raw_unit: "星曜亮度",
+      normalized_hint: "[-1, 1]",
+      default_direction: 1,
+      rule_score_meaning: "表示命盘防守稳固度与基业扎实度，不代表超额收益率。",
+      rule_version: "1.0.0",
+      requires: ["ziwei.palaces"],
+      tags: ["紫微", "命宫", "天府"],
+    },
+  ],
 };

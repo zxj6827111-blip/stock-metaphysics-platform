@@ -19,6 +19,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, endpoints, type ApiMultiAnalysis } from "./api";
+import { isFixtureActive, multiAnalysisFixture } from "./fixture";
+import { recordAnalysis } from "./historyStore";
 
 const STORAGE_PREFIX = "smp-analysis:";
 const memory = new Map<string, ApiMultiAnalysis>();
@@ -37,8 +39,20 @@ function keyOf({ code, variant, asOf }: AnalysisKey): string {
 
 export async function loadMultiAnalysis(
   key: AnalysisKey,
-  opts: { persist?: boolean } = {},
+  opts: { persist?: boolean; isFixture?: boolean } = {},
 ): Promise<ApiMultiAnalysis> {
+  const isFix = opts.isFixture ?? isFixtureActive();
+  if (isFix) {
+    // 演示模式规则：仅 600519 提供完整离线视觉复刻；
+    // 其他标的在演示模式下统一阻断真实分析与持久化，绝不静默发起网络请求
+    if (key.code === "600519") {
+      return multiAnalysisFixture;
+    }
+    throw new Error(
+      `演示模式（UI 复刻）仅支持 600519（贵州茅台）。标的 ${key.code} 在演示模式下不可用；为保证数据隔离，系统已统一阻断对真实后端的排盘分析与持久化请求，请移除 URL 中的 fixture 参数以进入真实分析模式。`,
+    );
+  }
+
   const k = keyOf(key);
   const hit = memory.get(k);
   if (hit) return hit;
@@ -63,6 +77,7 @@ export async function loadMultiAnalysis(
   };
   const res = await api.post<ApiMultiAnalysis>(endpoints.analyzeMulti(key.code), body);
   memory.set(k, res);
+  recordAnalysis(res);
   if (typeof window !== "undefined") {
     try {
       window.sessionStorage.setItem(STORAGE_PREFIX + k, JSON.stringify(res));

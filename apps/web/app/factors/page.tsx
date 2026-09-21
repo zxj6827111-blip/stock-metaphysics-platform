@@ -22,6 +22,7 @@ import { PageError, PageLoading } from "@/components/shell/PageState";
 import { IconGrid, IconSearch } from "@/components/shell/Icons";
 import { api, endpoints } from "@/lib/api";
 import { engineCn } from "@/lib/dataSource";
+import { isFixtureActive, factorsDictionaryFixture } from "@/lib/fixture";
 
 interface FactorDef {
   factor_id: string;
@@ -60,6 +61,11 @@ function FactorsInner() {
   const [selected, setSelected] = useState<FactorDef | null>(null);
 
   const load = useCallback(async () => {
+    if (isFixtureActive()) {
+      setData(factorsDictionaryFixture as unknown as DictResponse);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -138,7 +144,7 @@ function FactorsInner() {
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="搜索因子 ID / 名称 / 定义 / 标签"
                 className="min-w-[240px] flex-1 rounded border px-3 py-1.5 text-[12.5px] outline-none"
-                style={{ borderColor: "var(--color-line)", background: "transparent", color: "var(--color-ink)" }}
+                style={{ borderColor: "var(--color-border)", background: "transparent", color: "var(--color-ink)" }}
                 data-testid="factor-search"
               />
               <Select value={engine} onChange={setEngine} options={engines} placeholder="全部术数" label="术数" />
@@ -153,7 +159,7 @@ function FactorsInner() {
             <div className="mt-2">
               <p
                 className="rounded border px-3 py-2 text-[12px]"
-                style={{ borderColor: "var(--color-line)", color: "var(--color-ink-muted)" }}
+                style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
               >
                 {data.disclaimer}
               </p>
@@ -182,7 +188,7 @@ function FactorsInner() {
                           key={d.factor_id}
                           onClick={() => setSelected(d)}
                           style={{
-                            borderTop: "1px solid var(--color-line)",
+                            borderTop: "1px solid var(--color-border)",
                             background: active ? "rgba(212,160,74,0.10)" : undefined,
                             cursor: "pointer",
                           }}
@@ -248,17 +254,17 @@ function FactorsInner() {
 
                   <div
                     className="rounded border px-3 py-2 text-[12px]"
-                    style={{ borderColor: "var(--color-line)", color: "var(--color-ink-muted)" }}
+                    style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
                   >
                     <b>质量审计与历史统计</b>
                     <br />
                     逐因子审计（activation_rate / null_rate / 唯一取值数 / 相关系数）由
                     <code> scripts/factor_quality_audit.py</code> 与
-                    <code> scripts/ziwei_factor_quality_audit.py</code> 在**真实快照**上生成，
+                    <code> scripts/ziwei_factor_quality_audit.py</code> 在<strong>真实快照</strong>上生成，
                     结果写入 <code>docs/factor_quality_report.md</code> 与
                     <code> docs/ziwei-factor-dictionary.md</code>。
                     <br />
-                    本页刻意**不显示未运行的统计数字** —— 没有跑过的数字不能出现在研究终端里。
+                    本页刻意<strong>不显示未运行的统计数字</strong> —— 没有跑过的数字不能出现在研究终端里。
                   </div>
                 </div>
               ) : (
@@ -305,7 +311,7 @@ function Select({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="rounded border px-2 py-1 text-[12px] outline-none"
-        style={{ borderColor: "var(--color-line)", background: "transparent", color: "var(--color-ink)" }}
+        style={{ borderColor: "var(--color-border)", background: "transparent", color: "var(--color-ink)" }}
       >
         <option value="">{placeholder}</option>
         {options.map((o) => (

@@ -24,6 +24,7 @@
   --color-surface-4: #1b3140;
   --color-border: #1e3444;
   --color-border-strong: #2a4457;
+  --color-line: #1e3444;
 
   /* --- 文本 --- */
   --color-ink: #e8edf2;
@@ -138,9 +139,28 @@ body::before {
     background: var(--color-surface-1);
   }
 
+  .smp-serif-title {
+    font-family: var(--font-serif-cn);
+    letter-spacing: 0.04em;
+  }
+
+  .smp-gold-shimmer {
+    background: linear-gradient(135deg, #f3e4be 0%, #d4b87a 55%, #a48c52 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
   .smp-card-header {
     @apply flex items-center gap-2 px-4 py-2.5;
     border-bottom: 1px solid var(--color-border);
+  }
+
+  .smp-card-body {
+    @apply p-3.5;
+  }
+
+  .smp-card-body--dense {
+    @apply p-2.5;
   }
 
   .smp-card-title {

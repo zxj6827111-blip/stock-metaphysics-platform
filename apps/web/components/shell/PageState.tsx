@@ -77,7 +77,7 @@ export function PageError({
             type="button"
             onClick={onRetry}
             className="mt-3 rounded border px-3 py-1 text-[12px] transition-opacity hover:opacity-80"
-            style={{ borderColor: "var(--color-line)", color: "var(--color-ink)" }}
+            style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}
           >
             重试
           </button>
@@ -126,7 +126,7 @@ export function UnavailableBlock({
   return (
     <div
       className="rounded border px-3 py-2 text-[12.5px]"
-      style={{ borderColor: "var(--color-line)", color: "var(--color-ink-muted)" }}
+      style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
       data-testid={testId}
     >
       <span className="font-semibold" style={{ color: "var(--color-ink)" }}>

@@ -14,6 +14,8 @@ import { endpoints, api, type ApiStockSearchResponse } from "@/lib/api";
 import { FIXTURE_QUERY_VALUE } from "@/lib/fixture";
 import { IconArrowRight, IconClose, IconSearch } from "../shell/Icons";
 
+import { KNOWN_STOCK_NAMES } from "@/lib/stockCatalog";
+
 interface Suggestion {
   code: string;
   name: string;
@@ -24,10 +26,13 @@ interface Suggestion {
 const DEMO_SUGGESTIONS: Suggestion[] = [
   { code: "600519", name: "贵州茅台", exchange: "SSE", listingDate: "2001-08-27" },
   { code: "000001", name: "平安银行", exchange: "SZSE", listingDate: "1991-04-03" },
+  { code: "002008", name: "大族激光", exchange: "SZSE", listingDate: "2004-06-25" },
   { code: "300750", name: "宁德时代", exchange: "SZSE", listingDate: "2018-06-11" },
+  { code: "002594", name: "比亚迪", exchange: "SZSE", listingDate: "2011-06-30" },
   { code: "600036", name: "招商银行", exchange: "SSE", listingDate: "2002-04-09" },
   { code: "000858", name: "五粮液", exchange: "SZSE", listingDate: "1998-04-27" },
   { code: "601318", name: "中国平安", exchange: "SSE", listingDate: "2007-03-01" },
+  { code: "688981", name: "中芯国际", exchange: "SSE", listingDate: "2020-07-16" },
 ];
 
 export function StockSearch({
@@ -58,35 +63,87 @@ export function StockSearch({
 
   const doSearch = useCallback(
     async (q: string) => {
-      if (fixture || q.trim().length === 0) {
-        const t = q.trim().toLowerCase();
-        setItems(
-          t
-            ? DEMO_SUGGESTIONS.filter(
-                (s) => s.code.includes(t) || s.name.includes(t),
-              )
-            : DEMO_SUGGESTIONS,
-        );
+      const trimmed = q.trim();
+      if (!trimmed) {
+        setItems(DEMO_SUGGESTIONS);
         return;
       }
+
+      const t = trimmed.toLowerCase();
+      const localHits = DEMO_SUGGESTIONS.filter(
+        (s) => s.code.includes(t) || s.name.includes(t),
+      );
+
+      // 如果处于 fixture 模式，完全基于本地清单，禁止向后端发起网络请求
+      if (fixture) {
+        if (localHits.length > 0) {
+          setItems(localHits);
+        } else if (/^\d{6}$/.test(trimmed)) {
+          const known = KNOWN_STOCK_NAMES[trimmed];
+          setItems([
+            {
+              code: trimmed,
+              name: known?.name || "A股标的",
+              exchange: trimmed.startsWith("6") || trimmed.startsWith("9") ? "SSE" : "SZSE",
+              listingDate: known?.listingDate || "",
+            },
+          ]);
+        } else {
+          setItems([]);
+        }
+        return;
+      }
+
+      // 未命中本地或处于真实模式时，发起后端实时查询
       setLoading(true);
       try {
-        const res = await api.get<ApiStockSearchResponse>(endpoints.search(q));
-        setItems(
-          res.items.map((i) => ({
-            code: i.stock_code,
-            name: i.name,
-            exchange: i.exchange,
-            listingDate: i.listing_date,
-          })),
-        );
+        const res = await api.get<ApiStockSearchResponse>(endpoints.search(trimmed));
+        const mapped = res.items.map((i) => ({
+          code: i.stock_code,
+          name: i.name || KNOWN_STOCK_NAMES[i.stock_code]?.name || "",
+          exchange: i.exchange,
+          listingDate: i.listing_date || KNOWN_STOCK_NAMES[i.stock_code]?.listingDate || "",
+        }));
+
+        if (mapped.length > 0) {
+          setItems(mapped);
+        } else if (localHits.length > 0) {
+          setItems(localHits);
+        } else if (/^\d{6}$/.test(trimmed)) {
+          const known = KNOWN_STOCK_NAMES[trimmed];
+          setItems([
+            {
+              code: trimmed,
+              name: known?.name || "A股标的",
+              exchange: trimmed.startsWith("6") || trimmed.startsWith("9") ? "SSE" : "SZSE",
+              listingDate: known?.listingDate || "",
+            },
+          ]);
+        } else {
+          setItems([]);
+        }
+
         setDegraded(
           res.is_degraded
             ? "当前运行在离线合成数据模式，股票资料来自内置清单。"
             : null,
         );
       } catch {
-        setItems(DEMO_SUGGESTIONS);
+        if (localHits.length > 0) {
+          setItems(localHits);
+        } else if (/^\d{6}$/.test(trimmed)) {
+          const known = KNOWN_STOCK_NAMES[trimmed];
+          setItems([
+            {
+              code: trimmed,
+              name: known?.name || "A股标的",
+              exchange: trimmed.startsWith("6") || trimmed.startsWith("9") ? "SSE" : "SZSE",
+              listingDate: known?.listingDate || "",
+            },
+          ]);
+        } else {
+          setItems(DEMO_SUGGESTIONS);
+        }
         setDegraded("后端服务不可用，已回退到内置演示清单。");
       } finally {
         setLoading(false);
@@ -101,7 +158,10 @@ export function StockSearch({
   }, [value, doSearch]);
 
   const go = (code: string) => {
-    const suffix = fixture ? `?fixture=${FIXTURE_QUERY_VALUE}` : "";
+    // 关键设计：仅当目标是 600519 且当前是 fixture 模式时才保留 fixture，
+    // 任何其他股票（如 002008）坚决去掉 fixture，让页面直接调用真实 API 计算！
+    const keepFixture = fixture && code === "600519";
+    const suffix = keepFixture ? `?fixture=${FIXTURE_QUERY_VALUE}` : "";
     router.push(`/stock/${code}/overview${suffix}`);
   };
 

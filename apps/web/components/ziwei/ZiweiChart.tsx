@@ -145,7 +145,7 @@ function PalaceCell({
     <div
       className="rounded border p-2 text-[11.5px] leading-[1.5]"
       style={{
-        borderColor: isSoul ? "#D4A04A" : inTrine ? "rgba(212,160,74,0.45)" : "var(--color-line)",
+        borderColor: isSoul ? "#D4A04A" : inTrine ? "rgba(212,160,74,0.45)" : "var(--color-border)",
         background: isSoul ? "rgba(212,160,74,0.07)" : "var(--color-surface, transparent)",
       }}
       data-testid={`ziwei-palace-${palace.index}`}
@@ -301,7 +301,7 @@ export function ZiweiTrine({ chart }: { chart: ApiZiweiChart }) {
           <div
             key={i}
             className="rounded border p-2 text-[11.5px]"
-            style={{ borderColor: "var(--color-line)" }}
+            style={{ borderColor: "var(--color-border)" }}
             data-testid={`ziwei-trine-${pos}`}
           >
             <div style={{ color: "var(--color-ink-muted)" }}>
@@ -342,7 +342,7 @@ export function ZiweiHoroscope({ chart }: { chart: ApiZiweiChart }) {
         if (!sec) {
           return (
             <div key={key} className="rounded border p-2 text-[11.5px]"
-                 style={{ borderColor: "var(--color-line)", color: "var(--color-ink-muted)" }}>
+                 style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}>
               {label}：不可用
             </div>
           );
@@ -353,7 +353,7 @@ export function ZiweiHoroscope({ chart }: { chart: ApiZiweiChart }) {
           <div
             key={key}
             className="rounded border p-2 text-[11.5px]"
-            style={{ borderColor: "var(--color-line)" }}
+            style={{ borderColor: "var(--color-border)" }}
             data-testid={`ziwei-horoscope-${key}`}
           >
             <div className="flex items-center justify-between">
@@ -393,7 +393,7 @@ export function VariantSwitcher({
   disabled?: boolean;
 }) {
   return (
-    <div className="inline-flex overflow-hidden rounded border" style={{ borderColor: "var(--color-line)" }}
+    <div className="inline-flex overflow-hidden rounded border" style={{ borderColor: "var(--color-border)" }}
          data-testid="variant-switcher">
       {(["forward", "reverse"] as const).map((v) => (
         <button

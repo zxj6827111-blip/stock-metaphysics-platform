@@ -13,6 +13,7 @@
  * 生产 runtime 读真实 API；`?fixture=ui-reference` 时用固定演示数据。
  */
 
+import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -47,7 +48,7 @@ import {
   toEngineCardsFromOpinions,
 } from "@/lib/dataSource";
 import { api, endpoints, type ApiConsensus, type ApiConflict, type ApiEventStudy, type ApiEvidence } from "@/lib/api";
-import { loadMultiAnalysis } from "@/lib/analysisStore";
+import { invalidateAnalysis, loadMultiAnalysis } from "@/lib/analysisStore";
 import type { OverviewPageData } from "@/lib/types";
 
 function OverviewInner() {
@@ -55,11 +56,13 @@ function OverviewInner() {
   const code = routeParams?.code ?? "600519";
   const search = useSearchParams();
   const fixture = search.get("fixture") === FIXTURE_QUERY_VALUE;
+  const isMoutaiFixture = fixture && code === "600519";
+  const isUnsupportedFixture = fixture && code !== "600519";
 
   const [data, setData] = useState<OverviewPageData | null>(
-    fixture ? overviewFixture : null,
+    isMoutaiFixture ? overviewFixture : null,
   );
-  const [loading, setLoading] = useState(!fixture);
+  const [loading, setLoading] = useState(!isMoutaiFixture && !isUnsupportedFixture);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
   const [analysisId, setAnalysisId] = useState<string>("");
@@ -73,7 +76,19 @@ function OverviewInner() {
     method?: string;
   }>({ supporting: [], counter: [], neutral: [] });
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
+    if (isMoutaiFixture) {
+      setData(overviewFixture);
+      setLoading(false);
+      return;
+    }
+    if (isUnsupportedFixture) {
+      setLoading(false);
+      return;
+    }
+    if (force) {
+      invalidateAnalysis({ code, variant: "forward" });
+    }
     setLoading(true);
     setError(null);
     try {
@@ -86,7 +101,8 @@ function OverviewInner() {
 
       // 三模型观点：直接消费后端 opinion，前端**不重算分数**
       const base = buildContextFromMulti(multi);
-      const engines = toEngineCardsFromOpinions(multi);
+      const suffix = fixture ? `?fixture=${FIXTURE_QUERY_VALUE}` : "";
+      const engines = toEngineCardsFromOpinions(multi, suffix);
 
       const [consensusRes, conflictRes, backtestRes, evidenceRes] = await Promise.allSettled([
         api.get<ApiConsensus>(endpoints.consensus(aid)),
@@ -95,14 +111,25 @@ function OverviewInner() {
         api.get<ApiEvidence>(endpoints.evidence(aid)),
       ]);
 
-      const consensusView =
+      const consensusData =
         consensusRes.status === "fulfilled"
-          ? toConsensusView(consensusRes.value)
-          : overviewFixture.consensus;
-      const conflictView =
+          ? consensusRes.value
+          : multi.consensus ?? null;
+      const consensusView = consensusData
+        ? toConsensusView(consensusData)
+        : isMoutaiFixture
+          ? overviewFixture.consensus
+          : null;
+
+      const conflictData =
         conflictRes.status === "fulfilled"
-          ? toConflictView(conflictRes.value)
-          : overviewFixture.conflict;
+          ? conflictRes.value
+          : multi.conflict ?? null;
+      const conflictView = conflictData
+        ? toConflictView(conflictData)
+        : isMoutaiFixture
+          ? overviewFixture.conflict
+          : null;
 
       const dq = toDataQualityView(
         base.quality,
@@ -120,6 +147,7 @@ function OverviewInner() {
           backtestRes.status === "fulfilled" ? backtestRes.value : null,
           evidenceRes.status === "fulfilled" ? evidenceRes.value : null,
           dq,
+          isMoutaiFixture,
         ),
       );
       if (evidenceRes.status === "fulfilled") {
@@ -131,25 +159,31 @@ function OverviewInner() {
           method: evidenceRes.value.evidence.retrieval_method,
         });
       }
-      setResearchStatus(consensusRes.status === "fulfilled"
-        ? (consensusRes.value.research_status ?? "NOT_RUN")
-        : "NOT_RUN");
+      setResearchStatus(
+        consensusRes.status === "fulfilled"
+          ? (consensusRes.value.research_status ?? "NOT_RUN")
+          : (multi.consensus?.research_status ?? "NOT_RUN"),
+      );
       setAnalysisId(aid);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-      if (fixture) setData(overviewFixture);
+      if (isMoutaiFixture) {
+        setData(overviewFixture);
+      } else {
+        setData(null);
+      }
     } finally {
       setLoading(false);
     }
-  }, [code, fixture]);
+  }, [code, fixture, isMoutaiFixture, isUnsupportedFixture]);
 
   useEffect(() => {
-    if (!fixture) void load();
-  }, [fixture, load]);
+    if (!isMoutaiFixture && !isUnsupportedFixture) void load();
+  }, [isMoutaiFixture, isUnsupportedFixture, load]);
 
   // fixture 模式下同样准备抽屉数据（用演示条目）
   useEffect(() => {
-    if (!fixture) return;
+    if (!isMoutaiFixture) return;
     setDrawerData({
       supporting: [],
       counter: [],
@@ -157,7 +191,7 @@ function OverviewInner() {
       note: "UI 复刻模式下不加载真实古籍检索结果。移除 URL 中的 fixture 参数即可查看真实证据。",
       method: "bm25 + topic_match + authority_weight + domain_filter",
     });
-  }, [fixture]);
+  }, [isMoutaiFixture]);
 
   const metrics = useMemo(() => data?.backtestMetrics ?? [], [data]);
 
@@ -194,6 +228,48 @@ function OverviewInner() {
   );
 
 
+  if (isUnsupportedFixture) {
+    return (
+      <AppShell activeNav="overview" dataStatus="bad" statusText="演示模式受限">
+        <PageHero
+          title="综合研判"
+          subtitle="八字 · 紫微 · 黄历三模型共识与分歧研究"
+          seal="研"
+        />
+        <Card className="my-4 p-6" testId="unsupported-fixture-error">
+          <div className="flex items-start gap-3">
+            <span className="text-[24px]">⚠️</span>
+            <div className="space-y-2">
+              <h3 className="text-[16px] font-semibold" style={{ color: "var(--color-warn)" }}>
+                演示模式（UI 复刻）仅支持 600519（贵州茅台）
+              </h3>
+              <p className="text-[13px] leading-relaxed" style={{ color: "var(--color-ink-sub)" }}>
+                当前访问标的为 <code className="smp-num rounded border px-1.5 py-0.5">{code}</code>。
+                为严格保证数据隔离，系统在演示模式下<strong>已统一阻断对真实后端的排盘分析与持久化请求</strong>，
+                禁止静默进入真实模式。
+              </p>
+              <div className="flex items-center gap-3 pt-2">
+                <Link
+                  href={`/stock/${code}/overview`}
+                  className="smp-btn smp-btn--primary"
+                  data-testid="enter-real-mode-btn"
+                >
+                  移除 fixture 参数并进入真实分析模式
+                </Link>
+                <Link
+                  href={`/stock/600519/overview?fixture=${FIXTURE_QUERY_VALUE}`}
+                  className="smp-btn"
+                >
+                  返回 600519 演示标的
+                </Link>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell activeNav="overview" dataStatus={error ? "bad" : "ok"} statusText={error ? "后端未连接" : "数据正常"}>
       <PageHero
@@ -207,7 +283,7 @@ function OverviewInner() {
               disabled={!analysisId || exporting}
               onClick={() => void exportReport("markdown")}
               className="rounded border px-3 py-1 text-[12px] transition-opacity hover:opacity-80 disabled:opacity-40"
-              style={{ borderColor: "var(--color-line)", color: "var(--color-ink)" }}
+              style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}
             >
               {exporting ? "导出中…" : "导出 Markdown"}
             </button>
@@ -216,7 +292,7 @@ function OverviewInner() {
               disabled={!analysisId || exporting}
               onClick={() => void exportReport("html")}
               className="rounded border px-3 py-1 text-[12px] transition-opacity hover:opacity-80 disabled:opacity-40"
-              style={{ borderColor: "var(--color-line)", color: "var(--color-ink)" }}
+              style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}
             >
               导出 HTML
             </button>
@@ -227,7 +303,15 @@ function OverviewInner() {
         }
       />
 
-      {data ? <StockContextBar context={data.context} activeTab="overview" onRecalculate={load} recalculating={loading} /> : null}
+      {data ? (
+        <StockContextBar
+          context={data.context}
+          activeTab="overview"
+          onRecalculate={() => void load(true)}
+          onExport={() => void exportReport("markdown")}
+          recalculating={loading}
+        />
+      ) : null}
 
       {error && !fixture ? (
         <Card className="mb-3 p-4" testId="overview-error">
@@ -275,19 +359,20 @@ function OverviewInner() {
 
       {data ? (
         <>
-          {/* A + B + C */}
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2.35fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          {/* A + B + C (约 50:29:21 比例) */}
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1.16fr)_minmax(0,0.84fr)]">
             <Card testId="engine-scores">
               <CardHeader
                 icon={<IconGrid size={14} />}
                 title="模型评分与判断"
+                dense
                 right={
                   <span className="text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
                     分数 = 传统规则强度聚合（非收益预测）
                   </span>
                 }
               />
-              <div className="grid grid-cols-1 gap-3 p-3.5 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 p-2.5 md:grid-cols-3">
                 {data.engines.map((e) => (
                   <EngineScoreCard key={e.engine} engine={e} />
                 ))}
@@ -298,117 +383,133 @@ function OverviewInner() {
             <ConflictCard conflict={data.conflict} />
           </div>
 
-          {/* D + E：时间窗口 + 关键证据 */}
-          <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-            <Card testId="time-window">
-              <CardHeader
-                icon={<IconChart size={14} />}
-                title="未来时间窗口"
-                right={
-                  <div className="flex items-center gap-1">
-                    {["近1月", "近3月", "近6月", "未来1年"].map((t, i) => (
-                      <span
-                        key={t}
-                        className="rounded-[4px] border px-2 py-[2px] text-[11px]"
-                        style={{
-                          borderColor: i === 3 ? "var(--color-gold-dim)" : "var(--color-border)",
-                          background: i === 3 ? "var(--color-gold-ghost)" : "transparent",
-                          color: i === 3 ? "var(--color-gold)" : "var(--color-ink-muted)",
-                        }}
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                }
-                action={{ label: "查看详情" }}
-              />
-              <div className="px-3 py-2">
-                <div className="mb-1 flex items-center gap-4 px-1">
-                  {data.timeWindow.series.map((s2) => (
-                    <span key={s2.key} className="flex items-center gap-1.5 text-[11.5px]">
-                      <span
-                        className="inline-block h-[3px] w-[14px] rounded-full"
-                        style={{ background: s2.color }}
-                      />
-                      <span style={{ color: "var(--color-ink-sub)" }}>{s2.name}</span>
-                    </span>
-                  ))}
-                  <span className="ml-3 flex items-center gap-1.5 text-[11.5px]">
-                    <span
-                      className="inline-block h-[10px] w-[14px] rounded-[2px]"
-                      style={{ background: "rgba(79,211,155,0.22)", border: "1px solid rgba(79,211,155,0.45)" }}
-                    />
-                    <span style={{ color: "var(--color-ink-sub)" }}>高共识区</span>
-                  </span>
-                  <span className="flex items-center gap-1.5 text-[11.5px]">
-                    <span
-                      className="inline-block h-[10px] w-[14px] rounded-[2px]"
-                      style={{ background: "rgba(176,124,214,0.22)", border: "1px solid rgba(176,124,214,0.45)" }}
-                    />
-                    <span style={{ color: "var(--color-ink-sub)" }}>高冲突区</span>
-                  </span>
-                </div>
-                <TimeWindowChart data={data.timeWindow} height={252} />
-                <p className="px-1 pb-2 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
-                  纵轴为术数研究指数（0-100 规则强度），非收益率预测。曲线为基于当前引擎分数的
-                  展示层平滑示意；正式时间窗口预测属 Phase 2。
-                </p>
-              </div>
-            </Card>
-
-            <Card testId="key-evidence">
-              <CardHeader
-                icon={<IconBook size={14} />}
-                title="关键证据"
-                action={{ label: "查看更多", onClick: () => setDrawer(true) }}
-              />
-              <div className="space-y-2 p-3.5">
-                {data.evidence.length === 0 ? (
-                  <div className="py-6 text-center text-[12px]" style={{ color: "var(--color-ink-faint)" }}>
-                    暂无证据条目
-                  </div>
-                ) : (
-                  data.evidence.map((ev) => <EvidenceRow key={ev.id} item={ev} />)
-                )}
-              </div>
-            </Card>
-          </div>
-
-          {/* F：历史验证 + 数据质量 */}
-          <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-            <Card testId="backtest-summary">
-              <CardHeader
-                icon={<IconTrend size={14} />}
-                title="历史验证摘要"
-                action={{ label: "历史验证详情" }}
-              />
-              <div className="grid grid-cols-2 gap-2.5 p-3.5 md:grid-cols-5">
-                {metrics.map((m) => (
-                  <BacktestMetricCard key={m.key} metric={m} />
-                ))}
-              </div>
-              <div className="grid grid-cols-1 gap-4 px-3.5 pb-3.5 md:grid-cols-[minmax(0,1fr)_300px]">
-                <div>
-                  <div className="smp-metric-label mb-1">收益分布（示意）</div>
-                  {data.distribution.length ? (
-                    <DistributionChart bins={data.distribution} height={124} />
+          {/* D + E + F：下部双列独立垂直堆叠 (58% : 42%) */}
+          <div className="mt-3 grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)]">
+            {/* 左列 (58%)：未来时间窗口 + 历史验证摘要（保障 y <= 760px 进入首屏） */}
+            <div className="flex flex-col gap-3">
+              <Card testId="time-window">
+                <CardHeader
+                  icon={<IconChart size={14} />}
+                  title="未来时间窗口"
+                  dense
+                  right={
+                    <div className="flex items-center gap-1">
+                      {["近1月", "近3月", "近6月", "未来1年"].map((t, i) => (
+                        <span
+                          key={t}
+                          className="rounded-[4px] border px-2 py-[1px] text-[10.5px]"
+                          style={{
+                            borderColor: i === 3 ? "var(--color-gold-dim)" : "var(--color-border)",
+                            background: i === 3 ? "var(--color-gold-ghost)" : "transparent",
+                            color: i === 3 ? "var(--color-gold)" : "var(--color-ink-muted)",
+                          }}
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  }
+                  action={{ label: "查看详情" }}
+                />
+                <div className="px-3 py-1.5">
+                  {data.timeWindow.series.length > 0 ? (
+                    <>
+                      <div className="mb-1 flex items-center gap-3 px-1 text-[11px]">
+                        {data.timeWindow.series.map((s2) => (
+                          <span key={s2.key} className="flex items-center gap-1">
+                            <span
+                              className="inline-block h-[3px] w-[12px] rounded-full"
+                              style={{ background: s2.color }}
+                            />
+                            <span style={{ color: "var(--color-ink-sub)" }}>{s2.name}</span>
+                          </span>
+                        ))}
+                        <span className="ml-2 flex items-center gap-1">
+                          <span
+                            className="inline-block h-[8px] w-[12px] rounded-[2px]"
+                            style={{ background: "rgba(79,211,155,0.22)", border: "1px solid rgba(79,211,155,0.45)" }}
+                          />
+                          <span style={{ color: "var(--color-ink-sub)" }}>高共识区</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span
+                            className="inline-block h-[8px] w-[12px] rounded-[2px]"
+                            style={{ background: "rgba(176,124,214,0.22)", border: "1px solid rgba(176,124,214,0.45)" }}
+                          />
+                          <span style={{ color: "var(--color-ink-sub)" }}>高冲突区</span>
+                        </span>
+                      </div>
+                      <TimeWindowChart data={data.timeWindow} height={140} />
+                      <p className="px-1 pb-1 pt-0.5 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                        纵轴为术数研究指数（0-100 规则强度），非收益率预测。正式时间窗口预测属 Phase 2。
+                      </p>
+                    </>
                   ) : (
-                    <div className="py-6 text-center text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
-                      尚无历史验证数据
+                    <div className="flex h-[140px] flex-col items-center justify-center text-center">
+                      <p className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+                        未来时间窗口外推尚未运行（系统不提供伪造预测曲线）
+                      </p>
+                      <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
+                        正式时间序列外推与共振窗口分析将在 Phase 2 完整上线
+                      </p>
                     </div>
                   )}
                 </div>
-                <div>
-                  <div className="smp-metric-label mb-1">历史验证结论</div>
-                  <p className="text-[11.5px] leading-[18px]" style={{ color: "var(--color-ink-sub)" }}>
-                    {data.backtestConclusion}
-                  </p>
-                </div>
-              </div>
-            </Card>
+              </Card>
 
-            <DataQualityBadge quality={data.dataQuality} />
+              <Card testId="backtest-summary">
+                <CardHeader
+                  icon={<IconTrend size={14} />}
+                  title="历史验证摘要"
+                  action={{ label: "历史验证详情" }}
+                />
+                <div className="grid grid-cols-2 gap-2.5 p-3.5 md:grid-cols-5">
+                  {metrics.map((m) => (
+                    <BacktestMetricCard key={m.key} metric={m} />
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 gap-4 px-3.5 pb-3.5 md:grid-cols-[minmax(0,1fr)_300px]">
+                  <div>
+                    <div className="smp-metric-label mb-1">收益分布（示意）</div>
+                    {data.distribution.length ? (
+                      <DistributionChart bins={data.distribution} height={110} />
+                    ) : (
+                      <div className="py-6 text-center text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                        尚无历史验证样本分布数据（不采用正态假设伪造分箱）
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="smp-metric-label mb-1">历史验证结论</div>
+                    <p className="text-[11.5px] leading-[18px]" style={{ color: "var(--color-ink-sub)" }}>
+                      {data.backtestConclusion}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* 右列 (42%)：关键证据 + 数据质量 */}
+            <div className="flex flex-col gap-3">
+              <Card testId="key-evidence">
+                <CardHeader
+                  icon={<IconBook size={14} />}
+                  title="关键证据"
+                  action={{ label: "查看更多", onClick: () => setDrawer(true) }}
+                />
+                <div className="space-y-2 p-3.5">
+                  {data.evidence.length === 0 ? (
+                    <div className="py-6 text-center text-[12px]" style={{ color: "var(--color-ink-faint)" }}>
+                      暂无证据条目
+                    </div>
+                  ) : (
+                    data.evidence.map((ev) => <EvidenceRow key={ev.id} item={ev} />)
+                  )}
+                </div>
+              </Card>
+
+              <DataQualityBadge quality={data.dataQuality} />
+            </div>
           </div>
 
           <div className="mt-3 flex items-center justify-center gap-2 text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
@@ -433,7 +534,7 @@ function OverviewInner() {
 
 function SkeletonOverview() {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="page-loading">
       <div className="smp-skeleton h-[74px] w-full" />
       <div className="grid grid-cols-3 gap-3">
         <div className="smp-skeleton h-[210px]" />
