@@ -5,6 +5,12 @@
 > 读这份文档之前，请先读：`AGENTS.md` → `README.md` → `ARCHITECTURE.md` → 本文件。
 >
 > 验收结论见 [`docs/PHASE2_ACCEPTANCE_REPORT.md`](PHASE2_ACCEPTANCE_REPORT.md)。
+>
+> **UI 收尾阶段（2026-09-21 起）**：十页视觉精修与发布前验收见
+> [`docs/UI_FINAL_POLISH_REPORT.md`](UI_FINAL_POLISH_REPORT.md)、
+> [`docs/UI_FINAL_ACCEPTANCE_CHECKLIST.md`](UI_FINAL_ACCEPTANCE_CHECKLIST.md)、
+> [`docs/UI_FINAL_RELEASE_READINESS.md`](UI_FINAL_RELEASE_READINESS.md)。
+> 该阶段**未合并 main、未部署**，候选截图等待人工确认。
 
 ---
 
@@ -211,6 +217,12 @@ cd apps/web && node scripts/capture-screenshots.mjs --live
 | 8 | **`-0.0` 会制造假差异** | `-min(0/2,1)` → `-0.0`，JSON 里与 `0.0` 不等 | `_zobs` 里 `+ 0.0` 归一 |
 | 9 | 紫微盘 JSON 约 17 KB/盘 | sessionStorage 可能超配额 | 失败时只保留内存缓存，不影响功能 |
 | 10 | Alembic `alembic.ini` 必须纯 ASCII | 中文 Windows GBK 解码失败 | 不要在里面写中文 |
+| 11 | **进程内日历缓存永不失效** | `for_exchange()` 只按交易所缓存，`reset_*()` 全仓库无调用方：改完 CSV 后运行中的 API 一直用旧日历 | provider 按来源文件 `mtime_ns`+大小失效（`src/core/stock/trading_calendar.py`） |
+| 12 | **指纹用"区间+行数"识别不出内容变化** | 某日由休市改开市时区间与行数都不变 | 指纹必须对**内容**取哈希 |
+| 13 | **`next build` 会摧毁 `next dev` 的产物** | 全站 `/_next/static` 400、页面永远加载中 | 用 `NEXT_DIST_DIR` 分目录 |
+| 14 | **WAL 模式下直接复制 sqlite 文件会丢数据** | 副本里查不到刚写入的记录 | 用 `sqlite3` backup API（`output/ui-final/isolate_db.py`） |
+| 15 | **`boundingBox()` 是相对视口** | 页面一有滚动，首屏几何结论就偏几十像素 | 几何一律换算为绝对文档坐标 |
+| 16 | **Playwright 1440 项目只 match 一个 spec** | "配置里有 1440" ≠ "1440 已逐页验收" | 显式列出需要双视口覆盖的 spec |
 
 ---
 
