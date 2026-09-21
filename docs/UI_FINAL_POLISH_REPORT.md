@@ -3,6 +3,10 @@
 - **分支**：`codex/ui-final-polish-acceptance`（从 `e2ef2dd` 新建；主目录内切分支，未建 worktree、未复制项目、未合并 main）
 - **基线**：`e2ef2dd`（`28f3577` 黄历/时间窗口/品牌视觉 → `7e25d69` 报告哈希 → `e2ef2dd` 官方公布交易日历与剩余五页）
 - **并发写入**：另一会话仍在同一目录运行 `next dev -p 3000` 与 `uvicorn --port 8000`；本轮**未触碰这两个进程**，全部构建与验收走 `NEXT_DIST_DIR=.next-e2e` + 端口 3111 + 隔离后端 8101
+- **本任务提交**：`8e31b9d`（ruff 清理）← `1e4b81c`（chore/tsconfig）← `e57a98e`（docs）← `0f074e7`（test）← `558c396`（紫微与时间窗口修复）← `b420d43`（导出与自选）← `2bdec32`（报告接口 500）← `c05049e`（日历缓存）
+- **候选截图对应的代码状态**：`1e4b81c`（工作树干净，manifest `worktree_dirty=false`）。
+  其后两个提交分别是文档更新与移除一个未使用的 import，**不改变任何渲染输出**；
+  manifest 记录无误（截图文件哈希已同时记录，可复核）
 - **未做**：未改排盘规则 / 因子权重 / 模型分数 / 研究算法，未改既有 `/api/v1/**` 字段语义（只新增只读端点与字段），未重跑 Phase 4 研究，未合并 main，未推送，未部署
 
 执行清单见 [`docs/UI_FINAL_ACCEPTANCE_CHECKLIST.md`](UI_FINAL_ACCEPTANCE_CHECKLIST.md)，发布材料见
