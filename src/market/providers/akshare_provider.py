@@ -217,13 +217,18 @@ class AkshareMarketProvider(MarketDataProvider):
         code, exchange, board, wind = codes.parse(code)
 
         # 1) 优先查验本地资料库（含 AStockData 与全市场名册）
+        #    本地名册是主源（AKShare）不可达时的兜底：资料完整但未经主源核验，
+        #    必须显式标注来源降级（grade B + notes），不得伪装成主源结果。
         catalog = _get_local_catalog()
         if code in catalog and catalog[code].get("listing_date"):
             meta = catalog[code]
             stock = self._dict_to_stock(meta)
             stock.wind_code = wind
-            stock.data_quality.grade = "A" if meta.get("name") else "B"
-            stock.data_quality.score = 0.95 if meta.get("name") else 0.8
+            stock.data_quality.grade = "B"
+            stock.data_quality.score = 0.75
+            stock.data_quality.notes.append(
+                "AKShare 实时接口不可用，使用本地名册兜底（来源已降级）"
+            )
             stock.source = SourceRef(source="local_catalog", extra={"matched": True})
             return stock
 
