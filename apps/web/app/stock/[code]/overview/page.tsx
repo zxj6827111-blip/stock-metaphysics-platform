@@ -48,7 +48,7 @@ import {
   toEngineCardsFromOpinions,
 } from "@/lib/dataSource";
 import { api, endpoints, type ApiConsensus, type ApiConflict, type ApiEventStudy, type ApiEvidence } from "@/lib/api";
-import { loadMultiAnalysis } from "@/lib/analysisStore";
+import { invalidateAnalysis, loadMultiAnalysis } from "@/lib/analysisStore";
 import type { OverviewPageData } from "@/lib/types";
 
 function OverviewInner() {
@@ -76,7 +76,7 @@ function OverviewInner() {
     method?: string;
   }>({ supporting: [], counter: [], neutral: [] });
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     if (isMoutaiFixture) {
       setData(overviewFixture);
       setLoading(false);
@@ -85,6 +85,9 @@ function OverviewInner() {
     if (isUnsupportedFixture) {
       setLoading(false);
       return;
+    }
+    if (force) {
+      invalidateAnalysis({ code, variant: "forward" });
     }
     setLoading(true);
     setError(null);
@@ -98,7 +101,8 @@ function OverviewInner() {
 
       // 三模型观点：直接消费后端 opinion，前端**不重算分数**
       const base = buildContextFromMulti(multi);
-      const engines = toEngineCardsFromOpinions(multi);
+      const suffix = fixture ? `?fixture=${FIXTURE_QUERY_VALUE}` : "";
+      const engines = toEngineCardsFromOpinions(multi, suffix);
 
       const [consensusRes, conflictRes, backtestRes, evidenceRes] = await Promise.allSettled([
         api.get<ApiConsensus>(endpoints.consensus(aid)),
@@ -107,18 +111,25 @@ function OverviewInner() {
         api.get<ApiEvidence>(endpoints.evidence(aid)),
       ]);
 
-      const consensusView =
+      const consensusData =
         consensusRes.status === "fulfilled"
-          ? toConsensusView(consensusRes.value)
-          : isMoutaiFixture
-            ? overviewFixture.consensus
-            : null;
-      const conflictView =
+          ? consensusRes.value
+          : multi.consensus ?? null;
+      const consensusView = consensusData
+        ? toConsensusView(consensusData)
+        : isMoutaiFixture
+          ? overviewFixture.consensus
+          : null;
+
+      const conflictData =
         conflictRes.status === "fulfilled"
-          ? toConflictView(conflictRes.value)
-          : isMoutaiFixture
-            ? overviewFixture.conflict
-            : null;
+          ? conflictRes.value
+          : multi.conflict ?? null;
+      const conflictView = conflictData
+        ? toConflictView(conflictData)
+        : isMoutaiFixture
+          ? overviewFixture.conflict
+          : null;
 
       const dq = toDataQualityView(
         base.quality,
@@ -148,9 +159,11 @@ function OverviewInner() {
           method: evidenceRes.value.evidence.retrieval_method,
         });
       }
-      setResearchStatus(consensusRes.status === "fulfilled"
-        ? (consensusRes.value.research_status ?? "NOT_RUN")
-        : "NOT_RUN");
+      setResearchStatus(
+        consensusRes.status === "fulfilled"
+          ? (consensusRes.value.research_status ?? "NOT_RUN")
+          : (multi.consensus?.research_status ?? "NOT_RUN"),
+      );
       setAnalysisId(aid);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -162,7 +175,7 @@ function OverviewInner() {
     } finally {
       setLoading(false);
     }
-  }, [code, isMoutaiFixture, isUnsupportedFixture]);
+  }, [code, fixture, isMoutaiFixture, isUnsupportedFixture]);
 
   useEffect(() => {
     if (!isMoutaiFixture && !isUnsupportedFixture) void load();
@@ -290,7 +303,15 @@ function OverviewInner() {
         }
       />
 
-      {data ? <StockContextBar context={data.context} activeTab="overview" onRecalculate={load} recalculating={loading} /> : null}
+      {data ? (
+        <StockContextBar
+          context={data.context}
+          activeTab="overview"
+          onRecalculate={() => void load(true)}
+          onExport={() => void exportReport("markdown")}
+          recalculating={loading}
+        />
+      ) : null}
 
       {error && !fixture ? (
         <Card className="mb-3 p-4" testId="overview-error">
@@ -513,7 +534,7 @@ function OverviewInner() {
 
 function SkeletonOverview() {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="page-loading">
       <div className="smp-skeleton h-[74px] w-full" />
       <div className="grid grid-cols-3 gap-3">
         <div className="smp-skeleton h-[210px]" />

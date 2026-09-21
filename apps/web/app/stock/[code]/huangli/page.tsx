@@ -131,10 +131,21 @@ function HuangliInner() {
       loadingLabel="正在读取黄历与日课数据…"
     >
       {hlError ? (
-        <Card testId="huangli-error">
-          <div className="py-3 text-[13px]" style={{ color: "var(--color-warn)" }}>
+        <Card testId="huangli-error" className="p-4">
+          <div className="text-[13px]" style={{ color: "var(--color-warn)" }}>
             黄历数据加载失败：{hlError}
           </div>
+          {analysis?.analysis_id ? (
+            <div className="mt-2">
+              <button
+                type="button"
+                className="smp-btn smp-btn--primary px-3 py-1 text-[12px]"
+                onClick={() => void load(analysis.analysis_id)}
+              >
+                重试加载黄历
+              </button>
+            </div>
+          ) : null}
         </Card>
       ) : null}
 

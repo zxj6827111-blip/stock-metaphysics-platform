@@ -82,10 +82,11 @@ export function Astrolabe({
           const isMajor = i % 4 === 0;
           const r1 = isMajor ? 122 : 125;
           const r2 = 128;
-          const x1 = center + r1 * Math.cos(rad);
-          const y1 = center + r1 * Math.sin(rad);
-          const x2 = center + r2 * Math.cos(rad);
-          const y2 = center + r2 * Math.sin(rad);
+          const round = (n: number) => Math.round(n * 100) / 100;
+          const x1 = round(center + r1 * Math.cos(rad));
+          const y1 = round(center + r1 * Math.sin(rad));
+          const x2 = round(center + r2 * Math.cos(rad));
+          const y2 = round(center + r2 * Math.sin(rad));
           return (
             <line
               key={i}
@@ -100,36 +101,61 @@ export function Astrolabe({
           );
         })}
 
-        {/* 十二地支方位环 */}
+        {/* 八卦与十二地支外环 */}
         <circle
           cx={center}
           cy={center}
           r={105}
           fill="none"
-          stroke="var(--color-gold-dim)"
-          strokeOpacity={0.3}
-          strokeWidth={0.9}
+          stroke="url(#goldLine)"
+          strokeOpacity={0.65}
+          strokeWidth={1}
         />
         {branches.map((b, i) => {
           // 子在正上方 (270度 = -90度)
           const angle = (i * 360) / 12 - 90;
           const rad = (angle * Math.PI) / 180;
           const r = 114;
-          const x = center + r * Math.cos(rad);
-          const y = center + r * Math.sin(rad);
+          const round = (n: number) => Math.round(n * 100) / 100;
+          const x = round(center + r * Math.cos(rad));
+          const y = round(center + r * Math.sin(rad));
           return (
             <text
               key={b}
               x={x}
               y={y + 3.5}
               textAnchor="middle"
-              fill="var(--color-gold)"
-              fillOpacity={0.55}
-              fontSize={10}
+              fill="var(--color-gold-strong)"
+              fillOpacity={0.88}
+              fontSize={10.5}
               fontFamily="var(--font-serif-cn)"
-              style={{ fontWeight: 500 }}
+              style={{ fontWeight: 600 }}
             >
               {b}
+            </text>
+          );
+        })}
+
+        {/* 八卦微印记 */}
+        {["乾", "坎", "艮", "震", "巽", "离", "坤", "兑"].map((g, i) => {
+          const angle = (i * 360) / 8 - 90;
+          const rad = (angle * Math.PI) / 180;
+          const r = 96;
+          const round = (n: number) => Math.round(n * 100) / 100;
+          const x = round(center + r * Math.cos(rad));
+          const y = round(center + r * Math.sin(rad));
+          return (
+            <text
+              key={g}
+              x={x}
+              y={y + 3}
+              textAnchor="middle"
+              fill="var(--color-gold)"
+              fillOpacity={0.5}
+              fontSize={9}
+              fontFamily="var(--font-serif-cn)"
+            >
+              {g}
             </text>
           );
         })}
@@ -141,51 +167,53 @@ export function Astrolabe({
           r={86}
           fill="none"
           stroke="url(#goldLine)"
-          strokeWidth={1}
-          strokeOpacity={0.35}
+          strokeWidth={1.2}
+          strokeOpacity={0.55}
         />
         <circle
           cx={center}
           cy={center}
           r={62}
           fill="none"
-          stroke="var(--color-gold-dim)"
-          strokeWidth={0.8}
-          strokeDasharray="2 3"
-          strokeOpacity={0.3}
+          stroke="var(--color-gold)"
+          strokeWidth={0.9}
+          strokeDasharray="3 3"
+          strokeOpacity={0.45}
         />
 
         {/* 星轨天体圆点 */}
         {[-35, 45, 130, 220].map((deg, i) => {
           const rad = (deg * Math.PI) / 180;
           const r = i % 2 === 0 ? 86 : 62;
-          const cx = center + r * Math.cos(rad);
-          const cy = center + r * Math.sin(rad);
+          const round = (n: number) => Math.round(n * 100) / 100;
+          const cx = round(center + r * Math.cos(rad));
+          const cy = round(center + r * Math.sin(rad));
           return (
             <circle
               key={deg}
               cx={cx}
               cy={cy}
-              r={i % 2 === 0 ? 2.5 : 2}
-              fill="var(--color-gold)"
-              fillOpacity={0.7}
+              r={i % 2 === 0 ? 3 : 2.2}
+              fill="var(--color-gold-strong)"
+              fillOpacity={0.9}
+              filter="drop-shadow(0 0 4px rgba(212,184,122,0.8))"
             />
           );
         })}
 
         {/* 核心太极阴阳盘 */}
         <g transform={`translate(${center - 24}, ${center - 24})`}>
-          <circle cx={24} cy={24} r={24} fill="#0d1b26" stroke="var(--color-gold)" strokeWidth={1} strokeOpacity={0.5} />
+          <circle cx={24} cy={24} r={24} fill="#0d1b26" stroke="var(--color-gold)" strokeWidth={1.5} strokeOpacity={0.8} />
           {/* 太极 S 曲线 */}
           <path
             d="M 24,0 A 24,24 0 0,1 24,48 A 12,12 0 0,1 24,24 A 12,12 0 0,0 24,0 Z"
             fill="var(--color-gold)"
-            fillOpacity={0.4}
+            fillOpacity={0.7}
           />
           {/* 阳眼 */}
-          <circle cx={24} cy={12} r={3} fill="#0d1b26" />
+          <circle cx={24} cy={12} r={3.2} fill="#0d1b26" />
           {/* 阴眼 */}
-          <circle cx={24} cy={36} r={3} fill="var(--color-gold)" fillOpacity={0.85} />
+          <circle cx={24} cy={36} r={3.2} fill="var(--color-gold-strong)" fillOpacity={0.95} />
         </g>
 
         {/* 四维天地人方位标记 */}
@@ -193,11 +221,11 @@ export function Astrolabe({
           x={center}
           y={center - 35}
           textAnchor="middle"
-          fill="var(--color-gold)"
-          fillOpacity={0.8}
-          fontSize={13}
+          fill="var(--color-gold-strong)"
+          fillOpacity={0.95}
+          fontSize={14}
           fontFamily="var(--font-serif-cn)"
-          style={{ fontWeight: 600 }}
+          style={{ fontWeight: 700, textShadow: "0 0 10px rgba(212,184,122,0.5)" }}
         >
           天
         </text>
@@ -205,11 +233,11 @@ export function Astrolabe({
           x={center}
           y={center + 46}
           textAnchor="middle"
-          fill="var(--color-gold)"
-          fillOpacity={0.8}
-          fontSize={13}
+          fill="var(--color-gold-strong)"
+          fillOpacity={0.95}
+          fontSize={14}
           fontFamily="var(--font-serif-cn)"
-          style={{ fontWeight: 600 }}
+          style={{ fontWeight: 700, textShadow: "0 0 10px rgba(212,184,122,0.5)" }}
         >
           人
         </text>
@@ -217,11 +245,11 @@ export function Astrolabe({
           x={center - 43}
           y={center + 5}
           textAnchor="middle"
-          fill="var(--color-gold)"
-          fillOpacity={0.8}
-          fontSize={13}
+          fill="var(--color-gold-strong)"
+          fillOpacity={0.95}
+          fontSize={14}
           fontFamily="var(--font-serif-cn)"
-          style={{ fontWeight: 600 }}
+          style={{ fontWeight: 700, textShadow: "0 0 10px rgba(212,184,122,0.5)" }}
         >
           地
         </text>
@@ -229,11 +257,11 @@ export function Astrolabe({
           x={center + 43}
           y={center + 5}
           textAnchor="middle"
-          fill="var(--color-gold)"
-          fillOpacity={0.8}
-          fontSize={13}
+          fill="var(--color-gold-strong)"
+          fillOpacity={0.95}
+          fontSize={14}
           fontFamily="var(--font-serif-cn)"
-          style={{ fontWeight: 600 }}
+          style={{ fontWeight: 700, textShadow: "0 0 10px rgba(212,184,122,0.5)" }}
         >
           地
         </text>
@@ -261,12 +289,12 @@ export function SealStamp({
       style={{
         width: size,
         height: size,
-        background: "linear-gradient(145deg, #992d24 0%, #6e1c17 100%)",
-        border: "1px solid #b34237",
-        boxShadow: "inset 0 0 0 1.5px rgba(245, 215, 175, 0.28), 0 2px 6px rgba(0,0,0,0.35)",
+        background: "linear-gradient(145deg, #9e2a22 0%, #681712 100%)",
+        border: "1px solid #bf3e32",
+        boxShadow: "inset 0 0 0 1.2px rgba(245, 215, 175, 0.35), 0 2px 8px rgba(0,0,0,0.45)",
         color: "#fbe8cf",
         fontFamily: "var(--font-serif-cn)",
-        fontSize: Math.max(11, Math.round(size * 0.44)),
+        fontSize: Math.max(10, Math.round(size * 0.46)),
         letterSpacing: "0.04em",
         lineHeight: 1,
       }}
@@ -279,12 +307,12 @@ export function SealStamp({
 }
 
 /**
- * 东方山水远黛剪影（MountainSilhouette）
- * 极低透明度水墨山峰，用于增强 Hero 背景深度。
+ * 东方水墨连绵远山（MountainSilhouette）
+ * 多层重山叠嶂、层峦耸翠、晨雾金辉水墨画卷。
  */
 export function MountainSilhouette({
   className = "",
-  opacity = 0.07,
+  opacity = 0.28,
 }: {
   className?: string;
   opacity?: number;
@@ -292,33 +320,83 @@ export function MountainSilhouette({
   return (
     <div
       className={`absolute inset-x-0 bottom-0 pointer-events-none overflow-hidden select-none ${className}`}
-      style={{ height: 110, opacity }}
+      style={{ height: 160, opacity }}
       aria-hidden="true"
     >
       <svg
-        viewBox="0 0 1200 120"
+        viewBox="0 0 1600 180"
         preserveAspectRatio="none"
         className="h-full w-full"
       >
         <defs>
-          <linearGradient id="mountainGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#d4b87a" stopOpacity="0.6" />
-            <stop offset="40%" stopColor="#7c9ab8" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#09141f" stopOpacity="0.05" />
+          {/* 远山渐变：青黛墨色 */}
+          <linearGradient id="farMountain" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#41576d" stopOpacity="0.75" />
+            <stop offset="50%" stopColor="#233547" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#0c1722" stopOpacity="0.05" />
+          </linearGradient>
+          {/* 中景山峰渐变：深邃墨崖与微金微曦 */}
+          <linearGradient id="midMountain" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#7a6742" stopOpacity="0.65" />
+            <stop offset="35%" stopColor="#293949" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#0a1520" stopOpacity="0.1" />
+          </linearGradient>
+          {/* 近景峭壁：浓墨重彩 */}
+          <linearGradient id="nearMountain" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#1a2b3a" stopOpacity="0.9" />
+            <stop offset="60%" stopColor="#101c27" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#081018" stopOpacity="0.2" />
+          </linearGradient>
+          {/* 晨曦云雾遮罩 */}
+          <linearGradient id="mistGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#d4b87a" stopOpacity="0.15" />
+            <stop offset="40%" stopColor="#1e3447" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#09141f" stopOpacity="0" />
           </linearGradient>
         </defs>
-        {/* 远山层 */}
+
+        {/* 远山重峦层 (Layer 1) */}
         <path
-          d="M0,80 Q160,35 320,60 T640,40 T960,65 T1200,45 L1200,120 L0,120 Z"
-          fill="url(#mountainGrad)"
-          opacity={0.5}
+          d="M0,110 Q120,45 260,75 T540,50 T820,80 T1100,40 T1380,65 Q1500,45 1600,70 L1600,180 L0,180 Z"
+          fill="url(#farMountain)"
         />
-        {/* 近山层 */}
+        {/* 中景奇峰险壑 (Layer 2) */}
         <path
-          d="M0,95 Q220,55 450,75 T880,50 T1200,80 L1200,120 L0,120 Z"
-          fill="url(#mountainGrad)"
-          opacity={0.8}
+          d="M0,135 Q180,65 380,105 T760,70 T1160,95 T1450,55 Q1540,75 1600,100 L1600,180 L0,180 Z"
+          fill="url(#midMountain)"
         />
+        {/* 峦间云雾缭绕带 (Mist) */}
+        <path
+          d="M0,145 Q250,110 500,135 T1000,115 T1600,130 L1600,180 L0,180 Z"
+          fill="url(#mistGrad)"
+        />
+        {/* 近景浓墨叠障 (Layer 3) */}
+        <path
+          d="M0,150 Q140,110 320,135 T720,110 T1120,130 T1520,95 L1600,120 L1600,180 L0,180 Z"
+          fill="url(#nearMountain)"
+        />
+      </svg>
+    </div>
+  );
+}
+
+/**
+ * 侧栏底部小幅山水插画
+ */
+export function SidebarMountain() {
+  return (
+    <div className="w-full h-[40px] pointer-events-none select-none overflow-hidden opacity-35" aria-hidden="true">
+      <svg viewBox="0 0 200 40" preserveAspectRatio="none" className="w-full h-full">
+        <path
+          d="M0,35 Q30,12 65,24 T130,15 T200,28 L200,40 L0,40 Z"
+          fill="url(#sbMountain)"
+        />
+        <defs>
+          <linearGradient id="sbMountain" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#d4b87a" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#1a2d3d" stopOpacity="0.1" />
+          </linearGradient>
+        </defs>
       </svg>
     </div>
   );
