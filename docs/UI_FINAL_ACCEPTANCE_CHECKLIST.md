@@ -89,6 +89,10 @@
 | 4.10 | 不把浏览器打印说成后端 PDF | 已验证 | 菜单文案「可打印 HTML（.html）— 自包含页面，可浏览器打印（非服务端 PDF）」；导出文件页脚同样声明 |
 | 4.11 | 不存在能力的选项不得假装可用 | 已验证 | 无法导出时按钮 `disabled` 且 `title` 给出原因；已移除上下文栏中两个「Phase 2 占位」死按钮；`TABS` 死代码删除 |
 | 4.12 | 筛选/分页/排序/展开/重试等既有交互 | 已验证 | 沿用既有实现并由既有 spec 覆盖（因子字典筛选分页、古籍 stance 页签、分歧场景切换、分区重试） |
+| 4.13 | **出生模型切换真实更新分析上下文** | **已验证** | 先探测真实后端能力：`listing_open` 200/A 级、`ipo_date` 200/C 级（上市日近似发行日）、`company_foundation`/`first_trade` 422（缺数据源，按契约报错）。可用项接成真实切换（改 URL → 重新分析 → 出生时刻与盘面随之改变），不可用项显示"不可用 + 原因"；演示样本冻结在默认基准 → 换基准显式拒绝。证据：`e2e/birth-basis-switching.spec.ts`（7 项）+ `lib/useBirthBasisParam.ts` + `components/stock/BirthModelSwitcher.tsx` |
+| 4.14 | **研究窗口（登记）切换** | **已验证** | `horizon` 进请求体并被 `analysis_run` 登记、响应回传（后端新增可选字段，只增不改）；界面写明"不改变三个模型的分数"；测试断言同基准日下换窗口标签分数不变 |
+| 4.15 | **request 超时** | **已验证（本轮修复）** | 超时用例首次运行即暴露真实缺陷：`fetch` 无超时 → 后端挂起时页面永远 Loading。改为 30 秒 AbortController 超时并抛 `NETWORK_TIMEOUT`（retryable），复测通过 |
+| 4.16 | 十页交互清单（入口 → 操作 → 状态变化/请求 → 可见结果 → 失败反馈） | 已验证 | 见 `docs/UI_FINAL_POLISH_REPORT.md` §1.1 |
 
 ---
 
@@ -108,7 +112,8 @@
 | 5.10 | 零收益与缺失收益可区分 | 已验证 | 不可用引擎 `score=null`（导出 JSON 断言 `availability!=="ok" ⇒ score===null`）；收益统计缺失显示 `—` 而非 `0` |
 | 5.11 | 故障注入与真实来源验收分别记录 | 已验证 | 故障注入（路由 mock / 非法参数）与真实来源（供应商 Parquet + 真实日历）在报告中分开列示 |
 | 5.12 | fixture 路径隔离 | 已验证 | 十页 fixture 初始加载与交互 **0 个** `/api/` 请求（`capture-final.mjs` 的 `fixture_api_calls` 为空）；非支持标的显示唯一错误卡；正常模式失败不回退 fixture |
-| 5.13 | 真实模式 × 浏览器 × 本轮新交互 | 已验证 | `apps/web/e2e/real-mode-live.spec.ts`（8 项）：三只真实标的 × 六页无错误渲染、as_of 不被替换、导出后端报告实下载、本机自选刷新恢复、切换标的不残留、紫微注入 500 时分区降级 |
+| 5.13 | **无行情 / 样本不足 / 超时重试 的真实触发** | 已验证 | `apps/web/e2e/fault-boundaries.spec.ts`（5 项，真实模式）：无行情标的（供应商仓库外代码）→ 结构化错误 + 页面非白屏且不回退演示数据；样本不足 → 如实给 ResearchStatus 且无策略宣称；超时 → 分区报错 → 重试成功（修前此项失败）；零收益与缺失收益可区分 |
+| 5.14 | 真实模式 × 浏览器 × 本轮新交互 | 已验证 | `apps/web/e2e/real-mode-live.spec.ts`（8 项）：三只真实标的 × 六页无错误渲染、as_of 不被替换、导出后端报告实下载、本机自选刷新恢复、切换标的不残留、紫微注入 500 时分区降级 |
 
 ---
 
@@ -118,7 +123,7 @@
 |---|---|---|---|
 | 6.1 | `make test`（等价 `pytest -q`） | 已验证 | **1404 passed**（`output/ui-final/pytest-full.log`） |
 | 6.2 | `make test-leak` | 已验证 | `tests/test_no_future_data_access.py` 全通过 |
-| 6.3 | `make test-ui`（Playwright 全量） | 已验证 | **149 passed / 0 skipped**（`output/ui-final/e2e-final.log`），live 组与真实模式套件均真实执行 |
+| 6.3 | `make test-ui`（Playwright 全量） | 已验证 | **161 passed / 0 skipped**（`output/ui-final/e2e-final.log`），live 组与真实模式套件均真实执行 |
 | 6.4 | 前端类型检查 | 已验证 | `npx tsc --noEmit` 0 error |
 | 6.5 | 前端生产构建 | 已验证 | `next build` 成功（13 条路由） |
 | 6.6 | Python lint | 已验证 | `ruff check src apps tests` |
