@@ -19,7 +19,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHero } from "@/components/shell/TopBar";
-import { StockContextBar } from "@/components/stock/StockContextBar";
+import { ExportMenu, StockContextBar } from "@/components/stock/StockContextBar";
 import { Card, CardHeader } from "@/components/cards/Card";
 import {
   BacktestMetricCard,
@@ -38,7 +38,7 @@ import {
   IconTarget,
   IconTrend,
 } from "@/components/shell/Icons";
-import { FIXTURE_QUERY_VALUE, overviewFixture } from "@/lib/fixture";
+import { FIXTURE_QUERY_VALUE, multiAnalysisFixture, overviewFixture } from "@/lib/fixture";
 import {
   buildContextFromMulti,
   buildOverview,
@@ -48,7 +48,16 @@ import {
   toDataQualityView,
   toEngineCardsFromOpinions,
 } from "@/lib/dataSource";
-import { api, endpoints, type ApiConsensus, type ApiConflict, type ApiEventStudy, type ApiEvidence } from "@/lib/api";
+import {
+  api,
+  endpoints,
+  type ApiConsensus,
+  type ApiConflict,
+  type ApiEventStudy,
+  type ApiEvidence,
+  type ApiMultiAnalysis,
+} from "@/lib/api";
+import { buildExportTarget } from "@/lib/reportExport";
 import { invalidateAnalysis, loadMultiAnalysis } from "@/lib/analysisStore";
 import { researchStatusLabel } from "@/components/shell/PageState";
 import type { OverviewPageData } from "@/lib/types";
@@ -69,8 +78,10 @@ function OverviewInner() {
   const [drawer, setDrawer] = useState(false);
   const [evidenceExpanded, setEvidenceExpanded] = useState(false);
   const [analysisId, setAnalysisId] = useState<string>("");
+  // 导出报告冻结**这一次**的上下文快照，因此保留整份 multi 结果：
+  // 只留 analysis_id 时，导出过程中切标的会把新股票的数据混进报告。
+  const [multiAnalysis, setMultiAnalysis] = useState<ApiMultiAnalysis | null>(null);
   const [researchStatus, setResearchStatus] = useState<string>("NOT_RUN");
-  const [exporting, setExporting] = useState(false);
   const [drawerData, setDrawerData] = useState<{
     supporting: never[];
     counter: never[];
@@ -82,6 +93,9 @@ function OverviewInner() {
   const load = useCallback(async (force = false) => {
     if (isMoutaiFixture) {
       setData(overviewFixture);
+      // 演示模式同样要有可导出的上下文快照：`multiAnalysisFixture` 是
+      // 与真实接口同结构的冻结样本，导出时会逐份标注"演示数据"。
+      setMultiAnalysis(multiAnalysisFixture);
       setLoading(false);
       return;
     }
@@ -168,6 +182,7 @@ function OverviewInner() {
           : (multi.consensus?.research_status ?? "NOT_RUN"),
       );
       setAnalysisId(aid);
+      setMultiAnalysis(multi);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       if (isMoutaiFixture) {
@@ -184,6 +199,17 @@ function OverviewInner() {
     if (!isMoutaiFixture && !isUnsupportedFixture) void load();
   }, [isMoutaiFixture, isUnsupportedFixture, load]);
 
+  /**
+   * 演示模式下也要准备导出快照。
+   *
+   * 上面那条 effect 在 fixture 时**故意不调用 `load()`**（演示面板直接读固定样本），
+   * 因此 `multiAnalysis` 会一直是 null，导出按钮就成了永久禁用的假按钮。
+   * 这里补上：把同结构的冻结样本放进 `multiAnalysis`，导出时逐份标注「演示数据」。
+   */
+  useEffect(() => {
+    if (isMoutaiFixture) setMultiAnalysis(multiAnalysisFixture);
+  }, [isMoutaiFixture]);
+
   // fixture 模式下同样准备抽屉数据（用演示条目）
   useEffect(() => {
     if (!isMoutaiFixture) return;
@@ -196,40 +222,18 @@ function OverviewInner() {
     });
   }, [isMoutaiFixture]);
 
-  const metrics = useMemo(() => data?.backtestMetrics ?? [], [data]);
-
   /**
-   * 导出研究报告（Markdown / HTML）。
+   * 冻结的导出目标。
    *
-   * 报告内容由后端 `render_report` 生成，包含版本 / 假设 / 限制 /
-   * ResearchStatus / 负对照 —— 前端只负责触发下载，不参与内容拼装。
+   * 报告正文由后端 `render_report` 渲染（含版本 / 假设 / 限制 / ResearchStatus /
+   * 负对照），前端只负责触发下载，不参与内容拼装。
    */
-  const exportReport = useCallback(
-    async (format: "markdown" | "html") => {
-      if (!analysisId) return;
-      setExporting(true);
-      try {
-        const text = await api.raw(endpoints.report(analysisId, format));
-        const blob = new Blob([text], {
-          type: format === "html" ? "text/html;charset=utf-8" : "text/markdown;charset=utf-8",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `report-${analysisId}.${format === "html" ? "html" : "md"}`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setExporting(false);
-      }
-    },
-    [analysisId],
+  const exportTarget = useMemo(
+    () => buildExportTarget(multiAnalysis, multiAnalysis?.analysis_id, fixture),
+    [multiAnalysis, fixture],
   );
 
+  const metrics = useMemo(() => data?.backtestMetrics ?? [], [data]);
 
   if (isUnsupportedFixture) {
     return (
@@ -281,24 +285,7 @@ function OverviewInner() {
         seal="正"
         right={
           <div className="flex items-center gap-2" data-testid="report-export">
-            <button
-              type="button"
-              disabled={!analysisId || exporting}
-              onClick={() => void exportReport("markdown")}
-              className="rounded border px-3 py-1 text-[12px] transition-opacity hover:opacity-80 disabled:opacity-40"
-              style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}
-            >
-              {exporting ? "导出中…" : "导出 Markdown"}
-            </button>
-            <button
-              type="button"
-              disabled={!analysisId || exporting}
-              onClick={() => void exportReport("html")}
-              className="rounded border px-3 py-1 text-[12px] transition-opacity hover:opacity-80 disabled:opacity-40"
-              style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}
-            >
-              导出 HTML
-            </button>
+            <ExportMenu target={exportTarget} />
             <span className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
               研究状态：{researchStatusLabel(researchStatus)}
             </span>
@@ -311,8 +298,8 @@ function OverviewInner() {
           context={data.context}
           activeTab="overview"
           onRecalculate={() => void load(true)}
-          onExport={() => void exportReport("markdown")}
           recalculating={loading}
+          exportTarget={exportTarget}
         />
       ) : null}
 

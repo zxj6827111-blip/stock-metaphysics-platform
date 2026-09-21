@@ -49,6 +49,26 @@ const ENGINE_DISPLAY: Record<string, string> = {
   qimen: "奇门",
 };
 
+/**
+ * 出生模型（后端内部码）→ 中文表达。
+ *
+ * 为什么要集中映射：`buildContext` 与 `buildContextFromMulti` 两条路径都用它，
+ * 之前只有前者做了映射，后者直接把 `listing_open` 这类内部码渲染进上下文栏
+ * （UI 复核任务书 §2 明确要求内部码不进正文）。集中在一处才不会再次漏掉。
+ */
+const BIRTH_BASIS_LABEL: Record<string, string> = {
+  listing_open: "上市首日正式开盘",
+  ipo_date: "IPO 发行日",
+  company_foundation: "公司成立日",
+  first_trade: "首笔真实成交时刻",
+  custom: "自定义基准",
+};
+
+export function birthBasisLabel(basis: string | null | undefined): string {
+  if (!basis) return "—";
+  return BIRTH_BASIS_LABEL[basis] ?? basis;
+}
+
 export function toDirection(v: number | null | undefined): Direction {
   if (v === 1) return 1;
   if (v === -1) return -1;
@@ -77,8 +97,7 @@ export function buildContext(
     },
     birthProfile: {
       basis: b.birth_basis,
-      basisLabel:
-        b.birth_basis === "listing_open" ? "上市首日正式开盘" : b.birth_basis,
+      basisLabel: birthBasisLabel(b.birth_basis),
       datetime: b.birth_datetime.replace("T", " ").replace(/:00([+-])/, "$1"),
       timezone: b.timezone,
       quality: b.data_quality?.grade ?? "B",
@@ -703,7 +722,7 @@ export function buildContextFromMulti(analysis: ApiMultiAnalysis): StockContext 
     },
     birthProfile: {
       basis: b.birth_basis,
-      basisLabel: b.birth_basis === "listing_open" ? "上市首日正式开盘" : b.birth_basis,
+      basisLabel: birthBasisLabel(b.birth_basis),
       datetime: b.birth_datetime.replace("T", " ").slice(0, 19),
       timezone: b.timezone,
       quality: b.data_quality?.grade ?? "B",

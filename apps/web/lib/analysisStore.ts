@@ -123,6 +123,18 @@ export function useAnalysis(
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const alive = useRef(true);
+  /**
+   * 当前"上下文令牌"。
+   *
+   * 为什么需要：切换股票/变体/as_of 时上一只股票的请求可能还没回来。
+   * 如果只看 `cancelled`（渲染期闭包变量），在 effect 清理后**旧 Promise 仍会
+   * 走到 `setAnalysis`**吗？—— 不会；但这里再加一层显式令牌，是因为
+   * "上一条请求晚于新请求返回"正是会把 B 股票的页面填成 A 股票数据的场景，
+   * 而这种错误在屏幕上看起来完全正常（分数、四柱都在，只是属于另一只股票）。
+   * 令牌比较是这类竞态唯一可靠的判据。
+   */
+  const tokenRef = useRef(0);
+  const contextKey = `${code}|${variant}|${asOf ?? ""}`;
 
   useEffect(() => {
     alive.current = true;
@@ -133,24 +145,38 @@ export function useAnalysis(
 
   useEffect(() => {
     let cancelled = false;
+    const token = ++tokenRef.current;
     setLoading(true);
     setError(null);
+    // 标的变了 → 立刻清空上一只股票的结果，任何区块都不会短暂显示"别人的"数据。
+    // 同一标的只换变体/基准日时保留旧值（盘面仍在），由 loading 覆盖层提示刷新，
+    // 避免整页闪空；竞态本身由 token 比较兜住。
+    setAnalysis((prev) => (prev && prev.stock?.stock_code === code ? prev : null));
     loadMultiAnalysis({ code, variant, asOf })
       .then((res) => {
-        if (!cancelled && alive.current) setAnalysis(res);
+        if (cancelled) return;
+        if (!alive.current) return;
+        if (token !== tokenRef.current) return; // 已被更新的上下文取代，丢弃
+        // 双保险：响应自带的标的必须与当前上下文一致
+        if (res.stock?.stock_code && res.stock.stock_code !== code) return;
+        setAnalysis(res);
       })
       .catch((err: unknown) => {
-        if (!cancelled && alive.current) {
-          setError(err instanceof Error ? err.message : String(err));
-        }
+        if (cancelled) return;
+        if (!alive.current) return;
+        if (token !== tokenRef.current) return;
+        setError(err instanceof Error ? err.message : String(err));
       })
       .finally(() => {
-        if (!cancelled && alive.current) setLoading(false);
+        if (cancelled) return;
+        if (!alive.current) return;
+        if (token !== tokenRef.current) return;
+        setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [code, variant, asOf, tick]);
+  }, [contextKey, code, variant, asOf, tick]);
 
   const reload = useCallback(() => {
     invalidateAnalysis({ code, variant, asOf });

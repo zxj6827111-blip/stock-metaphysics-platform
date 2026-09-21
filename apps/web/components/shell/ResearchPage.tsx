@@ -23,6 +23,7 @@ import { StockContextBar } from "@/components/stock/StockContextBar";
 import { Card } from "@/components/cards/Card";
 import { FIXTURE_QUERY_VALUE } from "@/lib/fixture";
 import { buildContextFromMulti } from "@/lib/dataSource";
+import { buildExportTarget } from "@/lib/reportExport";
 import type { ApiMultiAnalysis } from "@/lib/api";
 
 export interface ResearchPageProps {
@@ -104,6 +105,9 @@ export function ResearchPage({
   }
 
   const ctx = analysis ? buildContextFromMulti(analysis) : null;
+  // 导出目标在渲染时冻结：导出拿到的是**这一刻**的上下文快照，
+  // 导出过程中切换股票不会把两只股票的数据混进同一个文件。
+  const exportTarget = buildExportTarget(analysis, analysis?.analysis_id, fixture);
   return (
     <AppShell
       activeNav={activeNav}
@@ -118,6 +122,7 @@ export function ResearchPage({
           activeTab={activeNav}
           onRecalculate={onReload}
           recalculating={loading}
+          exportTarget={exportTarget}
         />
       ) : null}
       {loading ? <PageLoading label={loadingLabel ?? "加载中…"} /> : null}
