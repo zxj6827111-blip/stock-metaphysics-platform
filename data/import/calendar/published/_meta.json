@@ -1,0 +1,76 @@
+{
+  "generator": "scripts/update_trading_calendar.py",
+  "generated_at": "2026-09-21T19:51:43+0800",
+  "window": {
+    "start": "2026-09-22",
+    "end": "2026-12-31"
+  },
+  "sources": [
+    {
+      "layer": "SZSE 公布层",
+      "url": "https://www.szse.cn/api/report/exchange/onepersistenthour/monthList",
+      "note": "深交所官网月度交易日接口，逐日开市标志（官方原始口径）"
+    },
+    {
+      "layer": "SSE 公布层",
+      "url": "https://www.sse.com.cn/disclosure/dealinstruc/closed/",
+      "note": "上交所「休市安排」公告；交易日 = 工作日 − 公告休市日"
+    }
+  ],
+  "sse_announcements": [
+    {
+      "title": "关于2026年中秋节、国庆节休市安排的公告",
+      "url": "https://www.sse.com.cn/disclosure/announcement/general/c/c_20260915_10832273.shtml",
+      "published": "2026-09-17",
+      "announcement_no": "上证公告〔2026〕22号",
+      "closure_days": 10,
+      "closure_first": "2026-09-25",
+      "closure_last": "2026-10-07"
+    },
+    {
+      "title": "关于2026年端午节休市安排的公告",
+      "url": "https://www.sse.com.cn/disclosure/announcement/general/c/c_20260611_10821419.shtml",
+      "published": "2026-06-11",
+      "announcement_no": "上证公告〔2026〕16号",
+      "closure_days": 3,
+      "closure_first": "2026-06-19",
+      "closure_last": "2026-06-21"
+    },
+    {
+      "title": "关于2026年劳动节休市安排的公告",
+      "url": "https://www.sse.com.cn/disclosure/announcement/general/c/c_20260423_10816345.shtml",
+      "published": "2026-04-23",
+      "announcement_no": "上证公告〔2026〕12号",
+      "closure_days": 5,
+      "closure_first": "2026-05-01",
+      "closure_last": "2026-05-05"
+    },
+    {
+      "title": "关于2026年清明节休市安排的公告",
+      "url": "https://www.sse.com.cn/disclosure/announcement/general/c/c_20260331_10813622.shtml",
+      "published": "2026-03-31",
+      "announcement_no": "上证公告〔2026〕9号",
+      "closure_days": 3,
+      "closure_first": "2026-04-04",
+      "closure_last": "2026-04-06"
+    },
+    {
+      "title": "关于2026年春节休市安排的公告",
+      "url": "https://www.sse.com.cn/disclosure/announcement/general/c/c_20260205_10808618.shtml",
+      "published": "2026-02-05",
+      "announcement_no": "上证公告〔2026〕5号",
+      "closure_days": 9,
+      "closure_first": "2026-02-15",
+      "closure_last": "2026-02-23"
+    }
+  ],
+  "cross_validation": {
+    "rule": "公布窗口内 SSE 推导结果必须与 SZSE 官方逐日口径完全一致",
+    "compared_days": 101,
+    "mismatches": [],
+    "verified": true
+  },
+  "assumption_cn": "SSE 公布层的交易日由「工作日 − 已公告休市日」推导，依据是交易所自身的休市规则（周末一律休市）。该推导必须通过 SZSE 官方逐日口径的交叉校验；校验不通过时 verified=false，运行时不加载这一层。",
+  "boundary_cn": "公布层只覆盖交易所**已经公告**的范围；当前官方公布到 2026-12-31，超出该日期一律回答「未知」，不照搬上一年安排。",
+  "bse_note_cn": "北交所（BSE）没有同等可靠的官方日历导入链路，保持显式降级为「无法判定交易日」，不借用沪深日历冒充。"
+}

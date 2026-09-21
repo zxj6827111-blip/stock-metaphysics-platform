@@ -29,7 +29,10 @@ from src.core.orchestration.huangli_day_class import (
     class_rule_descriptor,
     day_payload,
 )
-from src.core.stock.trading_calendar import get_trading_calendar_provider
+from src.core.stock.trading_calendar import (
+    KNOWN_SOURCES,
+    get_trading_calendar_provider,
+)
 from src.engines.calendar.calendar_engine import WEEKDAY_CN
 from src.engines.huangli.huangli_engine import HuangliEngine
 
@@ -52,19 +55,30 @@ MODE_MONTHS = "months"
 
 
 def _is_trading_day(calendar, d: date) -> bool | None:
-    """``True`` / ``False`` / ``None``（超出实测覆盖 → 未知，不猜）。"""
+    """``True`` / ``False`` / ``None``（超出全部可用覆盖 → 未知，不猜）。"""
     try:
         q = calendar.is_trading_day(d)
     except Exception:  # noqa: BLE001 - 日历不可用时如实降级为"未知"
         return None
-    # 只接受**实测**指数成交日。文件缺失时 TradingCalendar 会退化为"周末规则"
-    # 并标注 source=weekend_rule_fallback —— 那条路径识别不了长假，
+    # 只接受**有依据**的结果：
+    # * observed_index_days —— 指数真实成交过（观测事实）；
+    # * published_exchange_calendar —— 交易所已公告的安排。
+    # 文件缺失时 TradingCalendar 会退化为"周末规则"并标注
+    # source=weekend_rule_fallback —— 那条路径识别不了长假，
     # 用它产出未来日期卡等于把春节连休当成交易日，因此归为"未知"。
-    if q.source != "observed_index_days":
+    if q.source not in KNOWN_SOURCES:
         return None
     if q.value is None:
         return None
     return bool(q.value)
+
+
+def _day_source(calendar, d: date) -> str:
+    """单个日期的判定来源（写进日期卡，便于逐条核对）。"""
+    try:
+        return calendar.is_trading_day(d).source
+    except Exception:  # noqa: BLE001
+        return "unavailable"
 
 
 def _month_end(year: int, month: int) -> date:
@@ -132,7 +146,9 @@ def build_huangli_outlook(
     """
     huangli = engine or HuangliEngine()
     calendar = get_trading_calendar_provider().for_exchange(exchange)
-    coverage = calendar.coverage
+    coverage = calendar.coverage                 # 实测层
+    published = calendar.published_coverage      # 官方公布层
+    effective = calendar.effective_coverage      # 两层合并
     anchor = as_of.date()
 
     if mode not in (MODE_TODAY, MODE_TRADING_DAYS, MODE_MONTHS):
@@ -176,6 +192,8 @@ def build_huangli_outlook(
             **day_payload(huangli.day_for(d), weekday_cn=WEEKDAY_CN[d.weekday()]),
             "is_trading_day": True,
             "offset_trading_days": i + 1,
+            # 每个日期卡自己带判定来源：实测成交事实 / 官方已公布安排
+            "calendar_source": _day_source(calendar, d),
         }
         for i, d in enumerate(target_dates)
     ]
@@ -213,6 +231,9 @@ def build_huangli_outlook(
         mode=mode,
         first_unknown=first_unknown,
         unknown_days=unknown_days,
+        published=published,
+        published_loaded=bool(getattr(calendar, "published_loaded", False)),
+        published_error=getattr(calendar, "published_error", ""),
     )
     if coverage_status == "partial":
         warnings.append({
@@ -245,11 +266,26 @@ def build_huangli_outlook(
             "explanation_cn": explanation,
             "calendar_loaded": bool(calendar.loaded),
             "calendar_source": "observed_index_days" if calendar.loaded else "unavailable",
+            # calendar_coverage 保持原有语义 = **实测层**覆盖区间（不改变已有字段含义）
             "calendar_coverage": (
                 {"start": coverage[0].isoformat(), "end": coverage[1].isoformat()}
                 if coverage
                 else None
             ),
+            # 以下为新增字段：把"行情/实测/公布"三层分开报告
+            "published_calendar_loaded": bool(getattr(calendar, "published_loaded", False)),
+            "published_coverage": (
+                {"start": published[0].isoformat(), "end": published[1].isoformat()}
+                if published
+                else None
+            ),
+            "effective_coverage": (
+                {"start": effective[0].isoformat(), "end": effective[1].isoformat()}
+                if effective
+                else None
+            ),
+            "calendar_layers": calendar.coverage_descriptor(),
+            "day_sources": _source_histogram(payload_days),
             "unknown_days": unknown_days,
             "first_unknown_date": first_unknown.isoformat() if first_unknown else None,
         },
@@ -258,11 +294,25 @@ def build_huangli_outlook(
         "days": payload_days,
         "warnings": warnings,
         "methodology_cn": (
-            "交易日来自 TradingCalendarProvider 的**实测**指数成交日序列"
-            "（data/import/calendar/<EXCHANGE>.csv），不是「排除周末」的近似；"
-            "黄历字段来自 HuangliEngine（lunar-python 通书口径），前端不重算历法。"
+            "交易日优先取 TradingCalendarProvider 的**实测**指数成交日序列"
+            "（data/import/calendar/<EXCHANGE>.csv）；实测覆盖之外的日期取"
+            "**交易所已公布**的开市/休市安排"
+            "（data/import/calendar/published/<EXCHANGE>.csv，深交所官网逐日标志 / "
+            "上交所休市安排公告，生成脚本 scripts/update_trading_calendar.py）。"
+            "两层都没有覆盖的日期一律回答「未知」，既不用「排除周末」近似，"
+            "也不照搬上一年节假日。黄历字段来自 HuangliEngine（lunar-python 通书口径），"
+            "前端不重算历法。"
         ),
     }
+
+
+def _source_histogram(payload_days: list[dict]) -> dict:
+    """日期卡的判定来源分布（让"多少天是事实、多少天是公告"一眼可见）。"""
+    out: dict[str, int] = {}
+    for d in payload_days:
+        key = str(d.get("calendar_source") or "unknown")
+        out[key] = out.get(key, 0) + 1
+    return out
 
 
 def _coverage_explanation(
@@ -278,29 +328,39 @@ def _coverage_explanation(
     mode: str,
     first_unknown: date | None,
     unknown_days: int,
+    published: tuple[date, date] | None = None,
+    published_loaded: bool = False,
+    published_error: str = "",
 ) -> str:
-    if not calendar_loaded:
+    if not calendar_loaded and not published_loaded:
+        why = calendar_error or published_error or "文件缺失"
         return (
-            f"{exchange} 没有可用的实测交易日历（{calendar_error or '文件缺失'}），"
+            f"{exchange} 没有可用的交易日历（{why}），"
             "无法判定交易日，因此**不产出**任何未来日期卡"
             "（不以「排除周末」近似冒充交易日历）。"
         )
     span = f"{coverage[0].isoformat()} ~ {coverage[1].isoformat()}" if coverage else "未知"
+    pub_span = (
+        f"{published[0].isoformat()} ~ {published[1].isoformat()}" if published else None
+    )
+    boundary_cn = (
+        f"实测成交日历 {span}" + (f"；官方已公布日历 {pub_span}" if pub_span else "")
+    )
     if status == "unavailable":
         return (
-            f"分析基准日 {anchor.isoformat()} 起没有可用的实测交易日："
-            f"{exchange} 日历覆盖 {span}，该区间落在覆盖范围之外。"
-            "页面保留完整结构但不补造日期；请等待日历数据更新，"
-            "或把分析基准日设为覆盖范围内的日期。"
+            f"分析基准日 {anchor.isoformat()} 起没有可用的交易日："
+            f"{boundary_cn}，该区间落在全部可用范围之外。"
+            "页面保留完整结构但不补造日期；请等待交易所公布新一年度安排后"
+            "运行 scripts/update_trading_calendar.py 更新，"
+            "或把分析基准日设为已覆盖范围内的日期。"
         )
     if status == "partial":
         if unknown_days:
             return (
-                f"实测日历覆盖到 {coverage[1].isoformat() if coverage else '未知'}"
-                f"（{exchange}，{span}）。请求的未来日期已越过该边界"
+                f"{boundary_cn}。请求的未来日期已越过该边界"
                 f"（首个越界日 {first_unknown.isoformat() if first_unknown else '未知'}），"
                 f"因此只返回边界前的 {returned} 个交易日，"
-                "其余日期**未知**而非「休市」——不猜测、不补零。"
+                "其余日期**未知**而非「休市」——不猜测、不补零、不照搬上一年安排。"
             )
         return (
             f"只为 {exchange} 找到 {returned} 个交易日，"
@@ -308,8 +368,8 @@ def _coverage_explanation(
             "区间内的交易日数量本身不足（例如区间正好落在长假上）。"
         )
     unit = "个交易日" if mode != MODE_TODAY else "日"
-    return f"已返回 {returned} {unit}，全部落在实测交易日历覆盖区间（{span}）之内。"
-
+    tail = f"（{boundary_cn}）" if pub_span else f"（{span}）"
+    return f"已返回 {returned} {unit}，全部落在可用交易日历覆盖区间内{tail}。"
 
 __all__ = [
     "HUANGLI_OUTLOOK_VERSION",

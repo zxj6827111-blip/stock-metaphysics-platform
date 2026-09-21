@@ -389,6 +389,8 @@ def get_huangli_outlook(
     key = HUANGLI_CACHE.key(
         "outlook", run.stock_code, run.as_of.isoformat(), exchange, mode, days, months,
         service.huangli.engine_version, settings.config_version,
+        # 日历更新会改变"未来 N 个交易日"的答案，必须进缓存键
+        _calendar_version_token(exchange),
     )
 
     def _compute() -> dict:
@@ -1008,6 +1010,20 @@ def _resolve_timeline_variant(run: AnalysisRun) -> VariantMode:
     return VariantMode.FORWARD
 
 
+def _calendar_version_token(exchange: str) -> str:
+    """交易日历内容指纹（进缓存键）。
+
+    日历更新（实测层新增成交日 / 官方公布范围推进）会改变窗口与未来日期卡的
+    结果；缓存键里没有它，就可能把更新前的窗口当成更新后的返回。
+    """
+    from src.core.stock.trading_calendar import get_trading_calendar_provider
+
+    try:
+        return get_trading_calendar_provider().for_exchange(exchange).version_token
+    except Exception:  # noqa: BLE001 - 指纹取不到不该让接口失败
+        return f"{exchange}:unknown"
+
+
 def _timeline_versions(run: AnalysisRun, service: AnalysisService) -> tuple[str, ...]:
     """缓存键里的版本分量。
 
@@ -1026,6 +1042,8 @@ def _timeline_versions(run: AnalysisRun, service: AnalysisService) -> tuple[str,
         settings.factor_rule_version,
         settings.ziwei_factor_rule_version,
         str(run.birth_profile.variant_mode if run.birth_profile else ""),
+        # 日历（实测 + 官方公布）变了，窗口能落到哪些交易日就变了
+        _calendar_version_token(str(run.birth_profile.exchange if run.birth_profile else "SSE")),
     )
 
 @router.get(
@@ -1076,6 +1094,7 @@ def get_timeline_days(
             "as_of": response.as_of.isoformat(),
             "variant_mode": response.variant_mode,
             "daily_version": response.daily_version,
+            "calendar_coverage": response.calendar_coverage,
             "requested_days": response.requested_days,
             "returned_days": response.returned_days,
             "available_engines": sorted(

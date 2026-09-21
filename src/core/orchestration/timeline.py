@@ -74,20 +74,36 @@ class TimelineBuilder:
         return get_trading_calendar_provider().for_exchange(exchange)
 
     def _is_trading_day(self, d: date, exchange: str) -> bool | None:
-        """``True`` / ``False`` / ``None``（超出日历覆盖范围）。
+        """``True`` / ``False`` / ``None``（无可靠日历依据 → 未知）。
 
         **返回 None 时绝不猜测** —— 调用方必须把它当作"不知道"处理。
         这正是 Phase 1.1 对 ``is_trading_day()`` 的要求：
         日历越界时不得用周末规则假装肯定。
+
+        这里显式检查 ``source``：只有**实测成交日**（观测事实）与
+        **官方已公布日历**（交易所公告）才算依据；``weekend_rule_fallback``
+        是"日历文件缺失时的近似"，识别不了长假 —— 若接受它，
+        时间窗口会把春节连休当成交易日且毫无提示。
         """
+        from src.core.stock.trading_calendar import KNOWN_SOURCES
+
         cal = self._trading_calendar(exchange)
         try:
             q = cal.is_trading_day(d)
         except Exception:  # noqa: BLE001 - 日历不可用时如实降级
             return None
+        if q.source not in KNOWN_SOURCES:
+            return None
         if q.value is None:
             return None
         return bool(q.value)
+
+    def calendar_coverage(self, exchange: str) -> dict:
+        """交易日历覆盖元数据（实测层 / 官方公布层分开报告）。"""
+        try:
+            return self._trading_calendar(exchange).coverage_descriptor()
+        except Exception as exc:  # noqa: BLE001 - 元数据拿不到不该让整页失败
+            return {"exchange": exchange, "error": f"{type(exc).__name__}: {exc}"}
 
     def trading_days_in(self, start: date, end: date, exchange: str) -> tuple[list[date], list[str]]:
         """枚举区间内的交易日；返回 ``(交易日, warnings)``。"""
@@ -640,6 +656,7 @@ def build_daily_windows(
         stock_code=stock_code,
         as_of=as_of,
         variant_mode=str(variant_mode.value if hasattr(variant_mode, "value") else variant_mode),
+        calendar_coverage=builder.calendar_coverage(exchange),
         requested_days=requested,
         returned_days=len(day_results),
         days=day_results,
@@ -650,8 +667,10 @@ def build_daily_windows(
             "历史有效性必须由研究流水线（事件研究 + 负对照）回答。"
         ],
         methodology=(
-            f"每个点都是独立求值的**流日**结果（as_of 之后连续的实际交易日，"
-            f"来自实测交易日历 {exchange}），不是把月度分数插值到每一天。"
+            f"每个点都是独立求值的**流日**结果（as_of 之后连续的实际交易日），"
+            "交易日优先取实测成交日历，其覆盖之外取交易所**已公布**的开市/休市安排"
+            f"（{exchange}；两层覆盖见 calendar_coverage），"
+            "不是把月度分数插值到每一天。"
             f"本批数据中可用的引擎：{'、'.join(present) if present else '（无）'}；"
             "不可用引擎的分数字段为 null，不参与方向合成、也不以 0 替代。"
         ),

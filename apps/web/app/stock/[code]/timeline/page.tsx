@@ -344,8 +344,35 @@ function TimelineInner() {
             />
             <RawField label="聚合版本" value={months?.aggregation_version ?? "—"} />
             <RawField label="逐日序列化版本" value={days?.daily_version ?? "—"} />
+            {/* 交易日历的三层覆盖：实测成交 / 官方已公布 / 官方公布边界。
+                "没有未来行情"与"无法确定未来交易日"必须能分开看。 */}
+            <RawField
+              label="实测成交日历"
+              value={
+                days?.calendar_coverage?.observed?.end
+                  ? `${days.calendar_coverage.observed.start} ~ ${days.calendar_coverage.observed.end}`
+                  : "（未返回）"
+              }
+            />
+            <RawField
+              label="官方已公布日历"
+              value={
+                days?.calendar_coverage?.published?.end
+                  ? `${days.calendar_coverage.published.start} ~ ${days.calendar_coverage.published.end}` +
+                    (days.calendar_coverage.published.verified === false
+                      ? "（未通过交叉校验，未加载）"
+                      : "")
+                  : "（不可用）"
+              }
+            />
+            <RawField
+              label="行情快照"
+              value="data/import/bars（只含已发生交易日，与交易日历是两回事）"
+            />
             <div>
               窗口按实际交易日构建；后端返回多少个月/周/天就展示多少，不以前端补足凑数。
+              实测成交日历之外的未来交易日取交易所**已公布**的安排；
+              两层都没有覆盖的日期一律回答「未知」，不照搬上一年节假日。
             </div>
           </SourceMethod>
         </div>

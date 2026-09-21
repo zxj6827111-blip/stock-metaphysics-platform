@@ -407,3 +407,111 @@ export function TimelineStepChart({
     </figure>
   );
 }
+
+/**
+ * 持有期对比图（历史验证页）。
+ *
+ * 只画**后端已经算出来的字段**：每个持有期的平均收益与平均超额收益，
+ * 按 variant（不同出生模型口径等）分组并列。三条纪律：
+ *
+ * 1. **不派生新指标**：不画"基准收益 = 收益 − 超额"这类由前端反推的序列；
+ * 2. **不画收益分布 / 净值曲线**：前者要逐样本收益序列，后者要可复现的组合规则，
+ *    当前数据契约里两者都没有；
+ * 3. 缺失的持有期**断开**（connectNulls: false），不插值、不补 0。
+ */
+export function HorizonComparisonChart({
+  labels,
+  series,
+  height = 168,
+}: {
+  labels: string[];
+  series: { name: string; values: (number | null)[]; tone: "up" | "down" | "flat" }[];
+  height?: number;
+}) {
+  const option = useMemo(
+    () => ({
+      animationDuration: 300,
+      grid: { left: 46, right: 8, top: 18, bottom: 24 },
+      legend: {
+        data: series.map((s) => s.name),
+        top: 0,
+        textStyle: { color: "var(--color-ink-muted)", fontSize: 10.5 },
+        itemWidth: 10,
+        itemHeight: 8,
+      },
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "rgba(9,20,30,0.96)",
+        borderColor: "var(--color-border-strong)",
+        textStyle: { color: "#E8EDF2", fontSize: 12 },
+        valueFormatter: (v: unknown) =>
+          v === null || v === undefined ? "不可用" : `${(Number(v) * 100).toFixed(2)}%`,
+      },
+      xAxis: {
+        type: "category",
+        data: labels,
+        axisLine: { lineStyle: { color: SPLIT_COLOR } },
+        axisTick: { show: false },
+        axisLabel: { color: AXIS_COLOR, fontSize: 10 },
+      },
+      yAxis: {
+        type: "value",
+        axisLine: { show: false },
+        splitLine: { lineStyle: { color: SPLIT_COLOR, type: "dashed" } },
+        axisLabel: {
+          color: AXIS_COLOR,
+          fontSize: 10,
+          // 收益量级很小（±1%），整数百分比会出现 "0% / -0%" 这种无信息刻度
+          formatter: (v: number) => {
+            const pctv = v * 100;
+            const shown = Math.abs(pctv) < 0.05 ? 0 : pctv;
+            return `${shown.toFixed(1)}%`;
+          },
+        },
+      },
+      series: series.map((s) => ({
+        name: s.name,
+        type: "bar",
+        barMaxWidth: 22,
+        connectNulls: false,
+        data: s.values.map((v) => ({
+          value: v,
+          itemStyle: {
+            color:
+              s.tone === "up"
+                ? "var(--color-up)"
+                : s.tone === "down"
+                  ? "var(--color-down)"
+                  : "var(--color-flat)",
+            opacity: 0.82,
+            borderRadius: [2, 2, 0, 0],
+          },
+        })),
+      })),
+    }),
+    [labels, series],
+  );
+
+  const summary = series
+    .map((s) => {
+      const present = s.values.filter((v) => v !== null).length;
+      const best = s.values
+        .map((v, i) => ({ v, i }))
+        .filter((x) => x.v !== null)
+        .sort((a, b) => (b.v as number) - (a.v as number))[0];
+      return best
+        ? `${s.name} 覆盖 ${present}/${s.values.length} 个持有期，最高在 ${labels[best.i] ?? best.i}（${((best.v as number) * 100).toFixed(2)}%）`
+        : `${s.name} 无可用持有期`;
+    })
+    .join("；");
+
+  return (
+    <figure className="m-0" data-testid="horizon-comparison-chart">
+      <ReactECharts option={option} style={{ height }} opts={{ renderer: "svg" }} notMerge />
+      <figcaption className="mt-1 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+        {summary || "暂无数据"}。仅绘制后端已算出的平均收益 / 平均超额收益；
+        缺失持有期断开，不做插值，也不由前端派生基准序列。
+      </figcaption>
+    </figure>
+  );
+}

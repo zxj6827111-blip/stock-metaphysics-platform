@@ -273,8 +273,29 @@ test.describe("Phase 2 页面（真实数据路径）", () => {
     await page.goto("/stock/600519/evidence");
     await expect(page.getByTestId("page-title").first()).toHaveText("古籍证据检索");
     const main = page.locator("main");
-    await expect(main).toContainText("支持性证据");
+    // 三类计数必须**同时渲染**（真并列），不依赖任何筛选动作
+    await expect(page.getByTestId("stance-count-counter").first()).toBeVisible();
+    await expect(page.getByTestId("stance-count-support").first()).toBeVisible();
+    await expect(page.getByTestId("stance-count-neutral").first()).toBeVisible();
     await expect(main).toContainText("反证");
+    await expect(main).toContainText("支持");
+    await expect(main).toContainText("中性");
+
+    // 反证不能被支持条目挤到页面末尾：列表与计数区都必须落在首屏（941 之内）
+    const list = page.getByTestId("evidence-list").first();
+    const counts = page.getByTestId("evidence-counts").first();
+    await expect(list).toBeVisible();
+    await expect(counts).toBeVisible();
+    const listBox = await list.boundingBox();
+    const countsBox = await counts.boundingBox();
+    expect(listBox, "证据列表未渲染").not.toBeNull();
+    expect(countsBox, "三类计数未渲染").not.toBeNull();
+    expect(countsBox!.y, "三类计数不在首屏").toBeLessThan(941);
+    expect(listBox!.y, "证据列表不在首屏").toBeLessThan(941);
+
+    // 「全部」模式下反证排在最前：首条证据必须是反证类
+    const firstItem = page.locator('[data-testid^="evidence-item-"]').first();
+    await expect(firstItem).toHaveAttribute("data-stance", "counter");
   });
 
   test("黄历页把传统黄历数据与研究映射分区", async ({ page }) => {
