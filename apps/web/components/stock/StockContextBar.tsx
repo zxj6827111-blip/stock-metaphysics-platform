@@ -15,13 +15,15 @@
  */
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { StockContext } from "@/lib/types";
 import { FIXTURE_QUERY_VALUE } from "@/lib/fixture";
 import { variantModeLabel } from "@/lib/dataSource";
-import { IconClock, IconExport, IconRefresh, IconStar, IconTaiji } from "../shell/Icons";
+import { exportReport, type ExportFormat, type ExportTarget } from "@/lib/reportExport";
+import { useWatchlist, WATCHLIST_MAX } from "@/lib/watchlistStore";
+import { IconExport, IconRefresh, IconStar, IconTaiji } from "../shell/Icons";
 import { StockSwitchModal } from "./StockSwitchModal";
 import { KNOWN_STOCK_NAMES } from "@/lib/stockCatalog";
 
@@ -30,31 +32,25 @@ export function StockContextBar({
   activeTab,
   onRecalculate,
   recalculating,
-  onExport,
+  exportTarget,
 }: {
   context: StockContext;
   activeTab?: string;
   onRecalculate?: () => void;
   recalculating?: boolean;
-  onExport?: () => void;
+  /**
+   * 导出目标（调用时已冻结的上下文快照）。
+   *
+   * 传 `undefined` 表示"本次分析尚无可导出的结果"——此时按钮显示为禁用并给出
+   * 原因，不做"点了没反应"的假按钮。
+   */
+  exportTarget?: ExportTarget | null;
 }) {
   const params = useSearchParams();
   const fixture = params.get("fixture") === FIXTURE_QUERY_VALUE;
   const suffix = fixture ? `?fixture=${FIXTURE_QUERY_VALUE}` : "";
 
   const { stock, birthProfile, asOf, horizon, quality } = context;
-
-  // Phase 2：七个页面全部落地，标签不再有 disabled 项
-  const TABS: { key: string; label: string; href: string; disabled?: boolean }[] = [
-    { key: "overview", label: "综合研判", href: `/stock/${stock.code}/overview${suffix}` },
-    { key: "bazi", label: "八字", href: `/stock/${stock.code}/bazi${suffix}` },
-    { key: "ziwei", label: "紫微斗数", href: `/stock/${stock.code}/ziwei${suffix}` },
-    { key: "huangli", label: "黄历", href: `/stock/${stock.code}/huangli${suffix}` },
-    { key: "timeline", label: "时间窗口", href: `/stock/${stock.code}/timeline${suffix}` },
-    { key: "backtest", label: "历史验证", href: `/stock/${stock.code}/backtest${suffix}` },
-    { key: "evidence", label: "古籍证据", href: `/stock/${stock.code}/evidence${suffix}` },
-    { key: "conflicts", label: "模型分歧", href: `/stock/${stock.code}/conflicts${suffix}` },
-  ];
 
   const [switchModalOpen, setSwitchModalOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -89,14 +85,7 @@ export function StockContextBar({
               <span className="smp-num text-[12px]" style={{ color: "var(--color-ink-sub)" }}>
                 {stock.windCode || stock.code}
               </span>
-              <button
-                type="button"
-                title="加入自选（Phase 2）"
-                style={{ color: "var(--color-ink-muted)" }}
-                disabled
-              >
-                <IconStar size={12} />
-              </button>
+              <WatchStar code={stock.code} name={displayName} activeTab={activeTab} suffix={suffix} />
             </div>
 
             <Divider />
@@ -105,8 +94,7 @@ export function StockContextBar({
             {/* 次要出生档案字段：宽屏显示在主行，窄屏收进「详情」 */}
             <Field
               label="出生模型"
-              value={birthProfile.basis}
-              mono
+              value={birthProfile.basisLabel}
               className="hidden 2xl:flex"
             />
             <Field
@@ -168,15 +156,7 @@ export function StockContextBar({
               <IconRefresh size={12} />
               {recalculating ? "计算中…" : "重新计算"}
             </button>
-            <button
-              type="button"
-              className="smp-btn px-2.5 py-1 text-[11.5px]"
-              onClick={onExport}
-              title="导出研究报告"
-            >
-              <IconExport size={12} />
-              导出报告
-            </button>
+            <ExportMenu target={exportTarget} />
           </div>
         </div>
 
@@ -188,7 +168,11 @@ export function StockContextBar({
             style={{ borderColor: "var(--color-border)" }}
             data-testid="context-birth-fields"
           >
-            <Field label="出生模型" value={birthProfile.basis} mono />
+            {/* 中文标签 + 原始码并列：正文可读，同时保留可追溯的内部码 */}
+            <Field
+              label="出生模型"
+              value={`${birthProfile.basisLabel}（${birthProfile.basis}）`}
+            />
             <Field
               label="出生时刻"
               value={birthProfile.datetime}
@@ -204,25 +188,6 @@ export function StockContextBar({
             {birthProfile.derivation ? (
               <Field label="推导" value={birthProfile.derivation} />
             ) : null}
-            <span className="flex items-center gap-1.5">
-              {/* Phase 2 占位：保留入口但明确标注未实现，避免"看起来能点" */}
-              <button
-                type="button"
-                className="smp-btn px-2 py-[1px] text-[11px] opacity-60"
-                disabled
-                title="Phase 2：切换出生模型会生成新版本，不覆盖历史结果"
-              >
-                切换出生模型
-              </button>
-              <button
-                type="button"
-                className="smp-btn px-2 py-[1px] text-[11px] opacity-60"
-                disabled
-                title="Phase 2：预测周期切换需要重跑事件研究"
-              >
-                切换预测周期
-              </button>
-            </span>
           </div>
         ) : null}
       </div>
@@ -235,6 +200,269 @@ export function StockContextBar({
   );
 }
 
+/**
+ * 导出报告菜单。
+ *
+ * 三种格式都对应真实可打开的产物：
+ *  * Markdown / 可打印 HTML：后端 `render_report` 渲染的完整研究报告；
+ *  * 结构化 JSON：同一份上下文的机器可读快照（本机生成）。
+ * 演示模式（`?fixture=ui-reference`）下由前端就地生成，**逐份标注"演示数据"**。
+ * 没有可导出结果时按钮禁用并说明原因，不保留"点了没反应"的交互。
+ */
+export function ExportMenu({ target }: { target?: ExportTarget | null }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<ExportFormat | null>(null);
+  const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const disabled = !target;
+  const run = useCallback(
+    async (format: ExportFormat) => {
+      if (!target) return;
+      setBusy(format);
+      setMsg(null);
+      try {
+        await exportReport(target, format);
+        setMsg({
+          tone: "ok",
+          text: target.fixture ? "已生成演示报告（本机下载）" : "已生成报告（本机下载）",
+        });
+        setOpen(false);
+      } catch (e) {
+        setMsg({ tone: "bad", text: e instanceof Error ? e.message : String(e) });
+      } finally {
+        setBusy(null);
+      }
+    },
+    [target],
+  );
+
+  const items: { format: ExportFormat; label: string; hint: string }[] = [
+    { format: "markdown", label: "Markdown（.md）", hint: "完整报告文本，便于归档与引用" },
+    { format: "html", label: "可打印 HTML（.html）", hint: "自包含页面，可浏览器打印（非服务端 PDF）" },
+    { format: "json", label: "结构化 JSON（.json）", hint: "同一份上下文的机器可读快照" },
+  ];
+
+  return (
+    <div className="relative" ref={boxRef}>
+      <button
+        type="button"
+        className="smp-btn px-2.5 py-1 text-[11.5px] disabled:opacity-40"
+        onClick={() => setOpen((v) => !v)}
+        disabled={disabled}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={
+          disabled
+            ? "本次分析尚未产生可导出的结果"
+            : target?.fixture
+              ? "导出演示报告（会明确标注演示数据）"
+              : "导出研究报告"
+        }
+        data-testid="export-report-btn"
+      >
+        <IconExport size={12} />
+        {busy ? "导出中…" : "导出报告"}
+      </button>
+      {open && target ? (
+        <div
+          className="absolute right-0 z-40 mt-1 w-[252px] overflow-hidden rounded-[8px] border py-1"
+          style={{
+            borderColor: "var(--color-border-strong)",
+            background: "linear-gradient(180deg, rgba(14,26,38,0.98), rgba(9,19,29,0.98))",
+            boxShadow: "0 18px 40px rgba(0,0,0,0.6)",
+          }}
+          role="menu"
+          data-testid="export-report-menu"
+        >
+          {target.fixture ? (
+            <div
+              className="px-3 pb-1.5 pt-1 text-[10.5px] leading-[15px]"
+              style={{ color: "var(--color-warn)" }}
+            >
+              演示模式：导出内容为冻结样本，文件内会逐份标注「演示数据」
+            </div>
+          ) : (
+            <div
+              className="px-3 pb-1.5 pt-1 text-[10.5px] leading-[15px]"
+              style={{ color: "var(--color-ink-faint)" }}
+            >
+              分析 ID：{target.analysisId}
+            </div>
+          )}
+          {items.map((it) => (
+            <button
+              key={it.format}
+              type="button"
+              role="menuitem"
+              onClick={() => void run(it.format)}
+              disabled={busy !== null}
+              className="block w-full px-3 py-1.5 text-left transition-colors hover:bg-white/[0.05] disabled:opacity-40"
+              data-testid={`export-${it.format}`}
+            >
+              <span className="block text-[12.5px]" style={{ color: "var(--color-ink)" }}>
+                {busy === it.format ? "导出中…" : it.label}
+              </span>
+              <span className="block text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                {it.hint}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {msg ? (
+        <div
+          className="absolute right-0 z-40 mt-1 w-[252px] rounded-[6px] border px-2.5 py-1.5 text-[11px]"
+          style={{
+            borderColor: msg.tone === "ok" ? "rgba(79,211,155,0.45)" : "rgba(232,88,90,0.5)",
+            color: msg.tone === "ok" ? "var(--color-down)" : "var(--color-up)",
+            background: "var(--color-surface-2)",
+          }}
+          data-testid="export-feedback"
+        >
+          {msg.text}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 自选星标 + 本机自选列表。
+ *
+ * 没有账户体系 → 只做**本机**自选（localStorage），文案明确写「本机」，
+ * 不声称云端同步。支持加入 / 移除 / 去重 / 刷新恢复。
+ */
+function WatchStar({
+  code,
+  name,
+  activeTab,
+  suffix,
+}: {
+  code: string;
+  name: string;
+  activeTab?: string;
+  suffix: string;
+}) {
+  const router = useRouter();
+  const { items, watching, toggle, remove } = useWatchlist();
+  const [open, setOpen] = useState(false);
+  const watched = watching(code);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <span className="relative flex items-center gap-1" ref={boxRef}>
+      <button
+        type="button"
+        onClick={() => toggle(code, name)}
+        title={watched ? "从本机自选中移除" : "加入本机自选（仅保存在本机浏览器）"}
+        aria-pressed={watched}
+        style={{ color: watched ? "var(--color-gold)" : "var(--color-ink-muted)" }}
+        data-testid="watch-toggle"
+      >
+        <IconStar size={12} />
+      </button>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-[10.5px]"
+        style={{ color: "var(--color-ink-faint)" }}
+        aria-expanded={open}
+        data-testid="watchlist-toggle"
+      >
+        本机自选 {items.length}
+      </button>
+      {open ? (
+        <div
+          className="absolute left-0 top-full z-40 mt-1 w-[240px] overflow-hidden rounded-[8px] border"
+          style={{
+            borderColor: "var(--color-border-strong)",
+            background: "linear-gradient(180deg, rgba(14,26,38,0.98), rgba(9,19,29,0.98))",
+            boxShadow: "0 18px 40px rgba(0,0,0,0.6)",
+          }}
+          data-testid="watchlist-panel"
+        >
+          <div
+            className="border-b px-2.5 py-1.5 text-[10.5px]"
+            style={{ borderColor: "var(--color-border)", color: "var(--color-ink-faint)" }}
+          >
+            本机自选（浏览器本地保存，最多 {WATCHLIST_MAX} 只，不跨设备同步）
+          </div>
+          {items.length === 0 ? (
+            <div className="px-2.5 py-2 text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+              暂无自选。点击左侧星标加入当前标的。
+            </div>
+          ) : (
+            <ul className="max-h-[240px] overflow-y-auto">
+              {items.map((it) => (
+                <li
+                  key={it.code}
+                  className="flex items-center gap-2 px-2.5 py-1.5 text-[12px]"
+                  style={{ color: "var(--color-ink)" }}
+                  data-testid={`watch-item-${it.code}`}
+                >
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 truncate text-left hover:opacity-80"
+                    onClick={() => {
+                      setOpen(false);
+                      router.push(`/stock/${it.code}/${activeTab ?? "overview"}${suffix}`);
+                    }}
+                  >
+                    {it.name ? `${it.name} · ` : ""}
+                    {it.code}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => remove(it.code)}
+                    className="shrink-0 text-[11px]"
+                    style={{ color: "var(--color-ink-muted)" }}
+                    aria-label={`从自选移除 ${it.code}`}
+                    data-testid={`watch-remove-${it.code}`}
+                  >
+                    移除
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+    </span>
+  );
+}
 function Divider() {
   return <span style={{ color: "var(--color-border-strong)" }}>|</span>;
 }
