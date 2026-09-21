@@ -158,6 +158,32 @@ def data_quality(db: Session = Depends(db_session), market=Depends(get_market),
     }
 
 
+@router.get("/trading-calendar", summary="交易日历覆盖（实测层 / 官方公布层）")
+def trading_calendar(exchange: str = "SSE") -> dict:
+    """交易日历的三层覆盖状态（只读）。
+
+    刻意把三层分开返回，因为它们回答的是不同的问题：
+
+    * ``observed`` —— 指数**真实成交过**的日期（观测事实，只能到过去）；
+    * ``published`` —— 交易所**已公告**的未来开市/休市安排；
+    * ``published.boundary_cn`` —— 官方公布到哪一天为止（超出即回答"未知"）。
+
+    "没有未来行情"与"无法确定未来交易日"是两件事：前者是快照边界，
+    后者才是数据缺口。这个端点让二者可区分。
+    """
+    from src.core.stock.trading_calendar import get_trading_calendar_provider
+
+    cal = get_trading_calendar_provider().for_exchange(exchange)
+    return {
+        **cal.coverage_descriptor(),
+        "generator": "scripts/update_trading_calendar.py",
+        "third_layer_note_cn": (
+            "行情快照末日（data/import/bars）与交易日历是两回事："
+            "行情只有已发生的，日历包含交易所已公布的计划。"
+        ),
+    }
+
+
 @router.get("/versions", summary="版本信息")
 def versions() -> dict:
     """结果可追溯性所需的全部版本号（architecture §72）。"""

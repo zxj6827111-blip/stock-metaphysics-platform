@@ -203,6 +203,8 @@ export interface ApiConflict {
   severity: string;
   conflicting_engines: string[];
   directions: Record<string, number>;
+  /** 与后端 ConflictSnapshot 对齐：参与分歧的因子 ID（此前 TS 类型漏声明）。 */
+  conflicting_factor_ids?: string[];
   reasons: string[];
   note: string;
 
@@ -294,6 +296,50 @@ export interface ApiEventStudy {
   } | null;
 }
 
+export interface ApiExperimentSummary {
+  experiment_id: string;
+  kind: string;
+  name: string;
+  factor_ids: string[];
+  universe: string[];
+  created_at: string;
+  status: string;
+}
+
+export interface ApiExperimentResultRow {
+  /** 持有期（交易日）。库里该列是动态类型，后端原样透出，可能为 number。 */
+  horizon: string | number;
+  sample_count: number;
+  up_rate: number | null;
+  mean_return: number | null;
+  median_return: number | null;
+  mean_excess_return: number | null;
+  max_drawdown: number | null;
+  excess_up_rate: number | null;
+  /** 后端 extra_json：对照组判决（verdict）、Jaccard 重合度、备注等原始字段。 */
+  extra: Record<string, unknown>;
+}
+
+export interface ApiExperimentDetail {
+  experiment: {
+    experiment_id: string;
+    kind: string;
+    name: string;
+    factor_ids: string[];
+    universe: string[];
+    horizons: number[];
+    methodology: string;
+    seed: string;
+    created_at: string;
+    status?: string;
+    date_from?: string | null;
+    date_to?: string | null;
+    benchmark_code?: string | null;
+    params?: Record<string, unknown>;
+  };
+  results_by_variant: Record<string, ApiExperimentResultRow[]>;
+}
+
 export interface ApiEvidence {
   analysis_id: string;
   driver_factors: { factor_id: string; name: string; normalized_value: number | null; direction: number }[];
@@ -319,12 +365,14 @@ export interface ApiEvidenceItem {
   original_text: string;
   modern_note: string;
   score: number;
-  authority_weight: number;
+  authority_weight: number | null;
   stance: string;
   source: string;
   edition: string;
   provenance: string;
   license_status: string;
+  /** 命中本次检索主题的条目内主题（后端原样返回，不由前端推断）。 */
+  matched_query_terms?: string[];
 }
 
 export interface ApiBaziAnalysis {
@@ -494,6 +542,8 @@ export interface ApiTimelineDays {
   methodology: string;
   warnings: { code: string; message: string; severity: string }[];
   cache?: ApiCacheInfo;
+  /** 交易日历三层覆盖（实测成交 / 官方已公布）。 */
+  calendar_coverage?: ApiCalendarLayers | null;
 }
 
 export interface ApiCacheInfo {
@@ -516,6 +566,8 @@ export interface ApiHuangliClassRule {
 export interface ApiHuangliDayCard {
   date: string;
   weekday_cn: string;
+  /** 该日期的交易日判定来源：实测成交事实 / 交易所已公布安排。 */
+  calendar_source?: string;
   lunar_text: string;
   year_ganzhi: string;
   month_ganzhi: string;
@@ -546,6 +598,26 @@ export interface ApiHuangliDayCard {
   offset_trading_days: number;
 }
 
+export interface ApiCalendarLayer {
+  loaded: boolean;
+  error?: string | null;
+  start: string | null;
+  end: string | null;
+  days?: number;
+  source?: string;
+  generated_at?: string | null;
+  verified?: boolean | null;
+  sources?: { layer: string; url: string; note: string }[] | null;
+  boundary_cn?: string | null;
+}
+
+/** 交易日历的三层覆盖（`GET /api/v1/system/trading-calendar` 与 outlook 响应共用）。 */
+export interface ApiCalendarLayers {
+  exchange: string;
+  observed: ApiCalendarLayer;
+  published: ApiCalendarLayer;
+}
+
 export interface ApiHuangliOutlook {
   analysis_id: string;
   stock_code: string;
@@ -566,7 +638,17 @@ export interface ApiHuangliOutlook {
     explanation_cn: string;
     calendar_loaded: boolean;
     calendar_source: string;
+    /** 实测成交日历覆盖（观测事实，只能到过去）。保持原有语义不变。 */
     calendar_coverage: { start: string; end: string } | null;
+    /** 官方公布日历覆盖（交易所已公告的未来安排）。 */
+    published_calendar_loaded?: boolean;
+    published_coverage?: { start: string; end: string } | null;
+    /** 两层合并后的可用范围。 */
+    effective_coverage?: { start: string; end: string } | null;
+    /** 三层覆盖详情（实测 / 公布 / 官方公布边界）。 */
+    calendar_layers?: ApiCalendarLayers;
+    /** 日期卡判定来源分布：observed_index_days / published_exchange_calendar。 */
+    day_sources?: Record<string, number>;
     unknown_days: number;
     first_unknown_date: string | null;
   };
@@ -736,6 +818,8 @@ export const endpoints = {
   consensus: (id: string) => `/api/v1/analysis/${id}/consensus`,
   conflicts: (id: string) => `/api/v1/analysis/${id}/conflicts`,
   evidence: (id: string) => `/api/v1/analysis/${id}/evidence`,
+  researchExperiments: (limit = 30) => `/api/v1/research/experiments?limit=${limit}`,
+  researchExperiment: (id: string) => `/api/v1/research/experiments/${encodeURIComponent(id)}`,
   backtest: (id: string) => `/api/v1/analysis/${id}/backtest`,
   guide: (id: string) => `/api/v1/analysis/${id}/guide`,
   engineStatus: () => `/api/v1/system/engines`,

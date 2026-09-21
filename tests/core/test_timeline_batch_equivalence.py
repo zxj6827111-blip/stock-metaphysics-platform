@@ -122,11 +122,39 @@ def test_build_days_respects_trading_calendar_and_limit(builder):
 
 
 def test_build_days_reports_calendar_shortfall(builder):
-    """日历覆盖不足时返回实际天数并给出 warning，而不是补造日期。"""
+    """越过**全部可用**日历覆盖时返回实际天数并给出 warning，而不是补造日期。
+
+    边界已随"官方已公布日历"轮次从实测末日（2026-09-21）推进到
+    官方公布末日（2026-12-31）：实测层只能到过去，"没有未来行情"不等于
+    "无法确定未来交易日"。因此这里从 2026-12-20 起请求 20 天 ——
+    必须先跨过公布边界，短少才算真实短少。
+    """
     day_results, warnings = builder.build_days(
-        stock_code="600519", as_of=datetime(2026, 9, 15, 15), days=20,
+        stock_code="600519", as_of=datetime(2026, 12, 20, 15), days=20,
         variant_mode=VariantMode.FORWARD, birth_datetime=BIRTH,
     )
     assert len(day_results) < 20
     codes = {w.code for w in warnings}
     assert "TIMELINE_DAILY_PARTIAL" in codes or "TIMELINE_NO_TRADING_DAY" in codes
+    # 越过边界后一律不产出日期，也不补造
+    assert all(d.trade_date <= date(2026, 12, 31) for d in day_results)
+
+
+def test_build_days_uses_published_calendar_beyond_observed_end(builder):
+    """实测成交日历之后、官方已公布范围内的交易日必须能查出来。
+
+    这条断言锁的是本轮修复的核心：以前 as_of 落在实测末日附近，
+    "未来 20 个交易日"只返回一两天就报 partial；现在应补足到官方公布范围内。
+    """
+    day_results, warnings = builder.build_days(
+        stock_code="600519", as_of=datetime(2026, 9, 21, 15), days=20,
+        variant_mode=VariantMode.FORWARD, birth_datetime=BIRTH,
+    )
+    assert len(day_results) == 20, "官方已公布范围内应能取满 20 个交易日"
+    dates = [d.trade_date for d in day_results]
+    # 中秋（09-25 起）与国庆长假（10-01~10-07）不能出现在交易日列表里
+    assert not any(date(2026, 10, 1) <= d <= date(2026, 10, 7) for d in dates)
+    assert date(2026, 9, 25) not in dates
+    # 节后首个交易日必须在
+    assert date(2026, 10, 8) in dates
+    assert "TIMELINE_DAILY_PARTIAL" not in {w.code for w in warnings}

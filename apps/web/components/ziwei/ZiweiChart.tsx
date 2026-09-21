@@ -57,18 +57,24 @@ const RING: (number | null)[][] = [
 export function ZiweiChartGrid({
   chart,
   highlightTrine = false,
+  center,
 }: {
   chart: ApiZiweiChart;
   highlightTrine?: boolean;
+  /** 中央 2×2 区的内容（默认是命身/四化的紧凑摘要）。 */
+  center?: React.ReactNode;
 }) {
   const trine = useMemo(
     () => new Set(chart.palaces[chart.soul_palace_index]?.trine_indices ?? []),
     [chart],
   );
-  const cellCls = "min-h-[104px]";
 
   return (
-    <div className="grid grid-cols-4 grid-rows-4 gap-2" data-testid="ziwei-chart-grid">
+    <div
+      className="grid grid-cols-4 gap-2"
+      style={{ gridTemplateRows: "repeat(4, 116px)" }}
+      data-testid="ziwei-chart-grid"
+    >
       {RING.flatMap((row, r) =>
         row.map((idx, c) => {
           if (idx === null) {
@@ -77,46 +83,45 @@ export function ZiweiChartGrid({
             return (
               <div
                 key="center"
-                className="row-span-2 col-span-2 rounded border p-3"
+                className="row-span-2 col-span-2 overflow-hidden rounded border px-3 py-2"
                 style={{ borderColor: "rgba(212,160,74,0.35)" }}
                 data-testid="ziwei-center"
               >
-                <div className="text-[12.5px] font-semibold" style={{ color: "var(--color-gold)" }}>
-                  {chart.soul_palace_branch}宫位环 · 命身与四化
-                </div>
-                <div className="mt-1 space-y-0.5 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
-                  <div>命宫：{palaceName(chart, chart.soul_palace_index)}（{chart.soul_palace_branch}）</div>
-                  <div>身宫：{palaceName(chart, chart.body_palace_index)}</div>
-                  <div>命主 {chart.soul} · 身主 {chart.body}</div>
-                  <div>五行局 {chart.five_elements_class}</div>
-                  <div className="pt-1">
-                    生年四化：
-                    {(chart.natal_mutagens ?? []).map((m) => (
-                      <span key={m.mutagen} className="ml-1">
-                        {m.mutagen}
-                        {m.star}→{m.palace_name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                {center ?? <CenterSummary chart={chart} />}
               </div>
             );
           }
           const palace = chart.palaces[idx];
           if (!palace) return null;
           return (
-            <div key={idx} className={cellCls}>
-              <PalaceCell
-                palace={palace}
-                isSoul={idx === chart.soul_palace_index}
-                isBody={idx === chart.body_palace_index}
-                inTrine={highlightTrine && trine.has(idx)}
-              />
-            </div>
+            <PalaceCell
+              key={idx}
+              palace={palace}
+              isSoul={idx === chart.soul_palace_index}
+              isBody={idx === chart.body_palace_index}
+              inTrine={highlightTrine && trine.has(idx)}
+            />
           );
         }),
       )}
     </div>
+  );
+}
+
+/** 中央区默认内容（命身 / 四化摘要）。 */
+function CenterSummary({ chart }: { chart: ApiZiweiChart }) {
+  return (
+    <>
+      <div className="text-[12.5px] font-semibold" style={{ color: "var(--color-gold)" }}>
+        {chart.soul_palace_branch}宫位环 · 命身与四化
+      </div>
+      <div className="mt-1 space-y-0.5 text-[11px] leading-[15px]" style={{ color: "var(--color-ink-muted)" }}>
+        <div>命宫：{palaceName(chart, chart.soul_palace_index)}（{chart.soul_palace_branch}）</div>
+        <div>身宫：{palaceName(chart, chart.body_palace_index)}</div>
+        <div>命主 {chart.soul} · 身主 {chart.body}</div>
+        <div>五行局 {chart.five_elements_class}</div>
+      </div>
+    </>
   );
 }
 
@@ -138,12 +143,16 @@ function PalaceCell({
 }) {
   const major = palace.major_stars ?? [];
   const minor = palace.minor_stars ?? [];
+  const adjective = palace.adjective_stars ?? [];
   const bad = minor.filter((s) => s.type === "tough" || s.type === "lucun");
   const good = minor.filter((s) => !(s.type === "tough" || s.type === "lucun"));
+  // 四化是**星曜的属性**（后端给的 mutagen），这里只是把本宫已有的四化挑出来显示，
+  // 不在前端重新推导哪颗星化什么 —— 那是排盘，属于后端职责（AGENTS.md §9.12）。
+  const mutagenStars = [...major, ...minor, ...adjective].filter((s) => s.mutagen);
 
   return (
     <div
-      className="rounded border p-2 text-[11.5px] leading-[1.5]"
+      className="h-full rounded border px-2 py-1.5 text-[11px] leading-[15px]"
       style={{
         borderColor: isSoul ? "#D4A04A" : inTrine ? "rgba(212,160,74,0.45)" : "var(--color-border)",
         background: isSoul ? "rgba(212,160,74,0.07)" : "var(--color-surface, transparent)",
@@ -152,49 +161,86 @@ function PalaceCell({
       data-palace-name={palace.name}
       data-in-trine={inTrine ? "1" : "0"}
     >
-      <div className="mb-1 flex items-center justify-between">
-        <span className="font-semibold" style={{ color: "var(--color-ink)" }}>
+      <div className="mb-0.5 flex items-center justify-between">
+        <span className="truncate font-semibold" style={{ color: "var(--color-ink)" }}>
           {palace.name}
+          {isSoul ? <span style={{ color: "#D4A04A" }}> ·命</span> : null}
           {isBody ? <span style={{ color: "#D4A04A" }}> ·身</span> : null}
         </span>
-        <span style={{ color: "var(--color-ink-muted)" }}>
+        <span className="shrink-0" style={{ color: "var(--color-ink-muted)" }}>
           {palace.heavenly_stem}
           {palace.earthly_branch}
         </span>
       </div>
 
-      <div className="min-h-[18px]">
-        {major.length ? (
-          major.map((s) => <StarLine key={s.name} star={s} strong />)
-        ) : (
-          <span style={{ color: "var(--color-ink-muted)" }}>（空宫 · 借对宫安星）</span>
-        )}
-      </div>
-
-      {good.length ? (
-        <div className="mt-0.5">
-          {good.map((s) => (
-            <StarLine key={s.name} star={s} />
-          ))}
+      {/* 每类星曜固定一行高度（line-clamp）：十二宫是**并列**结构，
+          某一宫星多不能把整行撑高、把底排挤出首屏；完整星曜在悬停标题与
+          下方「三方四正与四化」明细里仍然可得，没有丢弃。 */}
+      <StarRow label="主星" stars={major} empty="（空宫 · 借对宫安星）" strong />
+      {good.length ? <StarRow label="辅星" stars={good} /> : null}
+      {bad.length ? <StarRow label="煞曜" stars={bad} malefic /> : null}
+      {mutagenStars.length ? (
+        <div className="flex gap-1" data-testid={`ziwei-mutagen-${palace.index}`}>
+          <span className="shrink-0" style={{ color: "var(--color-ink-muted)" }}>
+            四化
+          </span>
+          <span className="flex flex-wrap gap-x-1">
+            {mutagenStars.map((s) => (
+              <span key={s.name} style={{ color: MUTAGEN_TONE[s.mutagen], fontWeight: 600 }}>
+                化{s.mutagen}
+                {s.name}
+              </span>
+            ))}
+          </span>
         </div>
       ) : null}
 
-      {bad.length ? (
-        <div className="mt-0.5">
-          {bad.map((s) => (
-            <StarLine key={s.name} star={s} malefic />
+      {adjective.length || palace.changsheng12 ? (
+        <div className="mt-0.5 flex flex-wrap gap-x-1.5 gap-y-0.5">
+          {palace.changsheng12 ? <PalaceTag>{palace.changsheng12}</PalaceTag> : null}
+          {adjective.slice(0, 3).map((s) => (
+            <PalaceTag key={s.name}>{s.name}</PalaceTag>
           ))}
         </div>
       ) : null}
-
-      <div className="mt-1 flex flex-wrap items-center gap-1" style={{ color: "var(--color-ink-muted)" }}>
-        {palace.changsheng12 ? <span>{palace.changsheng12}</span> : null}
-      </div>
     </div>
   );
 }
 
-function StarLine({
+/** 一类星曜占一行（标签 + 星名，末行可省略号）。 */
+function StarRow({
+  label,
+  stars,
+  empty,
+  strong,
+  malefic,
+}: {
+  label: string;
+  stars: ApiZiweiStar[];
+  empty?: string;
+  strong?: boolean;
+  malefic?: boolean;
+}) {
+  return (
+    <div
+      className="flex gap-1"
+      title={stars.length ? `${label}：${stars.map((s) => s.name).join("、")}` : undefined}
+    >
+      <span className="shrink-0" style={{ color: "var(--color-ink-muted)" }}>
+        {label}
+      </span>
+      <span className="line-clamp-1" data-testid={`ziwei-row-${label}`}>
+        {stars.length ? (
+          stars.map((s) => <StarInline key={s.name} star={s} strong={strong} malefic={malefic} />)
+        ) : (
+          <span style={{ color: "var(--color-ink-muted)" }}>{empty ?? "—"}</span>
+        )}
+      </span>
+    </div>
+  );
+}
+
+function StarInline({
   star,
   strong,
   malefic,
@@ -205,25 +251,27 @@ function StarLine({
 }) {
   const tone = star.mutagen ? MUTAGEN_TONE[star.mutagen] : undefined;
   return (
-    <div className="flex items-center gap-1">
-      <span
-        style={{
-          color: tone ?? (malefic ? "#E8585A" : strong ? "var(--color-ink)" : "var(--color-ink-muted)"),
-          fontWeight: strong || star.mutagen ? 600 : 400,
-        }}
-      >
-        {star.name}
-        {star.brightness ? <span style={{ opacity: 0.75 }}>（{star.brightness}）</span> : null}
-      </span>
-      {star.mutagen ? (
-        <span
-          className="rounded px-1 text-[10.5px]"
-          style={{ background: `${tone}22`, color: tone }}
-        >
-          化{star.mutagen}
-        </span>
-      ) : null}
-    </div>
+    <span
+      className="mr-1.5"
+      style={{
+        color: tone ?? (malefic ? "#E8585A" : strong ? "var(--color-ink)" : "var(--color-ink-muted)"),
+        fontWeight: strong || star.mutagen ? 600 : 400,
+      }}
+    >
+      {star.name}
+      {star.brightness ? <span style={{ opacity: 0.7 }}>（{star.brightness}）</span> : null}
+    </span>
+  );
+}
+
+function PalaceTag({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="rounded-[3px] border px-1 text-[10px] leading-[13px]"
+      style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
+    >
+      {children}
+    </span>
   );
 }
 
@@ -309,7 +357,7 @@ export function ZiweiTrine({ chart }: { chart: ApiZiweiChart }) {
             </div>
             <div className="mt-0.5">
               {(p?.major_stars ?? []).map((s) => (
-                <StarLine key={s.name} star={s} strong />
+                <StarInline key={s.name} star={s} strong />
               ))}
               {!(p?.major_stars ?? []).length ? (
                 <span style={{ color: "var(--color-ink-muted)" }}>（空宫）</span>

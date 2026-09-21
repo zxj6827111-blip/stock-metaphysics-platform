@@ -264,7 +264,18 @@ test.describe("R1-2 公共展示：内部状态中文化，裸标签与裸码不
 
     const source = page.getByTestId("evidence-source-method").first();
     await expect(source).toBeAttached();
-    await expect(source).toContainText("演示语料（fixture=ui-reference 固定样本");
+    // 演示语料身份必须写明"真实语料检索后冻结"，而不是含糊的"示例数据"
+    await expect(source).toContainText("演示语料");
+    await expect(source).toContainText("冻结");
+
+    // 条目必须带可追溯的来源字段（演示模式与真实模式同源，同样不许裸文本）
+    const first = page.locator('[data-testid^="evidence-item-"]').first();
+    await expect(first).toBeVisible();
+    const detail = page.getByTestId("evidence-provenance").first();
+    await expect(detail).toContainText("来源：");
+    await expect(detail).toContainText("版本：");
+    await expect(detail).toContainText("版权：");
+    await expect(detail).toContainText("条目 ID：");
   });
 
   test("页脚版本全局一致", async ({ page }) => {

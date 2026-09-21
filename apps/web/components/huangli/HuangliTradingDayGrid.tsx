@@ -52,6 +52,24 @@ function classLabel(card: { class_code: string | null; class_label_cn: string | 
   return "未给出分类";
 }
 
+/** 日期卡判定来源分布的文字摘要（"多少天是事实、多少天是公告"）。 */
+function daySourceSummary(sources?: Record<string, number>): string {
+  if (!sources) return "";
+  const parts: string[] = [];
+  const observed = sources.observed_index_days ?? 0;
+  const published = sources.published_exchange_calendar ?? 0;
+  if (observed) parts.push(`${observed} 天来自实测成交`);
+  if (published) parts.push(`${published} 天来自官方已公布安排`);
+  return parts.length ? `（${parts.join("，")}）` : "";
+}
+
+/** 日期卡的判定来源短标签。 */
+function sourceLabel(source?: string): string {
+  if (source === "published_exchange_calendar") return "公布";
+  if (source === "observed_index_days") return "实测";
+  return "";
+}
+
 export function HuangliTradingDayGrid({
   analysisId,
   onSelectDate,
@@ -176,16 +194,19 @@ export function HuangliTradingDayGrid({
         }}
         data-testid="huangli-outlook-rule"
       >
-        {loading ? "正在按实测交易日历取黄历…" : stripMdEmphasis(data?.rule_cn) || "—"}
+        {loading ? "正在按交易日历取黄历…" : stripMdEmphasis(data?.rule_cn) || "—"}
         {data && !loading ? (
           <>
             {" "}
-            <span style={{ color: "var(--color-ink-muted)" }}>
-              交易日历来源：{data.exchange} 实测成交日（
+            <span style={{ color: "var(--color-ink-muted)" }} data-testid="huangli-calendar-scope">
+              交易日历：{data.exchange} 实测成交日
               {coverage?.calendar_coverage
-                ? `${coverage.calendar_coverage.start} ~ ${coverage.calendar_coverage.end}`
-                : "不可用"}
-              ）；本区共返回 {data.returned_days} 张日期卡。
+                ? `（${coverage.calendar_coverage.start} ~ ${coverage.calendar_coverage.end}）`
+                : "（不可用）"}
+              {coverage?.published_coverage
+                ? `；官方已公布安排（${coverage.published_coverage.start} ~ ${coverage.published_coverage.end}）`
+                : ""}
+              ；本区共返回 {data.returned_days} 张日期卡{daySourceSummary(coverage?.day_sources)}。
             </span>
           </>
         ) : null}
@@ -335,8 +356,18 @@ function DayCard({
       <div className="smp-num text-[11.5px] leading-tight" style={{ color: "var(--color-ink)" }}>
         {card.date.slice(5)}
       </div>
-      <div className="text-[10.5px] leading-tight" style={{ color: "var(--color-ink-muted)" }}>
-        {card.weekday_cn.replace("星期", "周")}
+      <div className="flex items-center gap-1 text-[10.5px] leading-tight" style={{ color: "var(--color-ink-muted)" }}>
+        <span>{card.weekday_cn.replace("星期", "周")}</span>
+        {/* 这一天凭什么算交易日：实测成交 / 官方已公布安排 */}
+        {sourceLabel(card.calendar_source) ? (
+          <span
+            className="rounded-[3px] border px-[3px]"
+            style={{ borderColor: "var(--color-border)", fontSize: 9.5 }}
+            data-testid={`huangli-day-source-${card.date}`}
+          >
+            {sourceLabel(card.calendar_source)}
+          </span>
+        ) : null}
       </div>
       <div
         className="mt-1 inline-flex w-fit items-center rounded-[3px] px-1 py-[1px] text-[10.5px] font-semibold"

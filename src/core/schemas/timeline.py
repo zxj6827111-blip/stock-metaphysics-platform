@@ -143,6 +143,10 @@ class DailyWindowResponse(SMBaseModel):
     analysis_id: str = ""
     variant_mode: str = ""
     daily_version: str = DAILY_WINDOW_VERSION
+    #: 交易日历覆盖元数据（实测层 / 官方公布层分开报告）。
+    #: 没有它就无法解释"为什么只到某一天"是行情边界、实测日历边界，
+    #: 还是交易所尚未公布下一年度安排。
+    calendar_coverage: dict | None = None
     requested_days: int = 0
     returned_days: int = 0
     days: list[DayResult] = Field(default_factory=list)

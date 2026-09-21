@@ -170,7 +170,10 @@ function Section({
                   k="版权"
                   v={it.license_status === "public_domain" ? "公版原文" : it.license_status}
                 />
-                <Meta k="权威权重" v={it.authority_weight.toFixed(2)} />
+                <Meta
+                  k="权威权重"
+                  v={it.authority_weight == null ? "—" : it.authority_weight.toFixed(2)}
+                />
               </div>
             </article>
           ))}
