@@ -548,7 +548,9 @@ export function buildOverview(
     dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
-  // 时间窗口：基于各引擎 20D 分数做平滑外推，属演示层示意；仅在显式 fixture 模式下生成
+  // 时间窗口：基于各引擎 20D 分数做平滑外推，属演示层示意。
+  // 只在显式 fixture 模式下生成 —— 正常模式渲染正弦外推曲线，
+  // 等于向用户展示编造的未来走势（AGENTS.md 铁律 7 / UI 规范 12）。
   const mk = (base: number | null, color: string, key: string, name: string, phase: number) => ({
     key, name, color,
     values: dates.map((_, i) =>
@@ -566,16 +568,20 @@ export function buildOverview(
     conflict,
     timeWindow: {
       dates,
-      series: [
-        mk(baziScore ?? 78, "var(--color-gold)", "bazi", "八字", 0),
-        mk(huangliScore ?? 73, "#4fd39b", "huangli", "黄历", 1.1),
-        mk(engines.find((e) => e.engine === "ziwei")?.score ?? 76, "#b07cd6", "ziwei", "紫微斗数", 0.6),
-        mk(consensus?.meanScore ?? 75, "var(--color-up)", "consensus", "共识指数", 0.3),
-      ],
-      markers: [
-        { date: dates[2] ?? "2027-06", label: "高共识区", tone: "consensus" },
-        { date: dates[6] ?? "2027-10", label: "高冲突区", tone: "conflict" },
-      ],
+      series: isFixture
+        ? [
+            mk(baziScore ?? 78, "var(--color-gold)", "bazi", "八字", 0),
+            mk(huangliScore ?? 73, "#4fd39b", "huangli", "黄历", 1.1),
+            mk(engines.find((e) => e.engine === "ziwei")?.score ?? 76, "#b07cd6", "ziwei", "紫微斗数", 0.6),
+            mk(consensus?.meanScore ?? 75, "var(--color-up)", "consensus", "共识指数", 0.3),
+          ]
+        : [],
+      markers: isFixture
+        ? [
+            { date: dates[2] ?? "2027-06", label: "高共识区", tone: "consensus" },
+            { date: dates[6] ?? "2027-10", label: "高冲突区", tone: "conflict" },
+          ]
+        : [],
     },
     evidence: evidence
       ? [
