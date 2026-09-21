@@ -730,6 +730,28 @@ export const ENGINE_CN: Record<string, string> = {
   qimen: "奇门遁甲",
 };
 
+/**
+ * 依据返回区间与分析基准日判断该窗口是「当前周/月」还是「下一周/月」。
+ *
+ * 为什么不能写死"下一周"：基准日为 2024-11-15 时，2024-11-11~15 这一周
+ * **已经包含基准日**，把它叫"下一周"会让研究者误判窗口起点
+ * （见 docs/UI_REAUDIT_2026-09-21.md §2）。
+ */
+export function windowPositionCn(
+  start: string | undefined,
+  end: string | undefined,
+  asOf: string,
+  unit: "周" | "月",
+): string {
+  if (!start || !end) return `待定${unit}度窗口`;
+  const a = asOf.slice(0, 10);
+  if (a && start.slice(0, 10) <= a && a <= end.slice(0, 10)) {
+    return `当前${unit}（含分析基准日）`;
+  }
+  if (a && start.slice(0, 10) > a) return `下一${unit}（基准日之后）`;
+  return `${unit}度窗口`;
+}
+
 export function engineCn(key: string): string {
   return ENGINE_CN[key] ?? key;
 }

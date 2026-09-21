@@ -9,7 +9,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { IconLing, IconSearch, IconSettings, IconTaiji } from "./Icons";
+import { BrandMark } from "../brand/BrandMark";
+import { IconLing, IconSearch, IconSettings } from "./Icons";
 import { StockSearch } from "../stock/StockSearch";
 import { Astrolabe, MountainSilhouette, SealStamp } from "./Decorations";
 
@@ -59,21 +60,12 @@ export function TopBar({
         background: "linear-gradient(180deg, rgba(12,24,34,0.96), rgba(9,19,29,0.92))",
       }}
     >
-      {/* Logo */}
+      {/* 品牌标 + 平台名（品牌标用独立的自绘矢量 Logo，不是放大的功能图标） */}
       <Link href="/" className="flex shrink-0 items-center gap-2.5" data-testid="brand">
-        <span
-          className="flex h-9 w-9 items-center justify-center rounded-full"
-          style={{
-            color: "var(--color-gold)",
-            border: "1px solid var(--color-gold-dim)",
-            background: "radial-gradient(circle at 50% 40%, rgba(212,184,122,0.20), transparent 70%)",
-          }}
-        >
-          <IconTaiji size={20} />
-        </span>
+        <BrandMark size={36} />
         <span className="flex flex-col leading-tight">
           <span
-            className="smp-serif-title smp-gold-shimmer text-[19px] font-semibold tracking-[0.06em]"
+            className="smp-serif-title smp-gold-shimmer text-[20px] font-semibold tracking-[0.07em]"
             style={{ fontFamily: "var(--font-serif-cn)" }}
           >
             股票玄学多模型研究平台
@@ -82,7 +74,7 @@ export function TopBar({
       </Link>
 
       <span
-        className="hidden shrink-0 text-[11.5px] tracking-[0.1em] lg:block"
+        className="hidden shrink-0 text-[12px] tracking-[0.1em] lg:block"
         style={{ color: "var(--color-ink-muted)" }}
       >
         以古鉴今 · 多模型共研 · 发现市场的另一重规律
@@ -143,7 +135,7 @@ export function PageHero({
   right,
   seal = "紫",
   couplet = ["观天时", "察地利", "究人道", "研规律"],
-  motto = "东方智慧 · 现代方法 · 更深入的市场认知",
+  motto = ["顺势而为", "知行合一"],
   showDecorations = true,
 }: {
   title: string;
@@ -151,40 +143,54 @@ export function PageHero({
   right?: React.ReactNode;
   seal?: string;
   couplet?: string[];
-  motto?: string;
+  /** 右侧竖排短句（参考图为两行四字）：每项一行。 */
+  motto?: string[];
   showDecorations?: boolean;
 }) {
   return (
     <div
-      className="relative mb-1.5 overflow-hidden rounded-[8px] border px-4 py-1 smp-card"
+      className="relative mb-1.5 overflow-hidden rounded-[8px] border px-4 py-2 smp-card"
       style={{
         background: "linear-gradient(135deg, rgba(16,31,43,0.92) 0%, rgba(13,26,37,0.96) 100%)",
         borderColor: "var(--color-border)",
       }}
+      data-testid="page-hero"
     >
+      {/* 装饰层：星盘在竖联与题词之间，并让出各自的横向区间 ——
+          三者都用绝对定位是为了复刻参考图中"星盘上下被卡片裁切"的效果，
+          因此必须显式留白，不能靠内容自身撑开（否则会出现文字压在星盘上）。 */}
       {showDecorations && (
         <>
           <MountainSilhouette opacity={0.24} />
           <Astrolabe
-            size={160}
+            size={214}
             glow={true}
-            className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 hidden xl:block"
+            className="pointer-events-none absolute right-[126px] top-1/2 -translate-y-1/2 hidden xl:block"
           />
-          {motto && (
+          {motto && motto.length > 0 && (
             <div
-              className="pointer-events-none absolute right-6 bottom-1.5 hidden text-right text-[11px] tracking-[0.14em] xl:block"
-              style={{ color: "var(--color-ink-muted)" }}
+              className="pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 flex-col items-end gap-1 xl:flex"
+              style={{ fontFamily: "var(--font-serif-cn)" }}
+              aria-hidden="true"
             >
-              {motto}
+              {motto.map((line, i) => (
+                <div
+                  key={i}
+                  className="text-[16px] leading-[22px] tracking-[0.18em]"
+                  style={{ color: "var(--color-gold-strong)" }}
+                >
+                  {line}
+                </div>
+              ))}
             </div>
           )}
         </>
       )}
 
-      <div className="relative z-10 flex items-start justify-between gap-4">
+      <div className="relative z-10 flex min-h-[94px] items-center justify-between gap-4">
         <div className="min-w-0">
           <h1
-            className="smp-serif-title smp-gold-shimmer text-[34px] font-bold leading-[1.12] tracking-[0.04em]"
+            className="smp-serif-title smp-gold-shimmer text-[40px] font-bold leading-[1.08] tracking-[0.04em]"
             style={{
               color: "var(--color-gold-strong)",
               fontFamily: "var(--font-serif-cn)",
@@ -195,31 +201,31 @@ export function PageHero({
             {title}
           </h1>
           {subtitle ? (
-            <p className="mt-1 text-[13px] tracking-[0.08em]" style={{ color: "var(--color-ink-sub)" }}>
+            <p className="mt-1.5 text-[14px] tracking-[0.08em]" style={{ color: "var(--color-ink-sub)" }}>
               {subtitle}
             </p>
           ) : null}
         </div>
 
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex shrink-0 items-center gap-4">
           {right}
 
           {showDecorations && couplet && couplet.length > 0 && (
             <div
-              className="hidden sm:flex flex-row-reverse items-start gap-2 select-none pr-2 shrink-0 xl:mr-44"
+              className="hidden shrink-0 select-none flex-row-reverse items-start gap-2 pr-1 sm:flex xl:mr-[420px]"
               style={{ fontFamily: "var(--font-serif-cn)" }}
               aria-hidden="true"
             >
               {couplet.map((col, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-1.5">
                   <div
-                    className="text-[12px] leading-[15px] tracking-[0.2em]"
+                    className="text-[13px] leading-[16px] tracking-[0.22em]"
                     style={{ writingMode: "vertical-rl", color: "rgba(212,184,122,0.85)" }}
                   >
                     {col}
                   </div>
                   {idx === couplet.length - 1 && seal ? (
-                    <SealStamp text={seal} size={19} />
+                    <SealStamp text={seal} size={20} />
                   ) : null}
                 </div>
               ))}

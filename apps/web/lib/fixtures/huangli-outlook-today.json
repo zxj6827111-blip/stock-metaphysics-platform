@@ -1,0 +1,116 @@
+{
+ "outlook_version": "huangli-outlook-v1",
+ "class_rule_version": "huangli-day-class-v1",
+ "engine_version": "huangli-engine-1.0.0",
+ "exchange": "SSE",
+ "as_of": "2024-11-15T15:00:00",
+ "anchor_date": "2024-11-15",
+ "anchor_is_trading_day": true,
+ "mode": "today",
+ "requested_days": null,
+ "requested_months": null,
+ "returned_days": 1,
+ "rule_cn": "展示分析基准日当日的黄历；基准日是否为交易日单独标注。",
+ "coverage": {
+  "status": "complete",
+  "explanation_cn": "已返回 1 日，全部落在实测交易日历覆盖区间（1990-12-19 ~ 2026-09-18）之内。",
+  "calendar_loaded": true,
+  "calendar_source": "observed_index_days",
+  "calendar_coverage": {
+   "start": "1990-12-19",
+   "end": "2026-09-18"
+  },
+  "unknown_days": 0,
+  "first_unknown_date": null
+ },
+ "class_rule": {
+  "rule_id": "huangli-day-class-v1",
+  "basis_field": "HuangliDay.day_tian_shen_luck",
+  "basis_source": "lunar-python getDayTianShenLuck()",
+  "categories": [
+   {
+    "code": "auspicious",
+    "label_cn": "吉"
+   },
+   {
+    "code": "inauspicious",
+    "label_cn": "凶"
+   }
+  ],
+  "third_category_supported": false,
+  "difference_note_cn": "视觉稿的日期卡使用「吉 / 平 / 凶」三级。本系统沿用后端通书口径，该口径只给出「吉 / 凶」两级；没有可解释、可版本化的第三类规则，因此不产出「平」。分类缺失时显式标注「未给出分类」，不以「平」补位。",
+  "not_a_recommendation_cn": "分类描述的是传统择日观念，不是买入/卖出建议；它也不是对股票收益的判断，历史表现属于研究统计，见对应分区。"
+ },
+ "month_groups": [
+  {
+   "month": "2024-11",
+   "dates": [
+    "2024-11-15"
+   ]
+  }
+ ],
+ "days": [
+  {
+   "date": "2024-11-15",
+   "weekday_cn": "星期五",
+   "lunar_text": "二〇二四年十月十五",
+   "year_ganzhi": "甲辰",
+   "month_ganzhi": "乙亥",
+   "day_ganzhi": "癸未",
+   "jieqi": "立冬",
+   "zodiac": "龙",
+   "duty_officer": "成",
+   "day_tian_shen": "明堂",
+   "day_tian_shen_type": "黄道",
+   "day_tian_shen_luck": "吉",
+   "xiu": "亢",
+   "xiu_luck": "凶",
+   "day_nayin": "杨柳木",
+   "chong_desc": "(丁丑)牛",
+   "sha_direction": "西",
+   "pengzu_gan": "癸不词讼理弱敌强",
+   "pengzu_zhi": "未不服药毒气入肠",
+   "cai_shen_direction": "正南",
+   "xi_shen_direction": "东南",
+   "fu_shen_direction": "东北",
+   "day_yi": [
+    "祭祀",
+    "祈福",
+    "求嗣",
+    "开光",
+    "解除",
+    "理发",
+    "会亲友",
+    "栽种",
+    "纳畜",
+    "牧养",
+    "安葬",
+    "修坟",
+    "立碑",
+    "启钻"
+   ],
+   "day_ji": [
+    "入宅",
+    "作灶",
+    "词讼",
+    "移徙",
+    "出行",
+    "赴任"
+   ],
+   "class_code": "auspicious",
+   "class_label_cn": "吉",
+   "class_available": true,
+   "class_basis_cn": "十二神「明堂」属黄道，通书口径为「吉」。",
+   "is_trading_day": true,
+   "offset_trading_days": 1
+  }
+ ],
+ "warnings": [],
+ "methodology_cn": "交易日来自 TradingCalendarProvider 的**实测**指数成交日序列（data/import/calendar/<EXCHANGE>.csv），不是「排除周末」的近似；黄历字段来自 HuangliEngine（lunar-python 通书口径），前端不重算历法。",
+ "_fixture": {
+  "generated_at": "2026-09-21T10:11:03",
+  "stock_code": "600519",
+  "as_of": "2024-11-15T15:00:00",
+  "note": "演示模式固定样本；数值来自真实确定性计算，冻结于此文件。"
+ }
+}

@@ -21,6 +21,9 @@ import type {
   ApiConflict,
   ApiConsensus,
   ApiEvidence,
+  ApiHuangliOutlook,
+  ApiHuangliPerformance,
+  ApiTimelineDays,
   ApiTimelineMonths,
   ApiTimelineWeeks,
   ApiOpinion,
@@ -28,8 +31,29 @@ import type {
 import rawAnalyze from "./fixtures/analyze.json";
 import rawZiweiForward from "./fixtures/ziwei-forward.json";
 import rawZiweiReverse from "./fixtures/ziwei-reverse.json";
+import rawHuangliOutlookToday from "./fixtures/huangli-outlook-today.json";
+import rawHuangliOutlook20d from "./fixtures/huangli-outlook-20d.json";
+import rawHuangliOutlook3m from "./fixtures/huangli-outlook-3m.json";
+import rawHuangliPerformance1y1d from "./fixtures/huangli-performance-1y-1d.json";
+import rawTimelineDays20 from "./fixtures/timeline-days-20.json";
+import rawTimelineMonths12 from "./fixtures/timeline-months-12.json";
+import rawTimelineWeeks12 from "./fixtures/timeline-weeks-12.json";
 
 export const FIXTURE_QUERY_VALUE = "ui-reference";
+
+/* -------------------------------------------------------------------------- */
+/* 黄历 / 时间窗口演示样本                                                      */
+/* -------------------------------------------------------------------------- */
+/* 数值来自**真实确定性计算**（黄历引擎 + 实测交易日历 + 真实 hfq 行情），          */
+/* 冻结成本地 JSON；`?fixture=ui-reference` 时页面直接读它，                       */
+/* 从而保证演示模式全程**零真实后端请求**。                                        */
+/* 边界：这些是固定样本，不是实时结果，也不能当作研究结论的验收证据。               */
+
+export const huangliOutlookTodayFixture = rawHuangliOutlookToday as unknown as ApiHuangliOutlook;
+export const huangliOutlook20dFixture = rawHuangliOutlook20d as unknown as ApiHuangliOutlook;
+export const huangliOutlook3mFixture = rawHuangliOutlook3m as unknown as ApiHuangliOutlook;
+export const huangliPerformanceFixture = rawHuangliPerformance1y1d as unknown as ApiHuangliPerformance;
+export const timelineDaysFixture = rawTimelineDays20 as unknown as ApiTimelineDays;
 
 export function isFixtureActive(): boolean {
   if (typeof window === "undefined") return false;
@@ -779,270 +803,13 @@ export const evidenceFixture: ApiEvidence = {
   disclaimer: "古籍条文只说明传统术数文献论述，不构成对证券资产未来收益率或涨跌的任何预测或保证。",
 };
 
-function createTimelineOpinion(
-  engine: "bazi" | "ziwei" | "huangli",
-  direction: number,
-  score: number,
-  note: string,
-  reasons: { text: string; factor_ids: string[] }[],
-): ApiOpinion {
-  return {
-    engine,
-    engine_version:
-      engine === "bazi"
-        ? "smx-bazi-native-1.0.0"
-        : engine === "ziwei"
-          ? "smx-ziwei-native-1.0.0"
-          : "huangli-engine-1.0.0",
-    availability: "ok",
-    direction,
-    score,
-    confidence: 0.8,
-    top_positive_reasons: direction > 0 ? reasons : [],
-    top_negative_reasons: direction < 0 ? reasons : [],
-    factor_ids: reasons.flatMap((r) => r.factor_ids),
-    note,
-  };
-}
-
-function createTimelineConsensus(
-  label: string,
-  label_cn: string,
-  agreement: string,
-  directions: Record<string, number>,
-  note: string,
-): ApiConsensus {
-  return {
-    display_only: true,
-    label,
-    label_cn,
-    agreement,
-    historical_validity: "中等",
-    data_quality: "A",
-    directions,
-    participating_engines: Object.keys(directions),
-    unavailable_engines: [],
-    mean_score: 75.0,
-    note,
-    agreement_score: agreement === "高" ? 0.9 : 0.6,
-    available_engine_count: 3,
-  };
-}
-
-function createTimelineConflict(
-  has_conflict: boolean,
-  directions: Record<string, number>,
-  severity = "none",
-  conflicting_engines: string[] = [],
-  reasons: string[] = [],
-): ApiConflict {
-  return {
-    display_only: true,
-    has_conflict,
-    severity,
-    conflicting_engines,
-    directions,
-    reasons,
-    note: has_conflict ? "多模型在当前周期存在方向分歧" : "无显著冲突",
-    conflict_level: has_conflict ? "minor" : "none",
-  };
-}
-
-export const timelineMonthsFixture: ApiTimelineMonths = {
-  analysis_id: "AN-20241115143200-600519-987e89",
-  stock_code: "600519",
-  as_of: "2024-11-15",
-  variant_mode: "forward",
-  aggregation_version: "v1.2.0",
-  months: [
-    {
-      month: "2024-11",
-      month_index: 1,
-      start_date: "2024-11-01",
-      end_date: "2024-11-30",
-      bazi: createTimelineOpinion("bazi", 1, 78, "食神生财，流月顺畅", [
-        { text: "月柱印比生扶", factor_ids: ["B_MONTH_001"] },
-      ]),
-      ziwei: createTimelineOpinion("ziwei", 1, 72, "天府坐命，三合生旺", [
-        { text: "天府在命宫化吉", factor_ids: ["Z_PALACE_001"] },
-      ]),
-      huangli: createTimelineOpinion("huangli", 1, 74, "建除成日，天德吉星", [
-        { text: "成日利于拓展", factor_ids: ["H_DAY_001"] },
-      ]),
-      consensus: createTimelineConsensus(
-        "POSITIVE",
-        "正向共振",
-        "高",
-        { bazi: 1, ziwei: 1, huangli: 1 },
-        "三模型同向偏强",
-      ),
-      conflict: createTimelineConflict(false, { bazi: 1, ziwei: 1, huangli: 1 }),
-      research_status: "NOT_RUN",
-      trading_days: 21,
-      sample_dates: ["2024-11-01", "2024-11-15"],
-      warnings: [],
-    },
-    {
-      month: "2024-12",
-      month_index: 2,
-      start_date: "2024-12-01",
-      end_date: "2024-12-31",
-      bazi: createTimelineOpinion("bazi", 1, 76, "正印生身，格局稳定", [
-        { text: "冬令金水相生", factor_ids: ["B_MONTH_002"] },
-      ]),
-      ziwei: createTimelineOpinion("ziwei", 0, 62, "星曜平位，防暗耗", [
-        { text: "擎羊对冲财帛", factor_ids: ["Z_SHA_001"] },
-      ]),
-      huangli: createTimelineOpinion("huangli", 1, 70, "开日明堂，适宜守正", [
-        { text: "吉神偏东有利", factor_ids: ["H_DAY_002"] },
-      ]),
-      consensus: createTimelineConsensus(
-        "MODERATE",
-        "温和偏强",
-        "中",
-        { bazi: 1, ziwei: 0, huangli: 1 },
-        "八字与黄历偏强，紫微中性",
-      ),
-      conflict: createTimelineConflict(false, { bazi: 1, ziwei: 0, huangli: 1 }),
-      research_status: "NOT_RUN",
-      trading_days: 22,
-      sample_dates: ["2024-12-02", "2024-12-16"],
-      warnings: [],
-    },
-    {
-      month: "2025-01",
-      month_index: 3,
-      start_date: "2025-01-01",
-      end_date: "2025-01-31",
-      bazi: createTimelineOpinion("bazi", 0, 58, "气机交接，中性观察", [
-        { text: "丑未相刑需谨慎", factor_ids: ["B_CLASH_001"] },
-      ]),
-      ziwei: createTimelineOpinion("ziwei", 1, 75, "武曲化禄，财帛转强", [
-        { text: "财帛禄存加会", factor_ids: ["Z_PALACE_002"] },
-      ]),
-      huangli: createTimelineOpinion("huangli", 0, 56, "闭日闭塞，静候变化", [
-        { text: "白虎临门防波动", factor_ids: ["H_DAY_003"] },
-      ]),
-      consensus: createTimelineConsensus(
-        "MIXED",
-        "中性观察",
-        "中",
-        { bazi: 0, ziwei: 1, huangli: 0 },
-        "多模型意见分化",
-      ),
-      conflict: createTimelineConflict(
-        true,
-        { bazi: 0, ziwei: 1, huangli: 0 },
-        "minor",
-        ["ziwei", "bazi"],
-        ["紫微偏多而八字偏平"],
-      ),
-      research_status: "NOT_RUN",
-      trading_days: 18,
-      sample_dates: ["2025-01-02", "2025-01-15"],
-      warnings: [],
-    },
-    {
-      month: "2025-02",
-      month_index: 4,
-      start_date: "2025-02-01",
-      end_date: "2025-02-28",
-      bazi: createTimelineOpinion("bazi", 1, 82, "木火通明，食伤吐秀", [
-        { text: "寅申相生有情", factor_ids: ["B_MONTH_003"] },
-      ]),
-      ziwei: createTimelineOpinion("ziwei", 1, 80, "左右同宫，三方聚吉", [
-        { text: "吉化会合身宫", factor_ids: ["Z_PALACE_003"] },
-      ]),
-      huangli: createTimelineOpinion("huangli", 1, 76, "满日金匮，诸事大吉", [
-        { text: "日值金匮黄道", factor_ids: ["H_DAY_004"] },
-      ]),
-      consensus: createTimelineConsensus(
-        "STRONG",
-        "强烈共振",
-        "高",
-        { bazi: 1, ziwei: 1, huangli: 1 },
-        "三模型高度共振",
-      ),
-      conflict: createTimelineConflict(false, { bazi: 1, ziwei: 1, huangli: 1 }),
-      research_status: "NOT_RUN",
-      trading_days: 15,
-      sample_dates: ["2025-02-03", "2025-02-17"],
-      warnings: [],
-    },
-  ],
-  research_status: "NOT_RUN",
-  research_status_reasons: [],
-  methodology: "交易日月度窗口：按交易日提取逐日流日因子并使用加权法聚合",
-  warnings: [],
-};
-
-export const timelineWeeksFixture: ApiTimelineWeeks = {
-  analysis_id: "AN-20241115143200-600519-987e89",
-  stock_code: "600519",
-  as_of: "2024-11-15",
-  variant_mode: "forward",
-  aggregation_version: "v1.2.0",
-  weeks: [
-    {
-      week_index: 1,
-      week_start: "2024-11-11",
-      week_end: "2024-11-15",
-      trading_days: 5,
-      daily_results: [],
-      aggregation_method: "交易日时间加权聚合（传统术数无原生流周）",
-      aggregation_version: "v1.2.0",
-      mean: 73.6,
-      median: 73.0,
-      min: 71.0,
-      max: 77.0,
-      positive_day_ratio: 0.8,
-      weighted_mean: 74.2,
-      consensus: { label: "POSITIVE", label_cn: "正向共振", agreement: "高" } as unknown as ApiConsensus,
-      research_status: "NOT_RUN",
-      warnings: [],
-    },
-    {
-      week_index: 2,
-      week_start: "2024-11-18",
-      week_end: "2024-11-22",
-      trading_days: 5,
-      daily_results: [],
-      aggregation_method: "交易日时间加权聚合（传统术数无原生流周）",
-      aggregation_version: "v1.2.0",
-      mean: 71.3,
-      median: 75.0,
-      min: 60.0,
-      max: 79.0,
-      positive_day_ratio: 0.67,
-      weighted_mean: 72.0,
-      consensus: { label: "POSITIVE", label_cn: "偏多共振", agreement: "中" } as unknown as ApiConsensus,
-      research_status: "NOT_RUN",
-      warnings: [],
-    },
-    {
-      week_index: 3,
-      week_start: "2024-11-25",
-      week_end: "2024-11-29",
-      trading_days: 5,
-      daily_results: [],
-      aggregation_method: "交易日时间加权聚合（传统术数无原生流周）",
-      aggregation_version: "v1.2.0",
-      mean: 65.0,
-      median: 68.0,
-      min: 55.0,
-      max: 72.0,
-      positive_day_ratio: 0.5,
-      weighted_mean: 66.0,
-      consensus: { label: "MODERATE", label_cn: "中性偏温和", agreement: "中" } as unknown as ApiConsensus,
-      research_status: "NOT_RUN",
-      warnings: [],
-    },
-  ],
-  research_status: "NOT_RUN",
-  research_status_reasons: [],
-  methodology: "交易日周度窗口：周度为交易日聚合结果，非独立运限",
-  warnings: [],
-};
+/* 月度 / 周度窗口样本：**直接由真实后端算出**并冻结成 JSON。
+   为什么不再手写：手写版本用的是"分数"单位（mean=73.6），而真实后端
+   `WeekWindow.mean` 是 `combined_direction`（-1/0/1）的均值，量纲完全不同 ——
+   演示模式与真实模式给出两种数字，读者无法分辨哪个是真的。
+   现在两份 fixture 与 `/timeline/{months,weeks}` 的响应逐字段同构。 */
+export const timelineMonthsFixture = rawTimelineMonths12 as unknown as ApiTimelineMonths;
+export const timelineWeeksFixture = rawTimelineWeeks12 as unknown as ApiTimelineWeeks;
 
 export const factorsDictionaryFixture = {
   total: 4,

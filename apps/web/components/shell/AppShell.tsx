@@ -7,9 +7,10 @@
  */
 
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 import { APP_FOOTER_CENTER, APP_FOOTER_LEFT, APP_FOOTER_RIGHT } from "@/lib/appMeta";
+import { FIXTURE_QUERY_VALUE } from "@/lib/fixture";
 import { FooterNote, TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 
@@ -36,10 +37,32 @@ function ShellInner({
   footerRight = APP_FOOTER_RIGHT,
 }: AppShellProps) {
   const params = useSearchParams();
-  const fixture = params.get("fixture") === "ui-reference";
+  const fixture = params.get("fixture") === FIXTURE_QUERY_VALUE;
+
+  /**
+   * 就绪信号：只有客户端首次 effect 跑完才为 true。
+   *
+   * 为什么需要它：Next.js 的流式 SSR 会先把整页内容放进
+   * `<div hidden id="S:0">`，再由文档末尾的 `$RC("B:0","S:0")` 把它搬进
+   * Suspense 边界；在这两个时刻之间，以及 React 完成 hydration 之前，
+   * DOM 处于"服务端内容 + 客户端尚未接管"的中间态。
+   * 自动化测试若在这个窗口里做严格模式断言，就可能看到中间态（而不是稳定终态）。
+   *
+   * 这个属性把"什么时候可以断言"变成**可观测的事实**：
+   * 服务端渲染 `false`，客户端挂载后置为 `true`（SSR 与首次客户端渲染一致，
+   * 因此不会引入 hydration 不一致；属性变化发生在 effect 之后）。
+   * 测试应等待 `[data-app-ready="true"]` 再断言，而不是靠固定延时 ——
+   * 延时既可能太短（看到中间态）也可能掩盖真正的挂载失败。
+   */
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   return (
-    <div className="relative z-10 flex h-screen flex-col overflow-hidden">
+    <div
+      className="relative z-10 flex h-screen flex-col overflow-hidden"
+      data-app-ready={ready ? "true" : "false"}
+      data-fixture-mode={fixture ? "fixture" : "live"}
+    >
       <TopBar dataStatus={dataStatus} statusText={statusText} asOf={asOf} />
       <div className="flex min-h-0 flex-1">
         <Sidebar activeKey={activeNav} />

@@ -31,15 +31,12 @@ export function StockContextBar({
   onRecalculate,
   recalculating,
   onExport,
-  showTabs = false,
 }: {
   context: StockContext;
   activeTab?: string;
   onRecalculate?: () => void;
   recalculating?: boolean;
   onExport?: () => void;
-  /** 参考图 02 的上下文栏是单行；03 额外带一行股票切换条。 */
-  showTabs?: boolean;
 }) {
   const params = useSearchParams();
   const fixture = params.get("fixture") === FIXTURE_QUERY_VALUE;
@@ -225,51 +222,6 @@ export function StockContextBar({
               >
                 切换预测周期
               </button>
-            </span>
-          </div>
-        ) : null}
-
-        {showTabs ? (
-          <div
-            className="mt-1 flex flex-wrap items-center gap-1 border-t pt-1"
-            style={{ borderColor: "var(--color-border)" }}
-          >
-            <IconClock size={12} style={{ color: "var(--color-ink-faint)" }} />
-            {TABS.map((t) =>
-              t.disabled ? (
-                <span
-                  key={t.key}
-                  className="rounded-[4px] px-2.5 py-[3px] text-[11.5px]"
-                  style={{ color: "var(--color-ink-faint)" }}
-                  title="Phase 2 实现"
-                >
-                  {t.label}
-                </span>
-              ) : (
-                <Link
-                  key={t.key}
-                  href={t.href}
-                  className="rounded-[4px] px-2.5 py-[3px] text-[11.5px] transition-colors"
-                  style={{
-                    color: activeTab === t.key ? "var(--color-gold)" : "var(--color-ink-sub)",
-                    background: activeTab === t.key ? "var(--color-gold-ghost)" : "transparent",
-                    border:
-                      activeTab === t.key
-                        ? "1px solid var(--color-gold-dim)"
-                        : "1px solid transparent",
-                  }}
-                >
-                  {t.label}
-                </Link>
-              ),
-            )}
-            <span
-              className="ml-auto text-[10.5px]"
-              style={{ color: "var(--color-ink-faint)" }}
-              data-testid="variant-note"
-              data-variant-mode={birthProfile.variantMode}
-            >
-              运限假设：{variantModeLabel(birthProfile.variantMode)}
             </span>
           </div>
         ) : null}

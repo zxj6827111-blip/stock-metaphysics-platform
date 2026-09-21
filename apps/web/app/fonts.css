@@ -1,0 +1,32 @@
+/* ==========================================================================
+   平台自带字体（apps/web/public/fonts）
+   --------------------------------------------------------------------------
+   为什么用自托管字体而不是 font-family 回退列表
+   ----------------------------------------------
+   回退列表在不同系统上落到不同字体：macOS 会命中 PingFang SC / Songti SC，
+   Windows 只能落到 微软雅黑 / SimSun。后者在大字号下的字面、字重与字距
+   与参考图差异明显，导致"同一份代码、两台机器两种视觉结论"。
+
+   这里改为加载**两份 OFL 授权的可变字重子集**（来源与许可见
+   public/fonts/README.md 与 OFL-*.txt），使得字形在所有平台上确定。
+
+   字重范围刻意收窄到 400–900：上游变量字体把轴的默认值放在最细端
+   （宋体 200 / 黑体 100），若声明完整范围，一个 font-weight: 300 的写法
+   就会渲染出极细字形。平台排版体系只用 400–700。
+   ========================================================================== */
+
+@font-face {
+  font-family: "SMP Sans SC";
+  src: url("/fonts/noto-sans-sc-subset.woff2") format("woff2-variations");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "SMP Serif SC";
+  src: url("/fonts/noto-serif-sc-subset.woff2") format("woff2-variations");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}

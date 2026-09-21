@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import statistics
 from datetime import date, datetime, timedelta
+from typing import NamedTuple
 
 from src.core.config import settings
 from src.core.orchestration.analysis_service import AnalysisService, direction_from_score
@@ -28,6 +29,7 @@ from src.core.schemas.analysis import MetaphysicsOpinion
 from src.core.schemas.common import Availability, EngineId, VariantMode, Warning_
 from src.core.schemas.timeline import (
     AGGREGATION_VERSION,
+    DailyWindowResponse,
     DayResult,
     MonthWindow,
     TimeWindowResponse,
@@ -40,9 +42,23 @@ from src.factors.registry.compute import compute_factor_set
 #: 每周的交易日数量（A 股一周最多 5 个交易日）
 TRADING_DAYS_PER_WEEK = 5
 
+#: 逐日视图默认与最大交易日数量。
+#: 上限 60 是因为逐日结果要按天算八字节律 + 紫微流日，60 天足以覆盖"近 3 个月"，
+#: 再长就该用月/周窗口而不是逐日列表。
+DEFAULT_DAILY_WINDOW = 20
+MAX_DAILY_WINDOW = 60
+
+
+class DayEvaluation(NamedTuple):
+    """某一天的三模型观点 + 该天的因子集（共识/冲突需要它）。"""
+
+    opinions: dict[str, MetaphysicsOpinion]
+    factor_set: object
+    as_of: datetime
+
 
 class TimelineBuilder:
-    """构建未来时间窗口（月 / 周）。"""
+    """构建未来时间窗口（月 / 周 / 日）。"""
 
     def __init__(self, service: AnalysisService | None = None) -> None:
         self.service = service or AnalysisService()
@@ -94,6 +110,160 @@ class TimelineBuilder:
         return out, warnings
 
     # ------------------------------------------------------------------
+    # 批量逐日求值（性能关键路径）
+    # ------------------------------------------------------------------
+    def evaluate_days(
+        self,
+        *,
+        stock_code: str,
+        target_days: list[date],
+        variant_mode: VariantMode,
+        birth_datetime: datetime | None,
+        hour: int = 15,
+    ) -> tuple[dict[date, DayEvaluation], list[Warning_]]:
+        """批量求多天的三模型观点（含该天的因子集，供共识/冲突使用）。
+
+        为什么不能逐日调用 ``_score_at``：那条路径每天都要重建 31 天黄历
+        （0.28s）并单独启动一次 Node 子进程排紫微（0.23s），
+        20 个交易日就要 17 秒。这里把两处可批量的部分批起来：
+
+        * 黄历：一次构造覆盖整个区间的连续日历，再按天切片
+          （``HuangliEngine.snapshots_for_window``，结果与逐日调用逐字段相同）；
+        * 紫微：一次 ``calculate_charts`` 批量请求（``services/ziwei-service`` 的
+          批量入口本来就是为此设计的）。
+
+        **不改变任何分数**：每个交易日的观点仍由同一个 ``compute_factor_set`` +
+        ``build_opinion`` 产出，只是把重复的构造摊掉了。
+        ``tests/core/test_timeline_batch_equivalence.py`` 断言两条路径结果一致。
+        """
+        if not target_days:
+            return {}, []
+        warnings: list[Warning_] = []
+        ordered = sorted(set(target_days))
+        if birth_datetime is None:
+            raise ValueError("时间窗口需要 birth_datetime（请先构造出生档案）")
+
+        start_dt = datetime(ordered[0].year, ordered[0].month, ordered[0].day, hour, 0, 0)
+        offsets = [(d - ordered[0]).days for d in ordered]
+        offset_by_day = dict(zip(ordered, offsets, strict=True))
+        huangli_map = self.service.huangli.snapshots_for_window(
+            start=start_dt, offsets=offsets, window_days=31,
+        )
+
+        charts = {
+            d: self.service.bazi.build_chart(
+                birth_datetime=birth_datetime.replace(tzinfo=None),
+                as_of=datetime(d.year, d.month, d.day, hour, 0, 0),
+                variant_mode=variant_mode,
+                stock_code=stock_code,
+            )
+            for d in ordered
+        }
+
+        ziwei_charts: dict[date, object] = {}
+        if variant_mode in (VariantMode.FORWARD, VariantMode.REVERSE):
+            from src.engines.base import EngineContext  # 局部导入避免循环依赖
+
+            requests = [
+                {
+                    "context": EngineContext(
+                        stock_code=stock_code,
+                        as_of=datetime(d.year, d.month, d.day, hour, 0, 0),
+                    ),
+                    "birth_datetime": birth_datetime.replace(tzinfo=None),
+                    "as_of": datetime(d.year, d.month, d.day, hour, 0, 0),
+                    "variant_mode": variant_mode,
+                    "stock_code": stock_code,
+                }
+                for d in ordered
+            ]
+            try:
+                built = self.service.ziwei.calculate_charts(requests)
+                ziwei_charts = dict(zip(ordered, built, strict=True))
+            except ZiweiUnavailableError as exc:
+                # 单个引擎不可用不影响其它引擎（AGENTS.md §9.7）
+                warnings.append(Warning_(
+                    code="TIMELINE_ZIWEI_UNAVAILABLE",
+                    message=f"紫微批量排盘不可用：{exc}",
+                    severity="warning",
+                ))
+
+        out: dict[date, DayEvaluation] = {}
+        for d in ordered:
+            as_of_day = datetime(d.year, d.month, d.day, hour, 0, 0)
+            fset = compute_factor_set(
+                charts[d], huangli_map[offset_by_day[d]], as_of_day,
+                stock_code=stock_code, ziwei_chart=ziwei_charts.get(d),
+            )
+            opinions = {
+                "bazi": self.service.build_opinion(
+                    EngineId.BAZI, fset, self.service.bazi.engine_version),
+                "huangli": self.service.build_opinion(
+                    EngineId.HUANGLI, fset, self.service.huangli.engine_version),
+            }
+            if d in ziwei_charts:
+                opinions["ziwei"] = self.service.build_opinion(
+                    EngineId.ZIWEI, fset, self.service.ziwei.engine_version)
+            else:
+                opinions["ziwei"] = MetaphysicsOpinion(
+                    engine=EngineId.ZIWEI, availability=Availability.UNAVAILABLE,
+                    direction=0, score=None, confidence=0.0,
+                    note="该时刻紫微不可用（服务不可用或未指定方向 variant），不以 0 分替代。",
+                )
+            out[d] = DayEvaluation(opinions=opinions, factor_set=fset, as_of=as_of_day)
+        return out, warnings
+
+    # ------------------------------------------------------------------
+    # 逐日窗口（主时间视图的真实粒度）
+    # ------------------------------------------------------------------
+    def build_days(
+        self,
+        *,
+        stock_code: str,
+        as_of: datetime,
+        days: int = DEFAULT_DAILY_WINDOW,
+        variant_mode: VariantMode = VariantMode.FORWARD,
+        exchange: str = "SSE",
+        birth_datetime: datetime | None = None,
+    ) -> tuple[list[DayResult], list[Warning_]]:
+        """as_of 之后连续的 ``days`` 个**实际交易日**的逐日结果。
+
+        粒度说明：这是**逐日**粒度，来自流日（流日 = 该日期的日柱 + 当日黄历），
+        不是把月度分数插值出来的"每日预测"。
+        """
+        warnings: list[Warning_] = []
+        days = max(1, min(int(days), MAX_DAILY_WINDOW))
+        start = as_of.date() + timedelta(days=1)
+        span_end = start + timedelta(days=days * 7 + 60)
+        all_days, cal_warnings = self.trading_days_in(start, span_end, exchange)
+        for w in cal_warnings:
+            warnings.append(Warning_(
+                code="TIMELINE_CALENDAR_PARTIAL", message=w, severity="info",
+            ))
+        target = all_days[:days]
+        if not target:
+            return [], [*warnings, Warning_(
+                code="TIMELINE_NO_TRADING_DAY",
+                message="as_of 之后没有任何已知交易日，无法产出逐日窗口。",
+                severity="warning",
+            )]
+        if len(target) < days:
+            warnings.append(Warning_(
+                code="TIMELINE_DAILY_PARTIAL",
+                message=(
+                    f"请求 {days} 个交易日，实际只取到 {len(target)} 个："
+                    "交易日历在区间内覆盖不足（不补造日期）。"
+                ),
+                severity="warning",
+            ))
+        opinions_by_day, w = self.evaluate_days(
+            stock_code=stock_code, target_days=target,
+            variant_mode=variant_mode, birth_datetime=birth_datetime,
+        )
+        warnings.extend(w)
+        return [_day_result(d, opinions_by_day[d].opinions) for d in target], warnings
+
+    # ------------------------------------------------------------------
     # 月度窗口
     # ------------------------------------------------------------------
     def build_months(
@@ -108,6 +278,10 @@ class TimelineBuilder:
     ) -> tuple[list[MonthWindow], list[Warning_]]:
         warnings: list[Warning_] = []
         out: list[MonthWindow] = []
+        # 先把每个月的"打分日"收集起来一次性求值，再逐月装配窗口。
+        # 打分日 = 该月最后一个交易日（月内信息最完整）。
+        planned: list[tuple[int, MonthWindow, list[date]]] = []
+        score_days: list[date] = []
 
         for i in range(1, months + 1):
             year, month = _add_months(as_of.year, as_of.month, i)
@@ -127,7 +301,6 @@ class TimelineBuilder:
                 trading_days=len(trading_days),
                 sample_dates=[d.isoformat() for d in _sample_days(trading_days)],
             )
-
             if not trading_days:
                 window.research_status = "NOT_RUN"
                 window.warnings.append(Warning_(
@@ -137,20 +310,25 @@ class TimelineBuilder:
                 ))
                 out.append(window)
                 continue
+            planned.append((i, window, trading_days))
+            score_days.append(trading_days[-1])
 
-            # 取该月最后一个交易日作为打分时点（月内信息最完整）
-            score_day = trading_days[-1]
-            as_of_month = datetime(score_day.year, score_day.month, score_day.day, 15, 0, 0)
-            opinions, fset, w = self._score_at(
-                stock_code=stock_code, as_of=as_of_month,
-                variant_mode=variant_mode, birth_datetime=birth_datetime,
-            )
-            warnings.extend(w)
+        opinions_by_day, eval_warnings = self.evaluate_days(
+            stock_code=stock_code,
+            target_days=score_days,
+            variant_mode=variant_mode,
+            birth_datetime=birth_datetime,
+        )
+        warnings.extend(eval_warnings)
+
+        for _i, window, trading_days in planned:
+            evaluation = opinions_by_day[trading_days[-1]]
+            opinions = evaluation.opinions
             window.bazi = opinions.get("bazi")
             window.ziwei = opinions.get("ziwei")
             window.huangli = opinions.get("huangli")
             consensus, conflict = self.service.build_consensus_and_conflict(
-                opinions, factor_set=fset,
+                opinions, factor_set=evaluation.factor_set,
                 data_quality="B",
                 research_status="NOT_RUN",
             )
@@ -203,10 +381,24 @@ class TimelineBuilder:
                 severity="warning",
             )]
 
+        # 先把所有周的交易日并成一批求值（每 5 个交易日一周），再逐周聚合。
+        # 逐日调用 _score_at 时，12 周要 32 秒；批量后是同一份结果的摊薄。
+        chunks: list[list[date]] = []
         for i in range(weeks):
             chunk = all_days[i * TRADING_DAYS_PER_WEEK:(i + 1) * TRADING_DAYS_PER_WEEK]
             if not chunk:
                 break
+            chunks.append(chunk)
+        all_target = [d for chunk in chunks for d in chunk]
+        evaluations, eval_warnings = self.evaluate_days(
+            stock_code=stock_code,
+            target_days=all_target,
+            variant_mode=variant_mode,
+            birth_datetime=birth_datetime,
+        )
+        warnings.extend(eval_warnings)
+
+        for i, chunk in enumerate(chunks):
             week = WeekWindow(
                 week_index=i + 1,
                 week_start=chunk[0],
@@ -219,15 +411,9 @@ class TimelineBuilder:
                 ),
                 aggregation_version=AGGREGATION_VERSION,
             )
-            daily: list[DayResult] = []
-            for d in chunk:
-                as_of_day = datetime(d.year, d.month, d.day, 15, 0, 0)
-                opinions, _, w = self._score_at(
-                    stock_code=stock_code, as_of=as_of_day,
-                    variant_mode=variant_mode, birth_datetime=birth_datetime,
-                )
-                warnings.extend(w)
-                daily.append(_day_result(d, opinions))
+            daily: list[DayResult] = [
+                _day_result(d, evaluations[d].opinions) for d in chunk
+            ]
             week.daily_results = daily
 
             combined = [float(x.combined_direction) for x in daily]
@@ -242,13 +428,10 @@ class TimelineBuilder:
 
             # 周度共识：用周内代表性交易日的观点（取中位数那一天）
             mid = daily[len(daily) // 2].trade_date
-            opinions, fset, _w = self._score_at(
-                stock_code=stock_code,
-                as_of=datetime(mid.year, mid.month, mid.day, 15, 0, 0),
-                variant_mode=variant_mode, birth_datetime=birth_datetime,
-            )
+            evaluation = evaluations[mid]
             consensus, _conflict = self.service.build_consensus_and_conflict(
-                opinions, factor_set=fset, data_quality="B", research_status="NOT_RUN",
+                evaluation.opinions, factor_set=evaluation.factor_set,
+                data_quality="B", research_status="NOT_RUN",
             )
             week.consensus = consensus
             week.research_status = consensus.research_status
@@ -428,6 +611,55 @@ def build_time_windows(
     )
 
 
+def build_daily_windows(
+    *,
+    stock_code: str,
+    as_of: datetime,
+    birth_datetime: datetime,
+    days: int = DEFAULT_DAILY_WINDOW,
+    variant_mode: VariantMode = VariantMode.FORWARD,
+    exchange: str = "SSE",
+    service: AnalysisService | None = None,
+) -> DailyWindowResponse:
+    """构建逐日窗口（主时间视图的真实粒度）。"""
+    builder = TimelineBuilder(service)
+    requested = max(1, min(int(days), MAX_DAILY_WINDOW))
+    day_results, warnings = builder.build_days(
+        stock_code=stock_code, as_of=as_of, days=requested,
+        variant_mode=variant_mode, exchange=exchange, birth_datetime=birth_datetime,
+    )
+    present = sorted({
+        name
+        for d in day_results
+        for name, score in (
+            ("bazi", d.bazi_score), ("ziwei", d.ziwei_score), ("huangli", d.huangli_score),
+        )
+        if score is not None
+    })
+    return DailyWindowResponse(
+        stock_code=stock_code,
+        as_of=as_of,
+        variant_mode=str(variant_mode.value if hasattr(variant_mode, "value") else variant_mode),
+        requested_days=requested,
+        returned_days=len(day_results),
+        days=day_results,
+        research_status="NOT_RUN",
+        research_status_reasons=[
+            "逐日结果给出的是**该交易日流日的传统规则强度**，"
+            "不是价格预测，也没有历史统计支持其预测能力。"
+            "历史有效性必须由研究流水线（事件研究 + 负对照）回答。"
+        ],
+        methodology=(
+            f"每个点都是独立求值的**流日**结果（as_of 之后连续的实际交易日，"
+            f"来自实测交易日历 {exchange}），不是把月度分数插值到每一天。"
+            f"本批数据中可用的引擎：{'、'.join(present) if present else '（无）'}；"
+            "不可用引擎的分数字段为 null，不参与方向合成、也不以 0 替代。"
+        ),
+        warnings=warnings,
+    )
+
+
 __all__ = [
-    "TimelineBuilder", "build_time_windows", "TRADING_DAYS_PER_WEEK",
+    "TimelineBuilder", "build_time_windows", "build_daily_windows",
+    "TRADING_DAYS_PER_WEEK", "DEFAULT_DAILY_WINDOW", "MAX_DAILY_WINDOW",
 ]
