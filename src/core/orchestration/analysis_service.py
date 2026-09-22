@@ -1140,10 +1140,13 @@ class AnalysisService:
         return out
 
     def load_birth_profile(self, db: Session, stock_code: str,
-                           version: str | None = None) -> StockBirthProfile | None:
+                           version: str | None = None,
+                           birth_basis: str | None = None) -> StockBirthProfile | None:
         stmt = select(StockBirthProfileRow).where(StockBirthProfileRow.stock_code == stock_code)
         if version:
             stmt = stmt.where(StockBirthProfileRow.birth_profile_version == version)
+        if birth_basis:
+            stmt = stmt.where(StockBirthProfileRow.birth_basis == birth_basis)
         stmt = stmt.order_by(StockBirthProfileRow.updated_at.desc())
         row = db.execute(stmt).scalars().first()
         return None if row is None else bp.from_row(row)

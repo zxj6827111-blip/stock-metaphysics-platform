@@ -17,6 +17,8 @@ from apps.api.deps import (
 from apps.api.errors import InvalidRequestError, NotFoundError
 from src.core.config import settings
 from src.core.orchestration.analysis_service import AnalysisService, direction_from_score
+from src.core.orchestration.date_relation_scan import relation_detail, scan_market_by_date
+from src.core.relations.date_relation import build_date_relation_fingerprint
 from src.core.schemas.common import VariantMode, Warning_
 from src.core.schemas.consensus import (
     ConsensusResearchRequest,
@@ -29,12 +31,14 @@ from src.core.schemas.market import (
     NegativeControlKind,
     NegativeControlReport,
 )
+from src.core.schemas.relation import DateRelationFingerprint, DateScanRequest, DateScanResponse
 from src.core.schemas.stock import BirthProfileCreateRequest, StockBirthProfile
 from src.core.stock.birth_profile import build_birth_profile
 from src.core.stock.exchange_sessions import ex_value
 from src.db.models import BacktestExperimentRow, BacktestResultRow
 from src.engines.base import EngineContext
 from src.engines.bazi.bazi_engine import BaziEngine
+from src.engines.calendar.calendar_engine import CalendarEngine
 from src.engines.huangli.huangli_engine import HuangliEngine
 from src.engines.ziwei.ziwei_engine import ZiweiUnavailableError
 from src.factors.registry.compute import compute_factor_set
@@ -73,6 +77,61 @@ class ResearchRunResponse(BaseModel):
     research_status: str = "NOT_RUN"
     research_status_reasons: list[str] = Field(default_factory=list)
     data_source: dict = Field(default_factory=dict)
+
+
+@router.get(
+    "/date-relations/{target_date}",
+    response_model=DateRelationFingerprint,
+    summary="获取指定日期的关系指纹",
+)
+def get_date_relation_fingerprint(target_date: date, hour: int | None = Query(None, ge=0, le=23)) -> DateRelationFingerprint:
+    """只计算日期模板，不读取股票池。"""
+    when = datetime.combine(target_date, datetime.min.time()).replace(hour=hour if hour is not None else 12)
+    return build_date_relation_fingerprint(CalendarEngine().snapshot(when))
+
+
+@router.post(
+    "/date-scan",
+    response_model=DateScanResponse,
+    summary="指定日期×全市场股票关系扫描",
+)
+def run_date_relation_scan(payload: DateScanRequest, db: Session = Depends(db_session)) -> DateScanResponse:
+    try:
+        return scan_market_by_date(db, payload)
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+
+
+@router.get(
+    "/date-scan/{scan_id}/stocks/{code}",
+    summary="获取单只股票的日期关系矩阵",
+)
+def get_date_relation_detail(
+    scan_id: str,
+    code: str,
+    target_date: date = Query(..., description="扫描日期"),
+    universe: str = Query("v4-full"),
+    birth_basis: str = Query("listing_open"),
+    birth_profile_version: str = Query("v2-phase4b-listing_open"),
+    relation_rule_version: str = Query("bazi-relation-v2"),
+    hour: int | None = Query(None, ge=0, le=23),
+    db: Session = Depends(db_session),
+) -> dict:
+    """返回严格 3×4 矩阵；scan_id 用于审计，参数仍显式重建口径。"""
+    request = DateScanRequest(
+        date=target_date,
+        hour=hour,
+        universe=universe,
+        birth_basis=birth_basis,
+        birth_profile_version=birth_profile_version,
+        relation_rule_version=relation_rule_version,
+        limit=1,
+    )
+    try:
+        row = relation_detail(db, request, code)
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    return {"scan_id": scan_id, "target_date": target_date, "row": row.model_dump(mode="json", by_alias=True)}
 
 
 def _build_helpers(market, service: AnalysisService):
