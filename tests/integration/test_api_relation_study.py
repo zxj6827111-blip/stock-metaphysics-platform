@@ -1,4 +1,4 @@
-"""关系历史研究 API 契约测试。"""
+"""关系历史研究 API 契约测试（bazi-relation-v3 口径 + 跨功能不变量）。"""
 
 from __future__ import annotations
 
@@ -6,13 +6,13 @@ from datetime import date, datetime
 
 from sqlalchemy import select
 
+from src.core.config import settings
 from src.db.models import StockBirthProfileRow, StockMasterRow, UniverseMembershipRow
 
 
-def _seed_stock(db_session):
-    code = "600519"
+def _seed_stock(db_session, code: str = "600519") -> str:
     if db_session.get(StockMasterRow, code) is None:
-        db_session.add(StockMasterRow(stock_code=code, wind_code="600519.SH", name="贵州茅台", exchange="SSE", board="主板", listing_date=date(2001, 8, 27), source="test"))
+        db_session.add(StockMasterRow(stock_code=code, wind_code=f"{code}.SH", name="贵州茅台", exchange="SSE", board="主板", listing_date=date(2001, 8, 27), source="test"))
     if db_session.execute(select(StockBirthProfileRow).where(StockBirthProfileRow.stock_code == code, StockBirthProfileRow.birth_basis == "listing_open", StockBirthProfileRow.birth_profile_version == "v2-phase4b-listing_open")).scalar_one_or_none() is None:
         db_session.add(StockBirthProfileRow(stock_code=code, exchange="SSE", birth_basis="listing_open", birth_datetime=datetime(2001, 8, 27, 9, 30), timezone="Asia/Shanghai", source="test", birth_profile_version="v2-phase4b-listing_open", evidence_json={}, assumptions_json=[], data_quality_json={"grade": "A"}, variant_mode="not_applicable", variant_note=""))
     if db_session.execute(select(UniverseMembershipRow).where(UniverseMembershipRow.universe_version == "v4-full", UniverseMembershipRow.stock_code == code)).scalar_one_or_none() is None:
@@ -21,7 +21,7 @@ def _seed_stock(db_session):
     return code
 
 
-def test_relation_study_returns_directionless_factor(client, db_session):
+def test_relation_study_returns_directionless_v3_factor(client, db_session):
     code = _seed_stock(db_session)
     response = client.post("/api/v1/research/relation-study", json={"relation_type": "六合", "universe": "v4-full", "stock_codes": [code], "date_from": "2024-01-01", "date_to": "2024-12-31", "horizons": [1, 5, 20], "sample_step_months": 3, "run_negative_controls": True, "persist": False})
     assert response.status_code == 200, response.text
@@ -30,6 +30,111 @@ def test_relation_study_returns_directionless_factor(client, db_session):
     assert body["direction"] == 0
     assert body["splits"]
     assert all(split["research_status"] for split in body["splits"])
+    # v3 口径回显
+    assert body["relation_rule_version"] == "bazi-relation-v3"
+    assert body["relation_matrix_schema_version"] == "relation-matrix-v2"
+    assert body["aggregate_scope"] == "external_day_row"
+    assert body["matrix_target_scope"] == ["year", "month", "day"]
+    assert body["yongshen_basis"] == "full_four_pillars"
+    assert body["evaluation_time"] == "12:00:00"
+    assert body["timezone"] == "Asia/Shanghai"
+    # 多重比较范围与 p-value 对照类型必须如实回显
+    assert body["multiplicity_scope"] == "within_relation_split_horizon"
+    assert body["p_value_control_kind"] == "random_birth_date"
+    assert "跨关系类型联合校正" in body["methodology"]
+    assert body["factor_definition"]["factor_id"] == "REL_LIUHE"
+    assert "3×3" in body["factor_definition"]["definition"]
+    for split in body["splits"]:
+        for horizon in split["horizons"]:
+            assert horizon["p_value_control_kind"] == "random_birth_date"
+
+
+def test_relation_study_requires_explicit_full_universe_confirmation(client, db_session):
+    _seed_stock(db_session)
+    response = client.post(
+        "/api/v1/research/relation-study",
+        json={"relation_type": "六合", "universe": "v4-full", "date_from": "2024-01-01", "date_to": "2024-12-31", "persist": False},
+    )
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+    assert "allow_full_universe" in response.json()["error"]["message"]
+
+
+def test_relation_study_full_universe_runs_only_when_confirmed(client, db_session):
+    _seed_stock(db_session)
+    response = client.post(
+        "/api/v1/research/relation-study",
+        json={
+            "relation_type": "六合", "universe": "v4-full",
+            "date_from": "2024-01-01", "date_to": "2024-12-31",
+            "sample_step_months": 6, "horizons": [5],
+            "run_negative_controls": False, "persist": False,
+            "allow_full_universe": True,
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["data_source"]["stock_scope"] == "full_universe"
+    assert body["data_source"]["stock_count"] >= 1
+    assert any("全市场研究" in warning for warning in body["warnings"])
+
+
+def test_relation_study_hit_count_matches_date_scan_day_row(client, db_session):
+    """跨功能不变量：REL_ 命中次数 == Date Scan 流日行同关系事件数。"""
+    code = _seed_stock(db_session)
+    from src.core.orchestration.date_relation_scan import _load_static_natal_cache
+    from src.core.schemas.stock import StockBirthProfile
+    from src.core.stock.birth_profile import from_row
+    from src.engines.bazi.bazi_engine import BaziEngine
+    from src.engines.calendar.calendar_engine import CalendarEngine
+    from src.research.relation_study import build_relation_observations
+
+    scan = client.post("/api/v1/research/date-scan", json={"date": "2026-09-22", "limit": 1})
+    assert scan.status_code == 200, scan.text
+    scan_body = scan.json()
+    detail = client.get(
+        f"/api/v1/research/date-scan/{scan_body['scan_id']}/stocks/{code}",
+        params={"target_date": "2026-09-22"},
+    )
+    assert detail.status_code == 200, detail.text
+    row = detail.json()["row"]
+    matrix = row["matrix"]
+    day_events = [
+        event
+        for matrix_row in matrix["rows"] if matrix_row["source_pillar"] == "day"
+        for cell in matrix_row["cells"] for event in cell["events"]
+    ]
+    assert day_events, "样本日流日行没有事件，无法验证跨功能一致性"
+    relation = day_events[0]["relation_type"]
+    expected_count = sum(1 for event in day_events if event["relation_type"] == relation)
+
+    profile_row = db_session.execute(
+        select(StockBirthProfileRow).where(
+            StockBirthProfileRow.stock_code == code,
+            StockBirthProfileRow.birth_basis == "listing_open",
+            StockBirthProfileRow.birth_profile_version == "v2-phase4b-listing_open",
+        )
+    ).scalars().one()
+    profile = StockBirthProfile.model_validate(from_row(profile_row))
+    observations = build_relation_observations(
+        stock_code=code,
+        profile=profile,
+        as_of_date=date(2026, 9, 22),
+        relation_type=relation,
+        bazi=BaziEngine(),
+        calendar=CalendarEngine(),
+        use_static_natal=_load_static_natal_cache().get(code),
+    )
+    assert len(observations) == 1
+    observation = observations[0]
+    assert observation.raw_value["hit_count"] == expected_count, (
+        f"REL_ 因子命中 {observation.raw_value['hit_count']} != 流日行事件数 {expected_count}"
+    )
+    assert observation.normalized_value == float(expected_count)
+    assert observation.rule_version == settings.relation_rule_version
+    assert observation.raw_value["aggregate_scope"] == "external_day_row"
+    assert observation.raw_value["matrix_target_scope"] == ["year", "month", "day"]
+    assert relation in row["relation_types"] or expected_count == 0
 
 
 def test_experiment_detail_returns_audit_metadata(client):
@@ -43,3 +148,20 @@ def test_experiment_detail_returns_audit_metadata(client):
     experiment = detail.json()["experiment"]
     for field in ("status", "date_from", "date_to", "benchmark_code", "params"):
         assert field in experiment
+
+
+def test_relation_catalog_exposes_factor_definitions(client):
+    """RELATION_DEFINITION_INDEX 必须真正被业务读取（目录/研究响应），而不是死代码。"""
+    catalog = client.get("/api/v1/research/relation-catalog")
+    assert catalog.status_code == 200
+    body = catalog.json()
+    assert body["factors"]["REL_LIUHE"]["rule_version"] == settings.relation_rule_version
+    assert "流日" in body["factors"]["REL_LIUHE"]["definition"]
+    assert set(body["factors"]) == {
+        "REL_TIANGAN_WUHE", "REL_TIANGAN_XIANGCHONG", "REL_TIANGAN_SHENG",
+        "REL_TIANGAN_SHOUSHENG", "REL_TIANGAN_KE", "REL_TIANGAN_SHOUKE",
+        "REL_TIANGAN_TONGWUXING", "REL_LIUHE", "REL_LIUCHONG", "REL_SANHE",
+        "REL_BANHE", "REL_SANHUI", "REL_XIANGXING", "REL_SANXING", "REL_ZIXING",
+        "REL_XIANGHAI", "REL_LIUPO", "REL_TONGZHI", "REL_FUYIN", "REL_FANYIN",
+        "REL_TIANHEDIHE", "REL_TIANKEDICHONG",
+    }
