@@ -12,13 +12,10 @@ from __future__ import annotations
 
 import ast
 import json
-from datetime import datetime
 from pathlib import Path
 
 import pytest
 
-from src.core.schemas.common import VariantMode
-from src.engines.base import EngineContext
 from src.engines.ziwei.reference import (
     REFERENCE_AVAILABLE,
     REFERENCE_SCHOOL,
@@ -43,6 +40,7 @@ from src.engines.ziwei.ziwei_engine import ZiweiEngine
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CASES_PATH = PROJECT_ROOT / "config" / "ziwei_cross_engine_cases.json"
+FIXTURE_DIR = PROJECT_ROOT / "tests" / "fixtures" / "ziwei"
 
 pytestmark = pytest.mark.golden
 
@@ -188,18 +186,25 @@ def _engine() -> ZiweiEngine:
     return ZiweiEngine()
 
 
+def _fixture_chart(name: str = "600519-listing-forward"):
+    """从已冻结的真实 iztro 快照读取盘面。
+
+    比较器单元测试只验证 ``compare_case`` 的判定逻辑，不应依赖 node / 紫微服务：
+    真实引擎调用留给 ``@pytest.mark.ziwei_live`` 的交叉核对用例（CI 由
+    ``ziwei-engine-golden`` job 在构建服务后运行）。
+    """
+    from src.core.schemas.ziwei import ZiweiChart
+
+    payload = json.loads((FIXTURE_DIR / f"{name}.json").read_text(encoding="utf-8"))
+    return ZiweiChart.model_validate(payload)
+
+
 def test_compare_case_reports_reference_error_when_all_failed() -> None:
     from src.engines.ziwei.reference.client import ReferenceChart
 
     case = load_cases(CASES_PATH)[0]
-    engine = _engine()
-    chart = engine.calculate_chart(
-        EngineContext(stock_code="T"),
-        birth_datetime=datetime(*case.solar, case.hour, 30),
-        as_of=datetime(2026, 8, 14, 15, 0),
-        variant_mode=VariantMode.FORWARD,
-        stock_code="T",
-    )
+    chart = _fixture_chart()
+    assert chart.palaces, "fixture 盘面缺少宫位，无法验证比较器"
     comparison = compare_case(
         case, chart,
         {"M": ReferenceChart(case_id="x", ok=False, error="模拟失败")},
