@@ -79,6 +79,18 @@ from src.core.schemas.market import (
     NegativeControlReport,
     NegativeControlResult,
 )
+from src.core.schemas.relation import (
+    DateRelationFingerprint,
+    DateScanRequest,
+    DateScanResponse,
+    DateScanVersions,
+    RelationCell,
+    RelationEvent,
+    RelationMatrix,
+    RelationMatrixRow,
+    RelationMetrics,
+    RelationStockResult,
+)
 from src.core.schemas.stock import (
     BirthProfileCreateRequest,
     BirthProfileEvidence,
@@ -102,6 +114,9 @@ __all__ = [
     "FactorCategory", "FactorDefinition", "FactorObservation", "FactorSet",
     "ClassicalBook", "ClassicalEntry", "EvidenceBundle", "EvidenceItem", "EvidenceQuery",
     "EvidenceStance", "KnowledgeDomain", "LicenseStatus",
+    "DateRelationFingerprint", "DateScanRequest", "DateScanResponse", "DateScanVersions",
+    "RelationCell", "RelationEvent", "RelationMatrix", "RelationMatrixRow", "RelationMetrics",
+    "RelationStockResult",
     "Bar", "BarSeries", "EventStudyRequest", "EventStudyResult", "HorizonStats", "LabelSet",
     "NegativeControlKind", "NegativeControlReport", "NegativeControlResult",
     "BirthProfileCreateRequest", "BirthProfileEvidence", "ExchangeSession",

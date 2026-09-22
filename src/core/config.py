@@ -41,6 +41,12 @@ class Settings(BaseSettings):
 
     # --- 引擎版本（结果可追溯性的核心；升级必须同步更新） ---
     birth_profile_version: str = "v1"
+    # 日期关系扫描的 canonical 口径必须显式选择，不能按 updated_at 猜测。
+    canonical_birth_basis: str = "listing_open"
+    canonical_birth_profile_version: str = "v2-phase4b-listing_open"
+    canonical_universe_version: str = "v4-full"
+    relation_rule_version: str = "bazi-relation-v2"
+    relation_fingerprint_version: str = "date-relation-fingerprint-v1"
     calendar_engine_version: str = "lunar-python-1.4.8"
     huangli_engine_version: str = "huangli-engine-1.0.0"
     bazi_engine_version: str = "smx-bazi-native-1.0.0"

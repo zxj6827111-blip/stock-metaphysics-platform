@@ -213,6 +213,15 @@ BRANCH_SIX_HARM: tuple[tuple[str, str], ...] = (
     ("卯", "辰"), ("申", "亥"), ("酉", "戌"),
 )
 
+# 地支六破。
+#
+# 六破存在流派差异；本项目固定采用这一组关系，并由
+# ``relation_rule_version`` 记录口径。它只作为结构标签，不推导涨跌。
+BRANCH_SIX_BREAK: tuple[tuple[str, str], ...] = (
+    ("子", "酉"), ("丑", "辰"), ("寅", "亥"),
+    ("卯", "午"), ("巳", "申"), ("未", "戌"),
+)
+
 # 天干五合（附化气五行）
 STEM_FIVE_HARMONY: dict[tuple[str, str], str] = {
     ("甲", "己"): "土", ("乙", "庚"): "金", ("丙", "辛"): "水",
@@ -261,9 +270,18 @@ def _build_six_harm_index() -> dict[str, str]:
     return idx
 
 
+def _build_six_break_index() -> dict[str, str]:
+    idx: dict[str, str] = {}
+    for a, b in BRANCH_SIX_BREAK:
+        idx[a] = b
+        idx[b] = a
+    return idx
+
+
 BRANCH_CLASH_OF: dict[str, str] = _build_six_clash_index()
 BRANCH_HARMONY_OF: dict[str, str] = _build_six_harmony_index()
 BRANCH_HARM_OF: dict[str, str] = _build_six_harm_index()
+BRANCH_BREAK_OF: dict[str, str] = _build_six_break_index()
 
 
 def twelve_stage(day_stem: str, branch: str) -> str:
@@ -338,9 +356,9 @@ __all__ = [
     "BRANCH_HIDDEN_STEMS", "HIDDEN_STEM_WEIGHTS", "hidden_stem_weight",
     "TEN_GODS", "TEN_GOD_GROUP", "ten_god",
     "BRANCH_SIX_CLASH", "BRANCH_SIX_HARMONY", "BRANCH_TRIPLE_HARMONY",
-    "BRANCH_TRIPLE_MEETING", "BRANCH_PUNISHMENTS", "BRANCH_SIX_HARM",
+    "BRANCH_TRIPLE_MEETING", "BRANCH_PUNISHMENTS", "BRANCH_SIX_HARM", "BRANCH_SIX_BREAK",
     "STEM_FIVE_HARMONY", "STEM_CLASH",
-    "BRANCH_CLASH_OF", "BRANCH_HARMONY_OF", "BRANCH_HARM_OF",
+    "BRANCH_CLASH_OF", "BRANCH_HARMONY_OF", "BRANCH_HARM_OF", "BRANCH_BREAK_OF",
     "TWELVE_STAGES", "twelve_stage", "STEM_CHANGSHENG_START",
     "TWELVE_DUTY_OFFICERS", "DAY_TIAN_SHEN_LUCK",
     "NAYIN_OF", "nayin_of",
