@@ -17,7 +17,11 @@ from apps.api.deps import (
 from apps.api.errors import InvalidRequestError, NotFoundError
 from src.core.config import settings
 from src.core.orchestration.analysis_service import AnalysisService, direction_from_score
-from src.core.orchestration.date_relation_scan import relation_detail, scan_market_by_date
+from src.core.orchestration.date_relation_scan import (
+    relation_detail,
+    scan_market_by_date,
+    scope_descriptor,
+)
 from src.core.relations.date_relation import build_date_relation_fingerprint
 from src.core.schemas.common import VariantMode, Warning_
 from src.core.schemas.consensus import (
@@ -31,7 +35,15 @@ from src.core.schemas.market import (
     NegativeControlKind,
     NegativeControlReport,
 )
-from src.core.schemas.relation import DateRelationFingerprint, DateScanRequest, DateScanResponse
+from src.core.schemas.relation import (
+    RELATION_CATALOG,
+    DateRelationFingerprint,
+    DateScanRequest,
+    DateScanResponse,
+    RelationCatalogFactorMeta,
+    RelationCatalogGroup,
+    RelationCatalogResponse,
+)
 from src.core.schemas.relation_study import RelationStudyRequest, RelationStudyResponse
 from src.core.schemas.stock import BirthProfileCreateRequest, StockBirthProfile
 from src.core.stock.birth_profile import build_birth_profile
@@ -43,7 +55,7 @@ from src.engines.calendar.calendar_engine import CalendarEngine
 from src.engines.huangli.huangli_engine import HuangliEngine
 from src.engines.ziwei.ziwei_engine import ZiweiUnavailableError
 from src.factors.registry.compute import compute_factor_set
-from src.factors.registry.definitions import DEFINITION_INDEX
+from src.factors.registry.definitions import DEFINITION_INDEX, RELATION_DEFINITION_INDEX
 from src.research.pipeline import ResearchPipeline, month_starts, new_experiment_id
 
 router = APIRouter(prefix="/api/v1/research", tags=["research"])
@@ -103,6 +115,34 @@ def run_date_relation_scan(payload: DateScanRequest, db: Session = Depends(db_se
         raise InvalidRequestError(str(exc)) from exc
 
 
+@router.get(
+    "/relation-catalog",
+    response_model=RelationCatalogResponse,
+    summary="关系类型目录（前端唯一来源）",
+)
+def relation_catalog() -> RelationCatalogResponse:
+    """返回后端承认的关系类型全集与关系研究因子元数据。
+
+    前端（择日关系扫描 / 关系历史研究）必须以此构建筛选项，
+    不得再维护第二份手写关系清单 —— 那正是「后端能算、下拉选不到」漂移的根因。
+    """
+    return RelationCatalogResponse(
+        relation_rule_version=settings.relation_rule_version,
+        relation_matrix_schema_version=settings.relation_matrix_schema_version,
+        groups=[RelationCatalogGroup(label=label, items=list(items)) for label, items in RELATION_CATALOG.items()],
+        factors={
+            factor_id: RelationCatalogFactorMeta(
+                factor_id=factor_id,
+                name=definition.name,
+                definition=definition.definition,
+                computation=definition.computation,
+                rule_version=definition.rule_version,
+            )
+            for factor_id, definition in RELATION_DEFINITION_INDEX.items()
+        },
+    )
+
+
 @router.post(
     "/relation-study",
     response_model=RelationStudyResponse,
@@ -120,6 +160,18 @@ def run_relation_study_endpoint(
         run = run_relation_study(db, market, payload)
     except ValueError as exc:
         raise InvalidRequestError(str(exc)) from exc
+    # 因子定义来源（RELATION_DEFINITION_INDEX）：随响应回显，便于审计"这个因子是什么口径"。
+    definition = RELATION_DEFINITION_INDEX.get(run.response.factor_id)
+    if definition is not None:
+        run.response.factor_definition = {
+            "factor_id": definition.factor_id,
+            "name": definition.name,
+            "definition": definition.definition,
+            "computation": definition.computation,
+            "rule_score_meaning": definition.rule_score_meaning,
+            "rule_version": definition.rule_version,
+            "tags": list(definition.tags),
+        }
     if payload.persist:
         _persist_relation_experiment(db, payload, run)
         db.commit()
@@ -128,7 +180,7 @@ def run_relation_study_endpoint(
 
 @router.get(
     "/date-scan/{scan_id}/stocks/{code}",
-    summary="获取单只股票的日期关系矩阵",
+    summary="获取单只股票的 3×3 日期关系矩阵与流日判定",
 )
 def get_date_relation_detail(
     scan_id: str,
@@ -137,25 +189,39 @@ def get_date_relation_detail(
     universe: str = Query("v4-full"),
     birth_basis: str = Query("listing_open"),
     birth_profile_version: str = Query("v2-phase4b-listing_open"),
-    relation_rule_version: str = Query("bazi-relation-v2"),
-    hour: int | None = Query(None, ge=0, le=23),
+    relation_rule_version: str = Query(None, description="缺省取 settings.relation_rule_version"),
     db: Session = Depends(db_session),
 ) -> dict:
-    """返回严格 3×4 矩阵；scan_id 用于审计，参数仍显式重建口径。"""
+    """返回 3×3 矩阵（流年/月/日 × 股票年/月/日）与 day_stem_verdict。
+
+    scan_id 用于审计，参数仍显式重建口径；矩阵目标列不含股票时柱，
+    但喜用神结论来自完整四柱原局。
+    """
     request = DateScanRequest(
         date=target_date,
-        hour=hour,
         universe=universe,
         birth_basis=birth_basis,
         birth_profile_version=birth_profile_version,
-        relation_rule_version=relation_rule_version,
+        relation_rule_version=relation_rule_version or settings.relation_rule_version,
         limit=1,
     )
     try:
         row = relation_detail(db, request, code)
     except ValueError as exc:
         raise InvalidRequestError(str(exc)) from exc
-    return {"scan_id": scan_id, "target_date": target_date, "row": row.model_dump(mode="json", by_alias=True)}
+    return {
+        "scan_id": scan_id,
+        "target_date": target_date,
+        "scope": scope_descriptor().model_dump(mode="json"),
+        "versions": {
+            "relation_rule_version": settings.relation_rule_version,
+            "relation_matrix_schema_version": settings.relation_matrix_schema_version,
+            "fingerprint_version": settings.relation_fingerprint_version,
+            "bazi_engine_version": settings.bazi_engine_version,
+            "calendar_engine_version": settings.calendar_engine_version,
+        },
+        "row": row.model_dump(mode="json", by_alias=True),
+    }
 
 
 def _build_helpers(market, service: AnalysisService):
@@ -406,6 +472,20 @@ def _persist_relation_experiment(db: Session, payload: RelationStudyRequest, run
                 "direction": 0,
                 "splits": [split.model_dump(mode="json") for split in run.response.splits],
                 "data_source": run.response.data_source,
+                # v3 口径登记：以后必须能区分"这个实验是按 3×4 老关系还是 3×3 day-only 新关系跑的"。
+                "relation_rule_version": run.response.relation_rule_version,
+                "relation_matrix_schema_version": run.response.relation_matrix_schema_version,
+                "aggregate_scope": run.response.aggregate_scope,
+                "matrix_target_scope": run.response.matrix_target_scope,
+                "yongshen_basis": run.response.yongshen_basis,
+                "evaluation_time": run.response.evaluation_time,
+                "timezone": run.response.timezone,
+                "multiplicity_scope": run.response.multiplicity_scope,
+                "p_value_control_kind": run.response.p_value_control_kind,
+                "sample_step_months": payload.sample_step_months,
+                "stock_scope": "full_universe" if not payload.stock_codes else "explicit_stock_codes",
+                "stock_codes": list(payload.stock_codes),
+                "run_negative_controls": payload.run_negative_controls,
             },
             methodology=run.response.methodology,
             seed=settings.negative_control_seed,

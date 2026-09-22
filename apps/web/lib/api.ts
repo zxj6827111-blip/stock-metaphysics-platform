@@ -395,6 +395,7 @@ export interface ApiRelationStudyHorizon {
   max_drawdown: number | null;
   p_value: number | null;
   q_value: number | null;
+  p_value_control_kind: string | null;
   control_mean_return: number | null;
   control_up_rate: number | null;
 }
@@ -428,6 +429,24 @@ export interface ApiRelationStudy {
   methodology: string;
   warnings: string[];
   created_at: string;
+  relation_rule_version: string;
+  relation_matrix_schema_version: string;
+  aggregate_scope: string;
+  matrix_target_scope: string[];
+  yongshen_basis: string;
+  evaluation_time: string;
+  timezone: string;
+  multiplicity_scope: string;
+  p_value_control_kind: string | null;
+  factor_definition: {
+    factor_id?: string;
+    name?: string;
+    definition?: string;
+    computation?: string;
+    rule_score_meaning?: string;
+    rule_version?: string;
+    tags?: string[];
+  };
 }
 
 export interface ApiExperimentDetail {
@@ -948,6 +967,7 @@ export interface ApiRelationCell {
 export interface ApiRelationMatrixRow {
   source_pillar: string;
   source_ganzhi: string;
+  relation_types: string[];
   cells: ApiRelationCell[];
 }
 
@@ -984,6 +1004,18 @@ export interface ApiRelationMetrics {
   group: string;
 }
 
+export interface ApiRelationDayVerdict {
+  day_stem: string;
+  day_stem_wuxing: string;
+  day_master: string;
+  ten_god: string;
+  ten_god_group: string;
+  wuxing_role: string;
+  is_yong_or_xi: boolean | null;
+  verdict: string;
+  reason: string;
+}
+
 export interface ApiRelationStockResult {
   stock_code: string;
   name: string;
@@ -993,18 +1025,31 @@ export interface ApiRelationStockResult {
   yong_shen: string[];
   xi_shen: string[];
   ji_shen: string[];
+  chou_shen: string[];
+  xian_shen: string[];
   relation_types: string[];
   hit_explanations: string[];
   stem_relations: string[];
   branch_relations: string[];
   compound_relations: string[];
   ten_gods: string[];
+  /** 已废弃（legacy）：权威喜忌只读 day_stem_verdict。 */
   yong_shen_relations: string[];
+  day_stem_verdict: ApiRelationDayVerdict | null;
   metrics: ApiRelationMetrics;
   research_status: string;
   matrix: ApiRelationMatrix | null;
   availability: string;
   unavailable: string[];
+}
+
+export interface ApiRelationScope {
+  aggregate_scope: string;
+  matrix_source_scope: string[];
+  matrix_target_scope: string[];
+  yongshen_basis: string;
+  evaluation_time: string;
+  timezone: string;
 }
 
 export interface ApiDateScanResponse {
@@ -1015,12 +1060,14 @@ export interface ApiDateScanResponse {
     calendar_engine_version: string;
     bazi_engine_version: string;
     relation_rule_version: string;
+    relation_matrix_schema_version: string;
     fingerprint_version: string;
     birth_basis: string;
     birth_profile_version: string;
     universe_version: string;
     universe_digest: string;
   };
+  scope: ApiRelationScope;
   stock_total: number;
   valid_scan_count: number;
   returned_count: number;
@@ -1031,7 +1078,6 @@ export interface ApiDateScanResponse {
   relation_type_counts: Record<string, number>;
   query: {
     date: string;
-    hour: number | null;
     universe: string;
     birth_basis: string;
     birth_profile_version: string;
@@ -1047,9 +1093,38 @@ export interface ApiDateScanResponse {
   disclaimer: string;
 }
 
+export interface ApiRelationCatalogGroup {
+  label: string;
+  items: string[];
+}
+
+export interface ApiRelationCatalogFactorMeta {
+  factor_id: string;
+  name: string;
+  definition: string;
+  computation: string;
+  rule_version: string;
+}
+
+export interface ApiRelationCatalog {
+  relation_rule_version: string;
+  relation_matrix_schema_version: string;
+  aggregate_scope: string;
+  groups: ApiRelationCatalogGroup[];
+  factors: Record<string, ApiRelationCatalogFactorMeta>;
+}
+
 export interface ApiDateScanDetail {
   scan_id: string;
   target_date: string;
+  scope: ApiRelationScope;
+  versions: {
+    relation_rule_version: string;
+    relation_matrix_schema_version: string;
+    fingerprint_version: string;
+    bazi_engine_version: string;
+    calendar_engine_version: string;
+  };
   row: ApiRelationStockResult;
 }
 
@@ -1072,21 +1147,21 @@ export const endpoints = {
     return `/api/v1/research/experiments?${params.toString()}`;
   },
   relationStudy: () => "/api/v1/research/relation-study",
+  relationCatalog: () => "/api/v1/research/relation-catalog",
   researchExperiment: (id: string) => `/api/v1/research/experiments/${encodeURIComponent(id)}`,
   dateRelations: (date: string, hour?: number | null) => {
     const suffix = hour === undefined || hour === null ? "" : `?hour=${hour}`;
     return `/api/v1/research/date-relations/${encodeURIComponent(date)}${suffix}`;
   },
   dateScan: () => "/api/v1/research/date-scan",
-  dateScanDetail: (scanId: string, code: string, opts: { date: string; universe?: string; birthProfileVersion?: string; birthBasis?: string; relationRuleVersion?: string; hour?: number | null }) => {
+  dateScanDetail: (scanId: string, code: string, opts: { date: string; universe?: string; birthProfileVersion?: string; birthBasis?: string; relationRuleVersion?: string }) => {
     const params = new URLSearchParams({
       target_date: opts.date,
       universe: opts.universe ?? "v4-full",
       birth_basis: opts.birthBasis ?? "listing_open",
       birth_profile_version: opts.birthProfileVersion ?? "v2-phase4b-listing_open",
-      relation_rule_version: opts.relationRuleVersion ?? "bazi-relation-v2",
     });
-    if (opts.hour !== undefined && opts.hour !== null) params.set("hour", String(opts.hour));
+    if (opts.relationRuleVersion) params.set("relation_rule_version", opts.relationRuleVersion);
     return `/api/v1/research/date-scan/${encodeURIComponent(scanId)}/stocks/${encodeURIComponent(code)}?${params.toString()}`;
   },
   backtest: (id: string) => `/api/v1/analysis/${id}/backtest`,
