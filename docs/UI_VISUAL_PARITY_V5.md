@@ -36,15 +36,18 @@
 | # | 页面 | Candidate | Reference | Diff Ratio | Anchor Result | 结论 |
 |---:|---|---|---|---:|---|---|
 | 01 | 首页 | `test-results/visual-reference/01-home/candidate.png` | `doc/ui-reference/01_home.png` | 44.47% | 未计算 | FAIL |
-| 02 | 综合研判 | `test-results/visual-reference/02-overview/candidate.png` | `doc/ui-reference/02_integrated_analysis.png` | 47.28% | 未计算 | FAIL |
+| 02 | 综合研判 | `test-results/visual-reference/02-overview/candidate.png` | `doc/ui-reference/02_integrated_analysis.png` | 47.22% | 未计算 | FAIL |
 | 03 | 八字详情 | `test-results/visual-reference/03-bazi/candidate.png` | `doc/ui-reference/03_bazi_detail.png` | 44.40% | 未计算 | FAIL |
 | 04 | 紫微详情 | `test-results/visual-reference/04-ziwei/candidate.png` | `doc/ui-reference/04_ziwei_detail.png` | 39.95% | 未计算 | FAIL |
 | 05 | 历史验证 | `test-results/visual-reference/05-backtest/candidate.png` | `doc/ui-reference/05_backtest_validation.png` | 41.85% | 未计算 | FAIL |
 | 06 | 因子字典 | `test-results/visual-reference/06-factors/candidate.png` | `doc/ui-reference/06_factor_dictionary.png` | 44.07% | 未计算 | FAIL |
 | 07 | 模型分歧 | `test-results/visual-reference/07-conflicts/candidate.png` | `doc/ui-reference/07_model_conflict_center.png` | 54.55% | 未计算 | FAIL |
-| 08 | 黄历 | `test-results/visual-reference/08-huangli/candidate.png` | `doc/ui-reference/08_huangli_detail.png` | 57.14% | 未计算 | FAIL |
+| 08 | 黄历 | `test-results/visual-reference/08-huangli/candidate.png` | `doc/ui-reference/08_huangli_detail.png` | 57.15% | 未计算 | FAIL |
 | 09 | 古籍证据 | `test-results/visual-reference/09-evidence/candidate.png` | `doc/ui-reference/09_classics_evidence_search.png` | 44.26% | 未计算 | FAIL |
-| 10 | 时间窗口 | `test-results/visual-reference/10-timeline/candidate.png` | `doc/ui-reference/10_time_window.png` | 43.49% | 未计算 | FAIL |
+| 10 | 时间窗口 | `test-results/visual-reference/10-timeline/candidate.png` | `doc/ui-reference/10_time_window.png` | 43.53% | 未计算 | FAIL |
+
+> 2026-09-23 复测（本轮 relation v3 口径改造后；**未改门禁阈值、未改 reference、未自动接受 candidate**）：
+> 十页 39.95% ～ 57.15%，仍全部 FAIL；02 / 08 / 10 与上一轮相比在 ±0.06pp 内抖动。
 
 > 05 的 45.08% → 41.85% 变化来自本轮补入的「9 指标磁贴 + 6 个参考卡位」；
 > 其余页面的差异主要来自共享壳层尺寸与首屏区块数量，仍未进入 3% 门禁。
