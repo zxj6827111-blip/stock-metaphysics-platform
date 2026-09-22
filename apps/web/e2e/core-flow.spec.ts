@@ -325,14 +325,15 @@ test.describe("Phase 2 页面（真实数据路径）", () => {
     await expect(page.getByTestId("report-export").first()).toBeVisible();
   });
 
-  for (const [path, title] of [
-    ["/research", "研究实验室"],
-    ["/settings", "系统设置"],
-  ] as const) {
-    test(`${path} 仍为占位页（本版本不实现）`, async ({ page }) => {
-      const resp = await page.goto(path);
-      expect(resp?.status()).toBe(200);
-      await expect(page.getByTestId("page-title").first()).toHaveText(title);
-    });
-  }
+  test("研究实验室根路由进入择日关系扫描，设置页仍明确为占位", async ({ page }) => {
+    const researchResp = await page.goto("/research");
+    expect(researchResp?.status()).toBe(200);
+    await expect(page).toHaveURL(/\/research\/date-scan$/);
+    await expect(page.getByTestId("page-title").first()).toHaveText("择日关系扫描");
+    await expect(page.getByTestId("research-nav").first()).toBeVisible();
+
+    const settingsResp = await page.goto("/settings");
+    expect(settingsResp?.status()).toBe(200);
+    await expect(page.getByTestId("page-title").first()).toHaveText("系统设置");
+  });
 });

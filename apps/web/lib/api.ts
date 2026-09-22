@@ -865,6 +865,126 @@ export interface ApiMultiAnalysis {
   created_at: string;
 }
 
+export interface ApiRelationEvent {
+  relation_type: string;
+  source_scope: string;
+  source_pillar: string;
+  target_pillar: string;
+  source_stem: string;
+  source_branch: string;
+  target_stem: string;
+  target_branch: string;
+  element: string;
+  ten_god: string;
+  strength: number | null;
+  notes: string;
+  rule_version: string;
+}
+
+export interface ApiRelationCell {
+  source_pillar: string;
+  target_pillar: string;
+  source_ganzhi: string;
+  target_ganzhi: string;
+  events: ApiRelationEvent[];
+  relation_types: string[];
+  unavailable: string[];
+}
+
+export interface ApiRelationMatrixRow {
+  source_pillar: string;
+  source_ganzhi: string;
+  cells: ApiRelationCell[];
+}
+
+export interface ApiRelationMatrix {
+  rows: ApiRelationMatrixRow[];
+  columns: string[];
+  schema_version: string;
+  relation_rule_version: string;
+}
+
+export interface ApiDateRelationFingerprint {
+  date: string;
+  year: string;
+  month: string;
+  day: string;
+  hour: string | null;
+  stem_targets: Record<string, string[]>;
+  branch_targets: Record<string, string[]>;
+  candidates: Record<string, string[]>;
+  supported_relations: string[];
+  unavailable_relations: string[];
+  calendar_engine_version: string;
+  fingerprint_version: string;
+  relation_rule_version: string;
+}
+
+export interface ApiRelationMetrics {
+  s_raw: number | null;
+  v_raw: number | null;
+  u_raw: number | null;
+  s_percentile: number | null;
+  v_percentile: number | null;
+  u_percentile: number | null;
+  group: string;
+}
+
+export interface ApiRelationStockResult {
+  stock_code: string;
+  name: string;
+  exchange: string;
+  natal: Record<string, string>;
+  day_master: string;
+  yong_shen: string[];
+  xi_shen: string[];
+  ji_shen: string[];
+  relation_types: string[];
+  stem_relations: string[];
+  branch_relations: string[];
+  compound_relations: string[];
+  ten_gods: string[];
+  yong_shen_relations: string[];
+  metrics: ApiRelationMetrics;
+  research_status: string;
+  matrix: ApiRelationMatrix | null;
+  availability: string;
+  unavailable: string[];
+}
+
+export interface ApiDateScanResponse {
+  scan_id: string;
+  target_date: string;
+  fingerprint: ApiDateRelationFingerprint;
+  versions: {
+    calendar_engine_version: string;
+    bazi_engine_version: string;
+    relation_rule_version: string;
+    fingerprint_version: string;
+    birth_basis: string;
+    birth_profile_version: string;
+    universe_version: string;
+    universe_digest: string;
+  };
+  stock_total: number;
+  valid_scan_count: number;
+  returned_count: number;
+  filtered_count: number;
+  offset: number;
+  limit: number;
+  group_counts: Record<string, number>;
+  rows: ApiRelationStockResult[];
+  warnings: { code: string; message: string; severity: string }[];
+  cache: { key: string; hit: boolean };
+  disclaimer: string;
+}
+
+export interface ApiDateScanDetail {
+  scan_id: string;
+  target_date: string;
+  row: ApiRelationStockResult;
+}
+
 export const endpoints = {
   search: (q: string) => `/api/v1/stocks/search?q=${encodeURIComponent(q)}`,
   stock: (code: string) => `/api/v1/stocks/${code}`,
@@ -878,6 +998,22 @@ export const endpoints = {
   evidence: (id: string) => `/api/v1/analysis/${id}/evidence`,
   researchExperiments: (limit = 30) => `/api/v1/research/experiments?limit=${limit}`,
   researchExperiment: (id: string) => `/api/v1/research/experiments/${encodeURIComponent(id)}`,
+  dateRelations: (date: string, hour?: number | null) => {
+    const suffix = hour === undefined || hour === null ? "" : `?hour=${hour}`;
+    return `/api/v1/research/date-relations/${encodeURIComponent(date)}${suffix}`;
+  },
+  dateScan: () => "/api/v1/research/date-scan",
+  dateScanDetail: (scanId: string, code: string, opts: { date: string; universe?: string; birthProfileVersion?: string; birthBasis?: string; relationRuleVersion?: string; hour?: number | null }) => {
+    const params = new URLSearchParams({
+      target_date: opts.date,
+      universe: opts.universe ?? "v4-full",
+      birth_basis: opts.birthBasis ?? "listing_open",
+      birth_profile_version: opts.birthProfileVersion ?? "v2-phase4b-listing_open",
+      relation_rule_version: opts.relationRuleVersion ?? "bazi-relation-v2",
+    });
+    if (opts.hour !== undefined && opts.hour !== null) params.set("hour", String(opts.hour));
+    return `/api/v1/research/date-scan/${encodeURIComponent(scanId)}/stocks/${encodeURIComponent(code)}?${params.toString()}`;
+  },
   backtest: (id: string) => `/api/v1/analysis/${id}/backtest`,
   guide: (id: string) => `/api/v1/analysis/${id}/guide`,
   engineStatus: () => `/api/v1/system/engines`,
