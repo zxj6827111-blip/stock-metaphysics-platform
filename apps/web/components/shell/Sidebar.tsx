@@ -43,24 +43,24 @@ const NAV: { group: string; items: NavItem[] }[] = [
     group: "",
     items: [
       { key: "home", label: "首页", href: "/", icon: IconHome },
-      { key: "overview", label: "综合研判", href: "/stock/600519/overview", icon: IconChart },
-      { key: "timeline", label: "时间窗口", href: "/stock/600519/timeline", icon: IconCalendar },
+      { key: "overview", label: "综合研判", href: "/stock?target=overview", icon: IconChart },
+      { key: "timeline", label: "时间窗口", href: "/stock?target=timeline", icon: IconCalendar },
     ],
   },
   {
     group: "术数分析",
     items: [
-      { key: "bazi", label: "八字", href: "/stock/600519/bazi", icon: IconTaiji },
-      { key: "ziwei", label: "紫微斗数", href: "/stock/600519/ziwei", icon: IconStar4 },
-      { key: "huangli", label: "黄历 / 日课", href: "/stock/600519/huangli", icon: IconDiamond },
+      { key: "bazi", label: "八字", href: "/stock?target=bazi", icon: IconTaiji },
+      { key: "ziwei", label: "紫微斗数", href: "/stock?target=ziwei", icon: IconStar4 },
+      { key: "huangli", label: "黄历 / 日课", href: "/stock?target=huangli", icon: IconDiamond },
     ],
   },
   {
     group: "研究与证据",
     items: [
-      { key: "backtest", label: "历史验证", href: "/stock/600519/backtest", icon: IconTrend },
-      { key: "evidence", label: "古籍证据", href: "/stock/600519/evidence", icon: IconBook },
-      { key: "conflicts", label: "模型分歧", href: "/stock/600519/conflicts", icon: IconNodes },
+      { key: "backtest", label: "历史验证", href: "/stock?target=backtest", icon: IconTrend },
+      { key: "evidence", label: "古籍证据", href: "/stock?target=evidence", icon: IconBook },
+      { key: "conflicts", label: "模型分歧", href: "/stock?target=conflicts", icon: IconNodes },
       { key: "research", label: "研究实验室", href: "/research", icon: IconFlask },
       { key: "factors", label: "因子字典", href: "/factors", icon: IconDatabase },
       { key: "settings", label: "系统设置", href: "/settings", icon: IconSettings, disabled: true, badge: "P2" },
@@ -74,14 +74,15 @@ export function Sidebar({ activeKey }: { activeKey?: string }) {
   const fixture = searchParams?.get("fixture");
   const suffix = fixture ? `?fixture=${fixture}` : "";
 
-  // 提取当前正在查看的股票代码，使得侧栏链接自适应当前标的
+  // 仅在已经进入个股页面时沿用当前标的；没有标的则进入统一选择入口。
   const match = pathname.match(/\/stock\/([^/]+)/);
-  const currentCode = match ? match[1] : "600519";
+  const currentCode = match?.[1] ?? null;
 
   const getResolvedHref = (baseHref: string) => {
     let resolved = baseHref;
-    if (resolved.startsWith("/stock/600519/")) {
-      resolved = resolved.replace("/stock/600519/", `/stock/${currentCode}/`);
+    const target = new URLSearchParams(baseHref.split("?")[1] ?? "").get("target");
+    if (currentCode && target) {
+      resolved = `/stock/${currentCode}/${target}`;
     }
     if (suffix && !resolved.includes("?")) {
       resolved = `${resolved}${suffix}`;
@@ -99,7 +100,7 @@ export function Sidebar({ activeKey }: { activeKey?: string }) {
 
   return (
     <aside
-      className="relative z-10 flex w-[231px] shrink-0 flex-col border-r"
+      className="relative z-10 flex w-[232px] shrink-0 flex-col border-r"
       style={{
         borderColor: "var(--color-border)",
         background:

@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconClose, IconSearch, IconTaiji, IconCheck } from "../shell/Icons";
 import { api, endpoints, type ApiStockSearchResponse } from "@/lib/api";
 import { FIXTURE_QUERY_VALUE } from "@/lib/fixture";
+import { getRecentStocks, recordRecentStock } from "@/lib/recentStockStore";
 
 import {
   type StockSuggestion,
@@ -42,7 +43,8 @@ export function StockSwitchModal({
 
   const [value, setValue] = useState("");
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<StockSuggestion[]>(POPULAR_STOCKS);
+  const [recent, setRecent] = useState<StockSuggestion[]>([]);
+  const [results, setResults] = useState<StockSuggestion[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // 从当前路径提取子页面标识（如 overview / bazi / huangli）
@@ -60,12 +62,19 @@ export function StockSwitchModal({
   useEffect(() => {
     if (isOpen) {
       setValue("");
-      setResults(POPULAR_STOCKS);
+      const recentItems = getRecentStocks().map((item) => ({
+        code: item.code,
+        name: item.name,
+        exchange: item.exchange,
+        listingDate: item.listingDate,
+      }));
+      setRecent(recentItems);
+      setResults(isFixture ? POPULAR_STOCKS : recentItems);
       setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
     }
-  }, [isOpen]);
+  }, [isOpen, isFixture]);
 
   // 监听 ESC 键关闭
   useEffect(() => {
@@ -81,12 +90,12 @@ export function StockSwitchModal({
   const doSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) {
-      setResults(POPULAR_STOCKS);
+      setResults(isFixture ? POPULAR_STOCKS : recent);
       return;
     }
 
     const lowered = trimmed.toLowerCase();
-    const localHits = POPULAR_STOCKS.filter(
+    const localHits = (isFixture ? POPULAR_STOCKS : recent).filter(
       (s) => s.code.includes(lowered) || s.name.toLowerCase().includes(lowered),
     );
 
@@ -165,7 +174,7 @@ export function StockSwitchModal({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isFixture, recent]);
 
   useEffect(() => {
     const t = setTimeout(() => void doSearch(value), 180);
@@ -175,9 +184,17 @@ export function StockSwitchModal({
   // 标的切换执行
   const handleSelect = (targetCode: string) => {
     if (!targetCode) return;
+    const selected = results.find((item) => item.code === targetCode) ?? recent.find((item) => item.code === targetCode);
+    if (!isFixture) {
+      const updated = recordRecentStock({
+        code: targetCode,
+        name: selected?.name || KNOWN_STOCK_NAMES[targetCode]?.name || "A股标的",
+        exchange: selected?.exchange || (targetCode.startsWith("6") || targetCode.startsWith("9") ? "SSE" : "SZSE"),
+        listingDate: selected?.listingDate || KNOWN_STOCK_NAMES[targetCode]?.listingDate || "",
+      });
+      setRecent(updated.map((item) => ({ code: item.code, name: item.name, exchange: item.exchange, listingDate: item.listingDate })));
+    }
     onClose();
-    // 关键设计：仅当选择 600519 且当前是 fixture 模式时才保留 fixture，
-    // 切换到任何其他股票（如 002008）时自动解除 fixture，走真实 API 计算。
     const keepFixture = isFixture && targetCode === "600519";
     const suffix = keepFixture ? `?fixture=${FIXTURE_QUERY_VALUE}` : "";
     router.push(`/stock/${targetCode}/${currentSubpage}${suffix}`);
@@ -287,13 +304,13 @@ export function StockSwitchModal({
             </div>
           </form>
 
-          {/* 常用热门标的快捷选择 */}
+          {/* fixture 展示冻结快捷样本；真实模式只显示真实的近期使用记录 */}
           <div className="mt-3.5">
             <div className="mb-2 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
-              常用标的快捷切换：
+              {isFixture ? "演示样本快捷切换：" : "最近使用："}
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {POPULAR_STOCKS.map((s) => {
+              {(isFixture ? POPULAR_STOCKS : recent).map((s) => {
                 const isActive = s.code === currentCode;
                 return (
                   <button
@@ -363,7 +380,7 @@ export function StockSwitchModal({
                 })
               ) : (
                 <div className="py-6 text-center text-[12.5px]" style={{ color: "var(--color-ink-muted)" }}>
-                  未检索到匹配的股票，按回车可强制以代码发起分析
+                  {value.trim() ? "未检索到匹配的股票，按回车可用代码发起分析" : "暂无近期搜索股票"}
                 </div>
               )}
             </div>

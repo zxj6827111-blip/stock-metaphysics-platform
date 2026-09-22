@@ -4,12 +4,13 @@ import { Chip } from "@/components/cards/Card";
 import type { ApiRelationStockResult } from "@/lib/api";
 
 const visible = (values: string[], max = 3) => values.length ? values.slice(0, max).join(" · ") : "—";
+const firstExplanation = (values: string[]) => values[0] || "—";
 
 export function RelationStockTable({ rows, onSelect }: { rows: ApiRelationStockResult[]; onSelect: (row: ApiRelationStockResult) => void }) {
   return (
     <div className="overflow-x-auto" data-testid="relation-stock-table">
       <table className="smp-table min-w-[1080px]">
-        <thead><tr><th>代码 / 名称</th><th>股票八字</th><th>S</th><th>V</th><th>U</th><th>主要关系</th><th>天干</th><th>地支</th><th>组合</th><th>十神 / 喜用</th><th>研究状态</th></tr></thead>
+        <thead><tr><th>代码 / 名称</th><th>股票八字</th><th>S</th><th>V</th><th>U</th><th>命中关系</th><th>命中说明</th><th>天干</th><th>地支</th><th>组合</th><th>十神 / 喜用</th><th>研究状态</th></tr></thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.stock_code} className="cursor-pointer" onClick={() => onSelect(row)} data-testid={`relation-row-${row.stock_code}`}>
@@ -19,6 +20,7 @@ export function RelationStockTable({ rows, onSelect }: { rows: ApiRelationStockR
               <td className="smp-num">{row.metrics.v_raw ?? "—"}</td>
               <td className="smp-num">{row.metrics.u_raw ?? "—"}</td>
               <td>{row.relation_types.slice(0, 3).map((value) => <Chip key={value} tone="flat">{value}</Chip>)}</td>
+              <td className="max-w-[320px] text-[11px]" title={row.hit_explanations.join("；")} style={{ color: "var(--color-ink-muted)" }}>{firstExplanation(row.hit_explanations)}</td>
               <td>{visible(row.stem_relations, 2)}</td>
               <td>{visible(row.branch_relations, 2)}</td>
               <td>{visible(row.compound_relations, 2)}</td>

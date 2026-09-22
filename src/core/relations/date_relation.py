@@ -25,6 +25,7 @@ from src.core.constants import (
 )
 from src.core.schemas.calendar import CalendarSnapshot, GanZhi
 from src.core.schemas.relation import (
+    RELATION_TYPES,
     DateRelationFingerprint,
     RelationCell,
     RelationEvent,
@@ -319,11 +320,7 @@ def build_date_relation_fingerprint(snapshot: CalendarSnapshot) -> DateRelationF
         for combo, element in BRANCH_TRIPLE_MEETING.items():
             if branch in combo:
                 candidates["三会"].append(f"{''.join(combo)}:{element}")
-    supported = [
-        "天干五合", "天干相冲", "天干生", "天干克", "天干同五行",
-        "六合", "六冲", "三合", "半合", "三会", "相刑", "自刑", "相害", "六破", "同支",
-        "伏吟", "反吟", "天合地合", "天克地冲", "十神", "喜用忌关系",
-    ]
+    supported = list(RELATION_TYPES)
     return DateRelationFingerprint(
         date=snapshot.solar.date,
         year=snapshot.year_ganzhi.text,

@@ -254,13 +254,16 @@ function BacktestInner() {
             </div>
           ) : primary ? (
             <>
-              <div className="grid grid-cols-3 gap-2 md:grid-cols-6" data-testid="stats-metrics">
+              <div className="grid grid-cols-3 gap-2 md:grid-cols-5 xl:grid-cols-9" data-testid="stats-metrics">
                 <Metric label={`样本数（${primary.horizon}D）`} value={String(primary.sample_count)} />
                 <Metric label="上涨率" value={pct(primary.up_rate)} />
                 <Metric label="平均收益" value={pct(primary.mean_return)} tone="num" />
                 <Metric label="中位数收益" value={pct(primary.median_return)} />
-                <Metric label="平均超额" value={pct(primary.mean_excess_return)} />
+                <Metric label="超额收益" value={pct(primary.mean_excess_return)} />
                 <Metric label="最大回撤" value={pct(primary.max_drawdown)} />
+                <Metric label="IC（信息系数）" value="—" />
+                <Metric label="稳定性" value="—" />
+                <Metric label="样本外表现" value="未验证" />
               </div>
               {primary.sample_count === 0 ? (
                 <div
@@ -291,6 +294,26 @@ function BacktestInner() {
           )}
         </CardBody>
       </Card>
+
+      <div className="grid gap-2 md:grid-cols-2" data-testid="backtest-reference-panels">
+        {[
+          ["收益分布", "暂无逐样本收益序列"],
+          ["持有期收益", "暂无可比策略序列"],
+          ["年度稳定性", "未计算"],
+          ["牛 / 熊 / 震荡分组", "未计算"],
+          ["随机对照", "等待实验结果"],
+          ["出生日期平移对照", "等待实验结果"],
+        ].map(([title, note]) => (
+          <Card key={title} testId={`backtest-panel-${title}`}>
+            <CardHeader title={title} dense right={<span className="text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>研究卡位</span>} />
+            <CardBody className="!py-0">
+              <div className="flex h-[112px] items-center justify-center text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+                {note}
+              </div>
+            </CardBody>
+          </Card>
+        ))}
+      </div>
 
       {/* ============ ③ 持有期对比与负对照 ============ */}
       <Card className="mt-2" testId="horizon-comparison">
