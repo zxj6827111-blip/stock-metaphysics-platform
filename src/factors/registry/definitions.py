@@ -379,9 +379,12 @@ HUANGLI_MONTH_DEFINITIONS: list[FactorDefinition] = [
 
 # Phase 2B：紫微因子（``Z_*``）。使用独立的 rule_version（zv1，观测再按 variant
 # 后缀区分为 zv1.fwd / zv1.rev），与八字/黄历因子的修复节奏解耦。
+from src.factors.registry.relation_definitions import relation_definitions  # noqa: E402
 from src.factors.ziwei.definitions import (  # noqa: E402 - 避免循环导入，置于此处
     ALL_ZIWEI_DEFINITIONS,
 )
+
+RELATION_DEFINITIONS: list[FactorDefinition] = relation_definitions()
 
 ALL_DEFINITIONS: list[FactorDefinition] = [
     *NATAL_DEFINITIONS,
@@ -405,6 +408,8 @@ PHASE1_DEFINITIONS: list[FactorDefinition] = [
 
 #: 因子 ID → 定义
 DEFINITION_INDEX: dict[str, FactorDefinition] = {d.factor_id: d for d in ALL_DEFINITIONS}
+#: 关系历史研究专用因子定义；不混入个股分析因子集合，避免普通分析误把关系事件当作必算因子。
+RELATION_DEFINITION_INDEX: dict[str, FactorDefinition] = {d.factor_id: d for d in RELATION_DEFINITIONS}
 
 #: 因子 ID → 定义（仅 Phase 1 的 65 个），供紫微因子与 Phase 1 因子做隔离校验
 PHASE1_DEFINITION_INDEX: dict[str, FactorDefinition] = {

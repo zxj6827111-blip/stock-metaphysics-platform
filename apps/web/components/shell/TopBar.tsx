@@ -6,7 +6,9 @@
  */
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { FIXTURE_QUERY_VALUE } from "@/lib/fixture";
 import { useEffect, useRef, useState } from "react";
 
 import { BrandMark } from "../brand/BrandMark";
@@ -25,8 +27,14 @@ export function TopBar({
 }) {
   const [clock, setClock] = useState<string>(asOf ?? "--");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fixture = searchParams.get("fixture") === FIXTURE_QUERY_VALUE;
 
   useEffect(() => {
+    if (fixture) {
+      setClock("2024-11-15 15:00:27");
+      return;
+    }
     if (asOf) {
       setClock(asOf);
       return;
@@ -43,7 +51,7 @@ export function TopBar({
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [asOf]);
+  }, [asOf, fixture]);
 
   const dotColor =
     dataStatus === "ok"
@@ -149,7 +157,7 @@ export function PageHero({
 }) {
   return (
     <div
-      className="relative mb-1.5 overflow-hidden rounded-[8px] border px-4 py-2 smp-card"
+      className="relative mb-2 overflow-hidden rounded-[8px] border px-4 py-2 smp-card"
       style={{
         background: "linear-gradient(135deg, rgba(16,31,43,0.92) 0%, rgba(13,26,37,0.96) 100%)",
         borderColor: "var(--color-border)",
@@ -187,7 +195,7 @@ export function PageHero({
         </>
       )}
 
-      <div className="relative z-10 flex min-h-[94px] items-center justify-between gap-4">
+      <div className="relative z-10 flex min-h-[104px] items-center justify-between gap-4">
         <div className="min-w-0">
           <h1
             className="smp-serif-title smp-gold-shimmer text-[40px] font-bold leading-[1.08] tracking-[0.04em]"

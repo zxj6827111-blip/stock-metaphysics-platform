@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { endpoints, api, type ApiStockSearchResponse } from "@/lib/api";
 import { FIXTURE_QUERY_VALUE } from "@/lib/fixture";
+import { getRecentStocks, recordRecentStock } from "@/lib/recentStockStore";
 import { IconArrowRight, IconClose, IconSearch } from "../shell/Icons";
 
 import { KNOWN_STOCK_NAMES } from "@/lib/stockCatalog";
@@ -38,9 +39,11 @@ const DEMO_SUGGESTIONS: Suggestion[] = [
 export function StockSearch({
   variant = "bar",
   defaultValue = "",
+  target = "overview",
 }: {
   variant?: "bar" | "hero";
   defaultValue?: string;
+  target?: string;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -49,9 +52,20 @@ export function StockSearch({
   const [value, setValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState<Suggestion[]>(DEMO_SUGGESTIONS);
+  const [items, setItems] = useState<Suggestion[]>(fixture ? DEMO_SUGGESTIONS : []);
   const [degraded, setDegraded] = useState<string | null>(null);
+  const [recent, setRecent] = useState<Suggestion[]>([]);
   const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (fixture) return;
+    setRecent(getRecentStocks().map((item) => ({
+      code: item.code,
+      name: item.name,
+      exchange: item.exchange,
+      listingDate: item.listingDate,
+    })));
+  }, [fixture]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -65,12 +79,13 @@ export function StockSearch({
     async (q: string) => {
       const trimmed = q.trim();
       if (!trimmed) {
-        setItems(DEMO_SUGGESTIONS);
+        setItems(fixture ? DEMO_SUGGESTIONS : recent);
+        setDegraded(null);
         return;
       }
 
       const t = trimmed.toLowerCase();
-      const localHits = DEMO_SUGGESTIONS.filter(
+      const localHits = (fixture ? DEMO_SUGGESTIONS : recent).filter(
         (s) => s.code.includes(t) || s.name.includes(t),
       );
 
@@ -142,14 +157,14 @@ export function StockSearch({
             },
           ]);
         } else {
-          setItems(DEMO_SUGGESTIONS);
+          setItems([]);
         }
-        setDegraded("后端服务不可用，已回退到内置演示清单。");
+        setDegraded("搜索服务暂不可用，请稍后重试。");
       } finally {
         setLoading(false);
       }
     },
-    [fixture],
+    [fixture, recent],
   );
 
   useEffect(() => {
@@ -158,11 +173,19 @@ export function StockSearch({
   }, [value, doSearch]);
 
   const go = (code: string) => {
-    // 关键设计：仅当目标是 600519 且当前是 fixture 模式时才保留 fixture，
-    // 任何其他股票（如 002008）坚决去掉 fixture，让页面直接调用真实 API 计算！
+    const item = items.find((candidate) => candidate.code === code) ?? recent.find((candidate) => candidate.code === code);
+    if (!fixture) {
+      const updated = recordRecentStock({
+        code,
+        name: item?.name || KNOWN_STOCK_NAMES[code]?.name || "A股标的",
+        exchange: item?.exchange || (code.startsWith("6") || code.startsWith("9") ? "SSE" : "SZSE"),
+        listingDate: item?.listingDate || KNOWN_STOCK_NAMES[code]?.listingDate || "",
+      });
+      setRecent(updated.map((entry) => ({ code: entry.code, name: entry.name, exchange: entry.exchange, listingDate: entry.listingDate })));
+    }
     const keepFixture = fixture && code === "600519";
     const suffix = keepFixture ? `?fixture=${FIXTURE_QUERY_VALUE}` : "";
-    router.push(`/stock/${code}/overview${suffix}`);
+    router.push(`/stock/${code}/${target}${suffix}`);
   };
 
   const submit = () => {

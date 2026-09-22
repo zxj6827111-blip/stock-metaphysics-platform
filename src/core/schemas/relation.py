@@ -12,6 +12,15 @@ from pydantic import Field
 
 from src.core.schemas.common import SMBaseModel, Warning_
 
+RELATION_CATALOG: dict[str, list[str]] = {
+    "天干": ["天干五合", "天干相冲", "天干生", "天干克", "天干同五行"],
+    "地支": ["六合", "六冲", "三合", "半合", "三会", "相刑", "三刑", "自刑", "相害", "六破", "同支"],
+    "组合": ["伏吟", "反吟", "天合地合", "天克地冲"],
+}
+RELATION_TYPES: tuple[str, ...] = tuple(
+    relation for relations in RELATION_CATALOG.values() for relation in relations
+)
+
 
 class RelationEvent(SMBaseModel):
     """一个可追溯的关系命中。"""
@@ -115,6 +124,7 @@ class RelationStockResult(SMBaseModel):
     xi_shen: list[str] = Field(default_factory=list)
     ji_shen: list[str] = Field(default_factory=list)
     relation_types: list[str] = Field(default_factory=list)
+    hit_explanations: list[str] = Field(default_factory=list)
     stem_relations: list[str] = Field(default_factory=list)
     branch_relations: list[str] = Field(default_factory=list)
     compound_relations: list[str] = Field(default_factory=list)
@@ -138,6 +148,19 @@ class DateScanVersions(SMBaseModel):
     universe_digest: str = ""
 
 
+class DateScanQuery(SMBaseModel):
+    date: date
+    hour: int | None = None
+    universe: str
+    birth_basis: str
+    birth_profile_version: str
+    relation_rule_version: str
+    relation_type: str | None = None
+    sort: str = "stock_code"
+    offset: int = 0
+    limit: int = 100
+
+
 class DateScanResponse(SMBaseModel):
     scan_id: str
     target_date: date
@@ -150,6 +173,8 @@ class DateScanResponse(SMBaseModel):
     offset: int = 0
     limit: int = 100
     group_counts: dict[str, int] = Field(default_factory=dict)
+    relation_type_counts: dict[str, int] = Field(default_factory=dict)
+    query: DateScanQuery
     rows: list[RelationStockResult] = Field(default_factory=list)
     warnings: list[Warning_] = Field(default_factory=list)
     cache: dict[str, Any] = Field(default_factory=dict)

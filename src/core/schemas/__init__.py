@@ -91,6 +91,12 @@ from src.core.schemas.relation import (
     RelationMetrics,
     RelationStockResult,
 )
+from src.core.schemas.relation_study import (
+    RelationStudyHorizon,
+    RelationStudyRequest,
+    RelationStudyResponse,
+    RelationStudySplit,
+)
 from src.core.schemas.stock import (
     BirthProfileCreateRequest,
     BirthProfileEvidence,
@@ -117,6 +123,7 @@ __all__ = [
     "DateRelationFingerprint", "DateScanRequest", "DateScanResponse", "DateScanVersions",
     "RelationCell", "RelationEvent", "RelationMatrix", "RelationMatrixRow", "RelationMetrics",
     "RelationStockResult",
+    "RelationStudyHorizon", "RelationStudyRequest", "RelationStudyResponse", "RelationStudySplit",
     "Bar", "BarSeries", "EventStudyRequest", "EventStudyResult", "HorizonStats", "LabelSet",
     "NegativeControlKind", "NegativeControlReport", "NegativeControlResult",
     "BirthProfileCreateRequest", "BirthProfileEvidence", "ExchangeSession",

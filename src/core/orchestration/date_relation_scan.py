@@ -25,6 +25,8 @@ from src.core.schemas.bazi import BaziChart
 from src.core.schemas.calendar import GanZhi
 from src.core.schemas.common import Warning_
 from src.core.schemas.relation import (
+    RELATION_TYPES,
+    DateScanQuery,
     DateScanRequest,
     DateScanResponse,
     DateScanVersions,
@@ -241,6 +243,10 @@ def _build_one(
         "六合", "六冲", "三合", "半合", "三会", "相刑", "三刑", "自刑", "相害", "六破", "同支",
     }))
     compound_types = list(dict.fromkeys(item.relation_type for item in events if item.relation_type in compound))
+    hit_explanations = list(dict.fromkeys(
+        f"{event.relation_type}：{event.source_pillar}{event.source_stem}{event.source_branch} × {event.target_pillar}{event.target_stem}{event.target_branch}（{event.notes}）"
+        for event in events
+    ))
     yong = set(natal.yong_shen) | set(natal.xi_shen)
     yong_relations = [item.relation_type for item in events if item.element and item.element in yong]
     ten_gods = list(dict.fromkeys(item.ten_god for item in events if item.ten_god))
@@ -254,6 +260,7 @@ def _build_one(
         xi_shen=list(natal.xi_shen),
         ji_shen=list(natal.ji_shen),
         relation_types=types,
+        hit_explanations=hit_explanations,
         stem_relations=stem,
         branch_relations=branch,
         compound_relations=compound_types,
@@ -323,10 +330,25 @@ def scan_market_by_date(db: Session, request: DateScanRequest) -> DateScanRespon
             row.metrics.S_percentile = _percentile(row.metrics.S_raw or 0, s_values)
             row.metrics.V_percentile = _percentile(row.metrics.V_raw or 0, v_values)
             row.metrics.U_percentile = _percentile(row.metrics.U_raw or 0, u_values)
-        return {"fingerprint": fingerprint, "rows": rows, "static_count": len(static)}
+        relation_type_counts = {
+            relation: sum(1 for row in rows if relation in row.relation_types)
+            for relation in RELATION_TYPES
+        }
+        all_group_counts: dict[str, int] = {}
+        for row in rows:
+            all_group_counts[row.metrics.group] = all_group_counts.get(row.metrics.group, 0) + 1
+        return {
+            "fingerprint": fingerprint,
+            "rows": rows,
+            "static_count": len(static),
+            "relation_type_counts": relation_type_counts,
+            "all_group_counts": all_group_counts,
+            "valid_scan_count": len(valid),
+        }
 
     cached, hit = DATE_SCAN_CACHE.get_or_compute(cache_key, compute)
-    rows = list(cached["rows"])
+    all_rows = list(cached["rows"])
+    rows = all_rows
     if request.relation_type:
         rows = [row for row in rows if request.relation_type in row.relation_types]
     rows = _sort_rows(rows, request.sort)
@@ -344,7 +366,7 @@ def scan_market_by_date(db: Session, request: DateScanRequest) -> DateScanRespon
         Warning_(code="PIT_UNIVERSE_WARNING", message=item.reason, severity="warning")
         for item in membership.warnings
     )
-    unavailable = sum(1 for row in rows if row.availability != "ok")
+    unavailable = sum(1 for row in all_rows if row.availability != "ok")
     if unavailable:
         warnings.append(Warning_(
             code="RELATION_SCAN_PROFILE_UNAVAILABLE",
@@ -374,12 +396,25 @@ def scan_market_by_date(db: Session, request: DateScanRequest) -> DateScanRespon
         fingerprint=cached["fingerprint"],
         versions=versions,
         stock_total=len(membership.member_codes),
-        valid_scan_count=sum(1 for row in rows if row.availability == "ok"),
+        valid_scan_count=int(cached.get("valid_scan_count", sum(1 for row in all_rows if row.availability == "ok"))),
         returned_count=len(page),
         filtered_count=len(rows),
         offset=request.offset,
         limit=request.limit,
         group_counts=group_counts,
+        relation_type_counts=dict(cached.get("relation_type_counts", {})),
+        query=DateScanQuery(
+            date=request.date,
+            hour=request.hour,
+            universe=request.universe,
+            birth_basis=request.birth_basis,
+            birth_profile_version=request.birth_profile_version,
+            relation_rule_version=request.relation_rule_version,
+            relation_type=request.relation_type,
+            sort=request.sort,
+            offset=request.offset,
+            limit=request.limit,
+        ),
         rows=page,
         warnings=warnings,
         cache=cache_descriptor(cache_key, hit),

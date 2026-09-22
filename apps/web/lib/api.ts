@@ -376,6 +376,60 @@ export interface ApiExperimentResultRow {
   extra: Record<string, unknown>;
 }
 
+export interface ApiExperimentListResponse {
+  total: number;
+  filtered_count: number;
+  returned_count: number;
+  query: { limit: number; offset: number; kind: string | null; status: string | null; sort: string };
+  items: ApiExperimentSummary[];
+}
+
+export interface ApiRelationStudyHorizon {
+  horizon: number;
+  sample_count: number;
+  activation_rate: number | null;
+  mean_return: number | null;
+  median_return: number | null;
+  mean_excess_return: number | null;
+  up_rate: number | null;
+  max_drawdown: number | null;
+  p_value: number | null;
+  q_value: number | null;
+  control_mean_return: number | null;
+  control_up_rate: number | null;
+}
+
+export interface ApiRelationStudySplit {
+  name: string;
+  date_from: string | null;
+  date_to: string | null;
+  event_count: number;
+  observation_count: number;
+  sample_count: number;
+  activation_rate: number | null;
+  horizons: ApiRelationStudyHorizon[];
+  research_status: string;
+  research_status_reasons: string[];
+  negative_controls: Record<string, { verdict?: string; jaccard_with_real?: number | null }>;
+}
+
+export interface ApiRelationStudy {
+  experiment_id: string;
+  relation_type: string;
+  factor_id: string;
+  direction: number;
+  universe: string;
+  universe_size: number;
+  date_from: string | null;
+  date_to: string | null;
+  horizons: number[];
+  splits: ApiRelationStudySplit[];
+  data_source: Record<string, unknown>;
+  methodology: string;
+  warnings: string[];
+  created_at: string;
+}
+
 export interface ApiExperimentDetail {
   experiment: {
     experiment_id: string;
@@ -940,6 +994,7 @@ export interface ApiRelationStockResult {
   xi_shen: string[];
   ji_shen: string[];
   relation_types: string[];
+  hit_explanations: string[];
   stem_relations: string[];
   branch_relations: string[];
   compound_relations: string[];
@@ -973,6 +1028,19 @@ export interface ApiDateScanResponse {
   offset: number;
   limit: number;
   group_counts: Record<string, number>;
+  relation_type_counts: Record<string, number>;
+  query: {
+    date: string;
+    hour: number | null;
+    universe: string;
+    birth_basis: string;
+    birth_profile_version: string;
+    relation_rule_version: string;
+    relation_type: string | null;
+    sort: string;
+    offset: number;
+    limit: number;
+  };
   rows: ApiRelationStockResult[];
   warnings: { code: string; message: string; severity: string }[];
   cache: { key: string; hit: boolean };
@@ -996,7 +1064,14 @@ export const endpoints = {
   consensus: (id: string) => `/api/v1/analysis/${id}/consensus`,
   conflicts: (id: string) => `/api/v1/analysis/${id}/conflicts`,
   evidence: (id: string) => `/api/v1/analysis/${id}/evidence`,
-  researchExperiments: (limit = 30) => `/api/v1/research/experiments?limit=${limit}`,
+  researchExperiments: (limit = 30, opts: { offset?: number; kind?: string; status?: string; sort?: string } = {}) => {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(opts.offset ?? 0) });
+    if (opts.kind) params.set("kind", opts.kind);
+    if (opts.status) params.set("status", opts.status);
+    if (opts.sort) params.set("sort", opts.sort);
+    return `/api/v1/research/experiments?${params.toString()}`;
+  },
+  relationStudy: () => "/api/v1/research/relation-study",
   researchExperiment: (id: string) => `/api/v1/research/experiments/${encodeURIComponent(id)}`,
   dateRelations: (date: string, hour?: number | null) => {
     const suffix = hour === undefined || hour === null ? "" : `?hour=${hour}`;

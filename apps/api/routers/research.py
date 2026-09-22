@@ -32,6 +32,7 @@ from src.core.schemas.market import (
     NegativeControlReport,
 )
 from src.core.schemas.relation import DateRelationFingerprint, DateScanRequest, DateScanResponse
+from src.core.schemas.relation_study import RelationStudyRequest, RelationStudyResponse
 from src.core.schemas.stock import BirthProfileCreateRequest, StockBirthProfile
 from src.core.stock.birth_profile import build_birth_profile
 from src.core.stock.exchange_sessions import ex_value
@@ -43,7 +44,7 @@ from src.engines.huangli.huangli_engine import HuangliEngine
 from src.engines.ziwei.ziwei_engine import ZiweiUnavailableError
 from src.factors.registry.compute import compute_factor_set
 from src.factors.registry.definitions import DEFINITION_INDEX
-from src.research.pipeline import ResearchPipeline, new_experiment_id
+from src.research.pipeline import ResearchPipeline, month_starts, new_experiment_id
 
 router = APIRouter(prefix="/api/v1/research", tags=["research"])
 
@@ -100,6 +101,29 @@ def run_date_relation_scan(payload: DateScanRequest, db: Session = Depends(db_se
         return scan_market_by_date(db, payload)
     except ValueError as exc:
         raise InvalidRequestError(str(exc)) from exc
+
+
+@router.post(
+    "/relation-study",
+    response_model=RelationStudyResponse,
+    summary="运行关系类型历史 Event Study",
+)
+def run_relation_study_endpoint(
+    payload: RelationStudyRequest,
+    db: Session = Depends(db_session),
+    market=Depends(get_market),
+) -> RelationStudyResponse:
+    """关系结构只作为无方向研究因子，复用既有 Event Study 与负对照。"""
+    from src.research.relation_runner import run_relation_study
+
+    try:
+        run = run_relation_study(db, market, payload)
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    if payload.persist:
+        _persist_relation_experiment(db, payload, run)
+        db.commit()
+    return run.response
 
 
 @router.get(
@@ -189,7 +213,6 @@ def run_research(
     import time as _time
 
     from src.research.labels.forward_returns import compute_labels
-    from src.research.pipeline import month_starts
 
     started = _time.perf_counter()
     warnings: list[Warning_] = []
@@ -357,6 +380,61 @@ def run_research(
     )
 
 
+def _persist_relation_experiment(db: Session, payload: RelationStudyRequest, run) -> None:
+    """将关系研究摘要写入通用实验表，供历史实验页复用。"""
+    from src.db.models import BacktestExperimentRow, BacktestResultRow
+    from src.research.status import ResearchStatus
+
+    factor_id = run.response.factor_id
+    first_status = run.response.splits[0].research_status if run.response.splits else ResearchStatus.NOT_RUN.value
+    exp = db.get(BacktestExperimentRow, run.response.experiment_id)
+    if exp is None:
+        db.add(BacktestExperimentRow(
+            experiment_id=run.response.experiment_id,
+            kind="relation_event_study",
+            name=f"关系研究 {payload.relation_type} × {','.join(str(h) for h in payload.horizons)}D",
+            factor_ids_json=[factor_id],
+            logic="any",
+            universe_json=payload.stock_codes or [payload.universe],
+            horizons_json=payload.horizons,
+            date_from=run.response.date_from,
+            date_to=run.response.date_to,
+            benchmark_code=settings.benchmark_index_code,
+            params_json={
+                "relation_type": payload.relation_type,
+                "universe_version": payload.universe,
+                "direction": 0,
+                "splits": [split.model_dump(mode="json") for split in run.response.splits],
+                "data_source": run.response.data_source,
+            },
+            methodology=run.response.methodology,
+            seed=settings.negative_control_seed,
+            status=first_status,
+        ))
+    for split in run.response.splits:
+        for stat in split.horizons:
+            db.add(BacktestResultRow(
+                experiment_id=run.response.experiment_id,
+                variant=split.name.lower(),
+                horizon=stat.horizon,
+                sample_count=stat.sample_count,
+                up_rate=stat.up_rate,
+                mean_return=stat.mean_return,
+                median_return=stat.median_return,
+                mean_excess_return=stat.mean_excess_return,
+                max_drawdown=stat.max_drawdown,
+                extra_json={
+                    "relation_type": payload.relation_type,
+                    "p_value": stat.p_value,
+                    "q_value": stat.q_value,
+                    "control_mean_return": stat.control_mean_return,
+                    "control_up_rate": stat.control_up_rate,
+                    "research_status": split.research_status,
+                },
+            ))
+    db.flush()
+
+
 def _persist_experiment(db: Session, experiment_id: str, payload: ResearchRunRequest,
                         real_result, control_report, observations, *,
                         status: str = "completed") -> None:
@@ -456,14 +534,32 @@ def factor_definitions(category: str | None = None) -> dict:
 
 
 @router.get("/experiments", summary="历史研究实验列表")
-def list_experiments(db: Session = Depends(db_session), limit: int = Query(20, ge=1, le=100)) -> dict:
-    from sqlalchemy import desc, select
+def list_experiments(
+    db: Session = Depends(db_session),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    kind: str | None = Query(None),
+    status: str | None = Query(None),
+    sort: str = Query("created_at", pattern="^(created_at|kind|status)$"),
+) -> dict:
+    from sqlalchemy import desc, func, select
 
-    rows = db.execute(
-        select(BacktestExperimentRow).order_by(desc(BacktestExperimentRow.created_at)).limit(limit)
-    ).scalars().all()
+    query = select(BacktestExperimentRow)
+    count_query = select(func.count()).select_from(BacktestExperimentRow)
+    if kind:
+        query = query.where(BacktestExperimentRow.kind == kind)
+        count_query = count_query.where(BacktestExperimentRow.kind == kind)
+    if status:
+        query = query.where(BacktestExperimentRow.status == status)
+        count_query = count_query.where(BacktestExperimentRow.status == status)
+    order_column = getattr(BacktestExperimentRow, sort)
+    rows = db.execute(query.order_by(desc(order_column)).offset(offset).limit(limit)).scalars().all()
+    total = int(db.execute(count_query).scalar_one())
     return {
-        "total": len(rows),
+        "total": total,
+        "filtered_count": total,
+        "returned_count": len(rows),
+        "query": {"limit": limit, "offset": offset, "kind": kind, "status": status, "sort": sort},
         "items": [
             {
                 "experiment_id": r.experiment_id, "kind": r.kind, "name": r.name,
@@ -501,6 +597,9 @@ def get_experiment(experiment_id: str, db: Session = Depends(db_session)) -> dic
             "factor_ids": exp.factor_ids_json, "universe": exp.universe_json,
             "horizons": exp.horizons_json, "methodology": exp.methodology,
             "seed": exp.seed, "created_at": exp.created_at.isoformat(),
+            "status": exp.status, "date_from": exp.date_from.isoformat() if exp.date_from else None,
+            "date_to": exp.date_to.isoformat() if exp.date_to else None,
+            "benchmark_code": exp.benchmark_code, "params": exp.params_json or {},
         },
         "results_by_variant": grouped,
     }

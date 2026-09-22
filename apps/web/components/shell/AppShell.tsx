@@ -66,7 +66,7 @@ function ShellInner({
       <TopBar dataStatus={dataStatus} statusText={statusText} asOf={asOf} />
       <div className="flex min-h-0 flex-1">
         <Sidebar activeKey={activeNav} />
-        <main className="smp-scroll min-w-0 flex-1 overflow-y-auto px-[14px] pb-2 pt-2.5">
+        <main className="smp-scroll min-w-0 flex-1 overflow-y-auto px-[14px] pb-2 pt-2">
           {children}
           <FooterNote left={footerLeft} center={footerCenter} right={footerRight} />
         </main>

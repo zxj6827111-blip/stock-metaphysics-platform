@@ -18,13 +18,18 @@ import { RelationStockTable } from "@/components/research/RelationStockTable";
 import { api, endpoints, type ApiDateScanDetail, type ApiDateScanResponse, type ApiRelationStockResult } from "@/lib/api";
 
 const DEFAULT_DATE = "2026-09-22";
-const RELATIONS = ["", "六合", "六冲", "三合", "半合", "三会", "相刑", "相害", "六破", "伏吟", "反吟", "天合地合", "天克地冲"];
+const RELATION_GROUPS = [
+  { label: "天干", items: ["天干五合", "天干相冲", "天干生", "天干克", "天干同五行"] },
+  { label: "地支", items: ["六合", "六冲", "三合", "半合", "三会", "相刑", "三刑", "自刑", "相害", "六破", "同支"] },
+  { label: "组合", items: ["伏吟", "反吟", "天合地合", "天克地冲"] },
+];
 
 function DateScanInner() {
   const search = useSearchParams();
   const fixture = search?.get("fixture") === "ui-reference";
   const [date, setDate] = useState(search?.get("date") || DEFAULT_DATE);
-  const [relationType, setRelationType] = useState("");
+  const [appliedRelation, setAppliedRelation] = useState("");
+  const [pendingRelation, setPendingRelation] = useState("");
   const [sort, setSort] = useState("stock_code");
   const [page, setPage] = useState(0);
   const [data, setData] = useState<ApiDateScanResponse | null>(null);
@@ -37,6 +42,7 @@ function DateScanInner() {
 
   const load = useCallback(async (targetDate: string, targetPage: number, targetSort: string, targetRelation: string) => {
     setLoading(true);
+    setAppliedRelation("");
     setError(null);
     try {
       const response = await api.post<ApiDateScanResponse>(endpoints.dateScan(), {
@@ -51,6 +57,8 @@ function DateScanInner() {
         relation_type: targetRelation || null,
       });
       setData(response);
+      setAppliedRelation(response.query.relation_type ?? "");
+      setPendingRelation(response.query.relation_type ?? "");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setData(null);
@@ -65,8 +73,8 @@ function DateScanInner() {
       setData(null);
       return;
     }
-    void load(date, page, sort, relationType);
-  }, [date, page, sort, relationType, load, fixture]);
+    void load(date, page, sort, pendingRelation);
+  }, [date, page, sort, pendingRelation, load, fixture]);
 
   const onSelect = useCallback(async (row: ApiRelationStockResult) => {
     if (!data) return;
@@ -108,26 +116,37 @@ function DateScanInner() {
         </div>
       </Card>
 
-      {loading && !data ? <PageLoading label="正在读取日期指纹并扫描全市场关系…" /> : null}
-      {error ? <PageError title="择日关系扫描失败" message={error} onRetry={() => void load(date, page, sort, relationType)} /> : null}
+      {loading ? <PageLoading label="正在读取日期指纹并扫描全市场关系…" /> : null}
+      {error ? <PageError title="择日关系扫描失败" message={error} onRetry={() => void load(date, page, sort, pendingRelation)} /> : null}
       {data ? (
         <div className="space-y-2">
           <DateRelationFingerprint fingerprint={data.fingerprint} />
           <MarketRelationSummary data={data} />
           <div className="grid gap-2 lg:grid-cols-[1.05fr_0.95fr]">
-            <RelationScatter rows={data.rows} />
+            {appliedRelation ? <RelationScatter rows={data.rows} /> : <Card testId="relation-scatter-empty"><CardHeader title="关系命中分布" dense /><div className="flex h-[230px] items-center justify-center px-4 text-center text-[12px]" style={{ color: "var(--color-ink-muted)" }}>请选择一种关系后显示对应股票的 S × V 分布</div></Card>}
             <Card testId="relation-filter-bar">
-              <CardHeader title="关系筛选与排序" dense />
-              <div className="flex flex-wrap gap-2 p-3">
-                {RELATIONS.map((relation) => <button key={relation || "all"} type="button" className={`smp-btn ${relationType === relation ? "smp-btn--primary" : ""}`} onClick={() => { setPage(0); setRelationType(relation); }}>{relation || "全部关系"}</button>)}
+              <CardHeader title="先选关系，再看命中股票" dense />
+              <div className="space-y-3 p-3">
+                <button type="button" className={`smp-btn ${appliedRelation === "" ? "smp-btn--primary" : ""}`} onClick={() => { setPage(0); setPendingRelation(""); }}>全部关系</button>
+                {RELATION_GROUPS.map((group) => (
+                  <div key={group.label}>
+                    <div className="mb-1 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>{group.label}</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.items.map((relation) => {
+                        const count = data.relation_type_counts[relation] ?? 0;
+                        return <button key={relation} type="button" className={`smp-btn px-2 py-1 text-[11px] ${appliedRelation === relation ? "smp-btn--primary" : ""}`} onClick={() => { setPage(0); setPendingRelation(relation); }}>{relation} <span className="smp-num">{count}</span></button>;
+                      })}
+                    </div>
+                  </div>
+                ))}
                 <label className="flex items-center gap-2 text-[12px]" style={{ color: "var(--color-ink-muted)" }}>排序<select className="smp-input" value={sort} onChange={(event) => { setPage(0); setSort(event.target.value); }}><option value="stock_code">代码</option><option value="s">协同 S</option><option value="v">扰动 V</option><option value="u">混合 U</option></select></label>
               </div>
               <div className="px-3 pb-3 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>筛选作用于后端已计算的 RelationEvent；前端不重新计算术数关系。</div>
             </Card>
           </div>
           <Card>
-            <CardHeader title={`全市场股票结果（${data.returned_count} / ${data.filtered_count}，原始 ${data.stock_total}）`} dense right={<span className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>点击股票查看完整 3×4 矩阵</span>} />
-            <RelationStockTable rows={data.rows} onSelect={onSelect} />
+            <CardHeader title={appliedRelation ? `${appliedRelation}命中股票（${data.relation_type_counts[appliedRelation] ?? 0}）` : "请选择一种关系查看命中股票"} dense right={<span className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>{appliedRelation ? `${data.returned_count} / ${data.filtered_count}` : `PIT股票池 ${data.stock_total} · 可计算 ${data.valid_scan_count}`} · 点击股票查看完整 3×4 矩阵</span>} />
+            {appliedRelation ? <RelationStockTable rows={data.rows} onSelect={onSelect} /> : <div className="px-4 py-10 text-center text-[13px]" style={{ color: "var(--color-ink-muted)" }}>请选择一种关系查看命中股票</div>}
             <div className="flex items-center justify-between border-t px-3 py-2 text-[11.5px]" style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}><span>第 {page + 1} / {pageCount} 页 · {data.cache.hit ? "缓存命中" : "刚刚计算"}</span><span className="flex gap-2"><button type="button" className="smp-btn px-2 py-1" disabled={page <= 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>上一页</button><button type="button" className="smp-btn px-2 py-1" disabled={page + 1 >= pageCount} onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}>下一页</button></span></div>
           </Card>
           <Card>

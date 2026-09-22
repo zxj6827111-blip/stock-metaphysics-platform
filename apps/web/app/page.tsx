@@ -309,7 +309,7 @@ function HomeInner() {
             </div>
             <div className="flex items-center gap-2">
               <div className="min-w-0 flex-1">
-                <StockSearch variant="hero" defaultValue="600519" />
+                <StockSearch variant="hero" defaultValue={fixture ? "600519" : ""} />
               </div>
               <button type="button" className="smp-btn h-[60px] px-5 text-[13px]" disabled title="Phase 2">
                 <IconGrid size={15} />

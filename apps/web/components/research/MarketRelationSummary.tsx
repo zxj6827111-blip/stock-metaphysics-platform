@@ -7,8 +7,8 @@ const ORDER = ["高协同", "高扰动", "高混合", "弱关系", "不可用"];
 
 export function MarketRelationSummary({ data }: { data: ApiDateScanResponse }) {
   const items = [
-    ["股票总数", data.stock_total, "flat"],
-    ["有效扫描", data.valid_scan_count, "gold"],
+    ["PIT股票池", data.stock_total, "flat"],
+    ["可计算股票", data.valid_scan_count, "gold"],
     ...ORDER.slice(0, 4).map((group) => [group, data.group_counts[group] ?? 0, group === "高扰动" ? "warn" : "flat"]),
   ] as [string, number, "flat" | "gold" | "warn"][];
   return (
