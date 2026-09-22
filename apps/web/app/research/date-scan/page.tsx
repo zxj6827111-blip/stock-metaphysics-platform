@@ -15,14 +15,9 @@ import { MarketRelationSummary } from "@/components/research/MarketRelationSumma
 import { RelationMatrix } from "@/components/research/RelationMatrix";
 import { RelationScatter } from "@/components/research/RelationScatter";
 import { RelationStockTable } from "@/components/research/RelationStockTable";
-import { api, endpoints, type ApiDateScanDetail, type ApiDateScanResponse, type ApiRelationStockResult } from "@/lib/api";
+import { api, endpoints, type ApiDateScanDetail, type ApiDateScanResponse, type ApiRelationCatalog, type ApiRelationStockResult } from "@/lib/api";
 
 const DEFAULT_DATE = "2026-09-22";
-const RELATION_GROUPS = [
-  { label: "天干", items: ["天干五合", "天干相冲", "天干生", "天干克", "天干同五行"] },
-  { label: "地支", items: ["六合", "六冲", "三合", "半合", "三会", "相刑", "三刑", "自刑", "相害", "六破", "同支"] },
-  { label: "组合", items: ["伏吟", "反吟", "天合地合", "天克地冲"] },
-];
 
 function DateScanInner() {
   const search = useSearchParams();
@@ -33,12 +28,29 @@ function DateScanInner() {
   const [sort, setSort] = useState("stock_code");
   const [page, setPage] = useState(0);
   const [data, setData] = useState<ApiDateScanResponse | null>(null);
+  const [catalog, setCatalog] = useState<ApiRelationCatalog | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [selected, setSelected] = useState<ApiRelationStockResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const pageSize = 100;
+
+  // 关系目录唯一来源是后端 relation-catalog：前端不维护第二份术数关系清单。
+  useEffect(() => {
+    if (fixture) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await api.get<ApiRelationCatalog>(endpoints.relationCatalog());
+        if (!cancelled) setCatalog(response);
+      } catch (e) {
+        if (!cancelled) setCatalogError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [fixture]);
 
   const load = useCallback(async (targetDate: string, targetPage: number, targetSort: string, targetRelation: string) => {
     setLoading(true);
@@ -47,10 +59,6 @@ function DateScanInner() {
     try {
       const response = await api.post<ApiDateScanResponse>(endpoints.dateScan(), {
         date: targetDate,
-        universe: "v4-full",
-        birth_basis: "listing_open",
-        birth_profile_version: "v2-phase4b-listing_open",
-        relation_rule_version: "bazi-relation-v2",
         limit: pageSize,
         offset: targetPage * pageSize,
         sort: targetSort,
@@ -86,7 +94,6 @@ function DateScanInner() {
         universe: data.versions.universe_version,
         birthBasis: data.versions.birth_basis,
         birthProfileVersion: data.versions.birth_profile_version,
-        relationRuleVersion: data.versions.relation_rule_version,
       }));
       setSelected(detail.row);
     } catch (e) {
@@ -101,7 +108,7 @@ function DateScanInner() {
 
   return (
     <AppShell activeNav="research" dataStatus={error ? "bad" : loading ? "warn" : "ok"} statusText={error ? "扫描失败" : loading ? "关系扫描中" : "研究数据就绪"}>
-      <PageHero title="择日关系扫描" subtitle="指定日期 × 全市场股票八字关系矩阵" seal="研" couplet={["择日", "观局", "察势", "验真"]} motto={["先看结构", "再问统计"]} />
+      <PageHero title="择日关系扫描" subtitle="指定日期 × 全市场股票三柱关系（3×3 矩阵，聚合只看流日行）" seal="研" couplet={["择日", "观局", "察势", "验真"]} motto={["先看结构", "再问统计"]} />
       <ResearchNav />
       {fixture ? <Card><UnavailableBlock what="择日关系扫描" reason="当前为 UI 复刻 fixture 模式；本页没有冻结的全市场扫描样本，因此不会请求真实 API 或伪造扫描结果。移除 ?fixture=ui-reference 后可使用真实研究数据。" /></Card> : null}
       <Card className="mb-2" testId="date-scan-controls">
@@ -112,7 +119,7 @@ function DateScanInner() {
             <div className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>日期干支</div>
             <div className="mt-1 text-[19px]" style={{ color: "var(--color-gold-strong)" }}>{dateLabel}</div>
           </div>
-          <div className="flex flex-wrap gap-2 text-[11.5px]"><Chip tone="flat">股票池：全A · v4-full</Chip><Chip tone="flat">出生基准：上市首日开盘</Chip><Chip tone="flat">规则：relation-v2</Chip></div>
+          <div className="flex flex-wrap gap-2 text-[11.5px]"><Chip tone="flat">股票池：全A · {data?.versions.universe_version ?? "v4-full"}</Chip><Chip tone="flat">出生基准：上市首日开盘</Chip><Chip tone="flat">规则：{data?.versions.relation_rule_version ?? "读取中"}</Chip></div>
         </div>
       </Card>
 
@@ -121,6 +128,16 @@ function DateScanInner() {
       {data ? (
         <div className="space-y-2">
           <DateRelationFingerprint fingerprint={data.fingerprint} />
+          <Card testId="date-scan-scope">
+            <CardHeader title="本轮口径（逐条可核对）" dense right={<Chip tone="flat">{data.scope.matrix_target_scope.length}×{data.scope.matrix_source_scope.length}</Chip>} />
+            <div className="grid gap-2 p-3 text-[11.5px] md:grid-cols-2 lg:grid-cols-5" style={{ color: "var(--color-ink-muted)" }}>
+              <div>矩阵：流年/流月/流日 × 股票年/月/日（{data.scope.matrix_source_scope.length}×{data.scope.matrix_target_scope.length}，股票时柱不参与）</div>
+              <div>聚合：仅统计流日行（aggregate_scope = <span className="smp-num">{data.scope.aggregate_scope}</span>）</div>
+              <div>喜用基础：完整四柱原局（yongshen_basis = <span className="smp-num">{data.scope.yongshen_basis}</span>）</div>
+              <div>标准时点：<span className="smp-num">{data.scope.timezone} {data.scope.evaluation_time}</span></div>
+              <div>规则：<span className="smp-num">{data.versions.relation_rule_version}</span> · 矩阵 schema <span className="smp-num">{data.versions.relation_matrix_schema_version}</span></div>
+            </div>
+          </Card>
           <MarketRelationSummary data={data} />
           <div className="grid gap-2 lg:grid-cols-[1.05fr_0.95fr]">
             {appliedRelation ? <RelationScatter rows={data.rows} /> : <Card testId="relation-scatter-empty"><CardHeader title="关系命中分布" dense /><div className="flex h-[230px] items-center justify-center px-4 text-center text-[12px]" style={{ color: "var(--color-ink-muted)" }}>请选择一种关系后显示对应股票的 S × V 分布</div></Card>}
@@ -128,30 +145,32 @@ function DateScanInner() {
               <CardHeader title="先选关系，再看命中股票" dense />
               <div className="space-y-3 p-3">
                 <button type="button" className={`smp-btn ${appliedRelation === "" ? "smp-btn--primary" : ""}`} onClick={() => { setPage(0); setPendingRelation(""); }}>全部关系</button>
-                {RELATION_GROUPS.map((group) => (
+                {catalogError ? <div className="text-[11.5px]" style={{ color: "var(--color-warn)" }}>关系目录读取失败：{catalogError}（不退化到前端内置清单，避免与后端口径漂移）</div> : null}
+                {!catalog && !catalogError ? <div className="text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>正在读取后端关系目录…</div> : null}
+                {catalog?.groups.map((group) => (
                   <div key={group.label}>
                     <div className="mb-1 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>{group.label}</div>
                     <div className="flex flex-wrap gap-1.5">
                       {group.items.map((relation) => {
                         const count = data.relation_type_counts[relation] ?? 0;
-                        return <button key={relation} type="button" className={`smp-btn px-2 py-1 text-[11px] ${appliedRelation === relation ? "smp-btn--primary" : ""}`} onClick={() => { setPage(0); setPendingRelation(relation); }}>{relation} <span className="smp-num">{count}</span></button>;
+                        return <button key={relation} type="button" data-testid={`relation-filter-${relation}`} data-count={count} className={`smp-btn px-2 py-1 text-[11px] ${appliedRelation === relation ? "smp-btn--primary" : ""}`} onClick={() => { setPage(0); setPendingRelation(relation); }}>{relation} <span className="smp-num">{count}</span></button>;
                       })}
                     </div>
                   </div>
                 ))}
                 <label className="flex items-center gap-2 text-[12px]" style={{ color: "var(--color-ink-muted)" }}>排序<select className="smp-input" value={sort} onChange={(event) => { setPage(0); setSort(event.target.value); }}><option value="stock_code">代码</option><option value="s">协同 S</option><option value="v">扰动 V</option><option value="u">混合 U</option></select></label>
               </div>
-              <div className="px-3 pb-3 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>筛选作用于后端已计算的 RelationEvent；前端不重新计算术数关系。</div>
+              <div className="px-3 pb-3 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>筛选、计数与 S/V/U 均只统计流日行（external_day_row）的 RelationEvent；前端不重新计算术数关系。</div>
             </Card>
           </div>
           <Card>
-            <CardHeader title={appliedRelation ? `${appliedRelation}命中股票（${data.relation_type_counts[appliedRelation] ?? 0}）` : "请选择一种关系查看命中股票"} dense right={<span className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>{appliedRelation ? `${data.returned_count} / ${data.filtered_count}` : `PIT股票池 ${data.stock_total} · 可计算 ${data.valid_scan_count}`} · 点击股票查看完整 3×4 矩阵</span>} />
+            <CardHeader title={appliedRelation ? `${appliedRelation}命中股票（${data.relation_type_counts[appliedRelation] ?? 0}）` : "请选择一种关系查看命中股票"} dense right={<span className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>{appliedRelation ? `${data.returned_count} / ${data.filtered_count}` : `PIT股票池 ${data.stock_total} · 可计算 ${data.valid_scan_count}`} · 点击股票查看完整 3×3 矩阵</span>} />
             {appliedRelation ? <RelationStockTable rows={data.rows} onSelect={onSelect} /> : <div className="px-4 py-10 text-center text-[13px]" style={{ color: "var(--color-ink-muted)" }}>请选择一种关系查看命中股票</div>}
             <div className="flex items-center justify-between border-t px-3 py-2 text-[11.5px]" style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}><span>第 {page + 1} / {pageCount} 页 · {data.cache.hit ? "缓存命中" : "刚刚计算"}</span><span className="flex gap-2"><button type="button" className="smp-btn px-2 py-1" disabled={page <= 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>上一页</button><button type="button" className="smp-btn px-2 py-1" disabled={page + 1 >= pageCount} onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}>下一页</button></span></div>
           </Card>
           <Card>
             <CardHeader title="方法与研究边界" dense />
-            <div className="grid gap-2 p-3 md:grid-cols-2"><div className="smp-disclaimer">{data.disclaimer}</div><SourceMethod label="版本与来源" testId="date-scan-source"><RawField label="scan_id" value={data.scan_id} /><RawField label="universe_digest" value={data.versions.universe_digest} /><RawField label="fingerprint_version" value={data.versions.fingerprint_version} /><RawField label="bazi_engine_version" value={data.versions.bazi_engine_version} /></SourceMethod></div>
+            <div className="grid gap-2 p-3 md:grid-cols-2"><div className="smp-disclaimer">{data.disclaimer}</div><SourceMethod label="版本与来源" testId="date-scan-source"><RawField label="scan_id" value={data.scan_id} /><RawField label="universe_digest" value={data.versions.universe_digest} /><RawField label="fingerprint_version" value={data.versions.fingerprint_version} /><RawField label="relation_matrix_schema_version" value={data.versions.relation_matrix_schema_version} /><RawField label="bazi_engine_version" value={data.versions.bazi_engine_version} /></SourceMethod></div>
             {data.warnings.length ? <div className="border-t px-3 py-2 text-[11.5px]" style={{ borderColor: "var(--color-border)", color: "var(--color-warn)" }}>{data.warnings.slice(0, 3).map((warning) => <div key={warning.code}>· {warning.message}</div>)}</div> : null}
           </Card>
         </div>
@@ -159,6 +178,7 @@ function DateScanInner() {
       {detailLoading ? <PageLoading label="正在读取股票关系矩阵…" /> : null}
       {detailError ? <Card><UnavailableBlock what="股票详情" reason={detailError} /></Card> : null}
       {selected ? <RelationMatrix row={selected} onClose={() => setSelected(null)} /> : null}
+      <div className="pt-2 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>需要逐日研究同一只股票？<Link href="/research/relation-study" className="underline" style={{ color: "var(--color-gold-strong)" }}>前往关系历史研究</Link></div>
     </AppShell>
   );
 }

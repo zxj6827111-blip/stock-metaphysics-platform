@@ -21,7 +21,7 @@ export function RelationScatter({ rows }: { rows: ApiRelationStockResult[] }) {
                 key={row.stock_code}
                 title={`${row.stock_code} ${row.name} · S ${row.metrics.s_raw} · V ${row.metrics.v_raw} · U ${row.metrics.u_raw}`}
                 className="absolute rounded-full"
-                style={{ left: `${x}%`, top: `${y}%`, width: size, height: size, background: row.metrics.group === "高扰动" ? "var(--color-warn)" : row.metrics.group === "高混合" ? "var(--color-conflict)" : "var(--color-gold)", opacity: 0.82 }}
+                style={{ left: `${x}%`, top: `${y}%`, width: size, height: size, background: row.metrics.group === "扰动型" ? "var(--color-warn)" : row.metrics.group === "混合型" ? "var(--color-conflict)" : "var(--color-gold)", opacity: 0.82 }}
                 data-testid={`relation-point-${row.stock_code}`}
               />
             );
@@ -30,7 +30,7 @@ export function RelationScatter({ rows }: { rows: ApiRelationStockResult[] }) {
         <span className="absolute bottom-1 left-1/2 text-[10px]" style={{ color: "var(--color-ink-muted)" }}>协同关系 S</span>
         <span className="absolute left-1 top-1/2 -rotate-90 text-[10px]" style={{ color: "var(--color-ink-muted)" }}>扰动关系 V</span>
       </div>
-      <p className="px-3 pb-3 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>图中点为关系描述指标，不表示收益方向或交易建议。</p>
+      <p className="px-3 pb-3 text-[11px]" style={{ color: "var(--color-ink-muted)" }}>S / V / U 仅统计流日行（external_day_row）；图中点为关系描述指标，不表示收益方向或交易建议。</p>
     </Card>
   );
 }

@@ -45,7 +45,12 @@ class Settings(BaseSettings):
     canonical_birth_basis: str = "listing_open"
     canonical_birth_profile_version: str = "v2-phase4b-listing_open"
     canonical_universe_version: str = "v4-full"
-    relation_rule_version: str = "bazi-relation-v2"
+    # bazi-relation-v3：矩阵收窄为 3×3（流/股票各取年/月/日）、聚合只读流日行、
+    # 流日十神直接由「日主 × 流日干」计算、关系目录补齐天干受生/受克、结构型分组。
+    relation_rule_version: str = "bazi-relation-v3"
+    # relation-matrix-v2：目标列收窄为股票年/月/日三柱，行级 relation_types。
+    relation_matrix_schema_version: str = "relation-matrix-v2"
+    # 日期指纹本质是「日期 → 候选模板」，与股票矩阵口径无关，保持 v1 不变。
     relation_fingerprint_version: str = "date-relation-fingerprint-v1"
     calendar_engine_version: str = "lunar-python-1.4.8"
     huangli_engine_version: str = "huangli-engine-1.0.0"
