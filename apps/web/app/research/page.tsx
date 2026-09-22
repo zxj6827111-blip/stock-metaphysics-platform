@@ -1,20 +1,15 @@
 "use client";
 
-import { Phase2Placeholder } from "@/components/shell/Phase2Placeholder";
+import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-export default function Page() {
+export default function ResearchIndexPage() {
+  const router = useRouter();
+  useEffect(() => { router.replace("/research/date-scan"); }, [router]);
   return (
-    <Phase2Placeholder
-      title={"研究实验室"}
-      subtitle={"选择因子与股票池，运行事件研究与负对照"}
-      activeNav={"research"}
-      reason={"研究流水线的后端已实现（事件研究 + 随机出生日 / ±7 天 / 随机因子四类负对照），可通过后端 OpenAPI 文档（/docs）直接调用；图形化实验台属于第二轮 UI。"}
-      planned={[
-        "选择因子 / 股票池 / 目标窗口 / 市场区间",
-        "运行事件研究、负对照、样本外测试",
-        "保存与对比 Experiment",
-      ]}
-      docRef={"uiux_spec_v1.md §23"}
-    />
+    <main className="p-6 text-[13px]" style={{ color: "var(--color-ink-muted)" }}>
+      正在进入研究实验室… <Link href="/research/date-scan" style={{ color: "var(--color-gold)" }}>择日关系扫描</Link>
+    </main>
   );
 }

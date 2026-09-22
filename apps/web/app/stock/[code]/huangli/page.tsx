@@ -16,6 +16,7 @@
  */
 
 import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
 
 import { Card, CardHeader } from "@/components/cards/Card";
@@ -264,6 +265,11 @@ function HuangliInner() {
       </div>
 
       <HuangliTradingDayGrid analysisId={analysisId} />
+
+      <div className="flex items-center justify-between rounded border px-3 py-2 text-[12px]" style={{ borderColor: "var(--color-border)", background: "rgba(212,184,122,0.04)" }} data-testid="date-scan-link">
+        <span style={{ color: "var(--color-ink-muted)" }}>想从指定日期查看全市场股票八字关系？</span>
+        <Link className="smp-btn px-2.5 py-1" href={`/research/date-scan?date=${encodeURIComponent(asOf?.slice(0, 10) || (typeof primary.date === "string" ? primary.date : "") || new Date().toISOString().slice(0, 10))}`}>进入全市场择日研究 →</Link>
+      </div>
 
       {/* ===================== 分区三：证据与历史表现 ===================== */}
       <div
