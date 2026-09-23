@@ -226,7 +226,7 @@ cd apps/web && node scripts/capture-screenshots.mjs --live
 
 ---
 
-## 9. 择日关系扫描 / 关系历史研究（bazi-relation-v3，2026-09-23 补充）
+## 8. 择日关系扫描 / 关系历史研究（bazi-relation-v3，2026-09-23 补充）
 
 > 本节是 Phase 2 之后迭代的补充记录（PR #3），不改变上文 Phase 2 验收结论。
 
@@ -249,7 +249,7 @@ cd apps/web && node scripts/capture-screenshots.mjs --live
 
 ---
 
-## 10. 下一步建议
+## 9. 下一步建议
 
 按价值排序：
 
@@ -266,7 +266,7 @@ cd apps/web && node scripts/capture-screenshots.mjs --live
 
 ---
 
-## 11. 最后一句
+## 10. 最后一句
 
 Phase 2 交付的不是"更准的算命"，而是：
 
