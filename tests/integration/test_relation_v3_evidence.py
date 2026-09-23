@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import csv
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 
 import pytest
@@ -48,11 +49,13 @@ def _load_rows() -> list[dict[str, str]]:
         return list(reader)
 
 
+@lru_cache(maxsize=1)
 def _pingan_natal():
-    """解析 000001 的 v3 原局：优先版本化快照（本地），否则退回确定性引擎（CI）。
+    """解析 000001 的 v3 原局并缓存（365 天复用同一份输入）。
 
+    优先版本化快照（本地），否则退回确定性引擎（CI）。
     两条路径已在本文件的 ``test_pingan_natal_two_channel_equivalence`` 中对拍
-    （年/月/日三柱与喜用忌仇闲五类都相同）；本测试对外不区分。
+    （年/月/日三柱与喜用忌仇闲五类都相同）；构造次数从每日一次降为一次。
     """
     static = _load_static_natal_cache().get("000001")
     if static is not None:
@@ -69,10 +72,15 @@ def _pingan_natal():
     return _snapshot_from_chart(chart)
 
 
+@lru_cache(maxsize=1)
+def _calendar() -> CalendarEngine:
+    return CalendarEngine()
+
+
 @pytest.mark.parametrize("row", _load_rows(), ids=lambda row: row["date"])
 def test_evidence_csv_reproduces_from_live_engine(row):
     natal = _pingan_natal()
-    calendar = CalendarEngine()
+    calendar = _calendar()
     day = datetime.fromisoformat(row["date"]).replace(hour=12)
     snapshot = calendar.snapshot(day)
 

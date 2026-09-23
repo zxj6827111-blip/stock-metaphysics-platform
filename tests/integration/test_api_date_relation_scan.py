@@ -307,19 +307,18 @@ def four_stock_seed(db_session):
     )
 
 
-def _detail_rows(client, codes):
+def _detail_rows(client, codes, day: str = "2026-09-22"):
     rows = {}
-    for day in ("2026-09-22",):
-        scan = client.post("/api/v1/research/date-scan", json={"date": day, "limit": 500})
-        assert scan.status_code == 200, scan.text
-        body = scan.json()
-        for code in codes:
-            detail = client.get(
-                f"/api/v1/research/date-scan/{body['scan_id']}/stocks/{code}",
-                params={"target_date": day},
-            )
-            assert detail.status_code == 200, detail.text
-            rows[code] = detail.json()["row"]
+    scan = client.post("/api/v1/research/date-scan", json={"date": day, "limit": 500})
+    assert scan.status_code == 200, scan.text
+    body = scan.json()
+    for code in codes:
+        detail = client.get(
+            f"/api/v1/research/date-scan/{body['scan_id']}/stocks/{code}",
+            params={"target_date": day},
+        )
+        assert detail.status_code == 200, detail.text
+        rows[code] = detail.json()["row"]
     return rows
 
 
