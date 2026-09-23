@@ -4,6 +4,8 @@
 >
 > 当前结论：**FAIL / 不允许 merge PR #3**。页面截图可以稳定生成，但像素差异仍远超门禁阈值。
 
+> **CI 归属说明（2026-09-23 更新，未改动本页任何实测数据、门禁阈值与结论）**：应显式决策，`visual-regression` 已从 `V5.1 acceptance` workflow 的 job 列表中移除——这是**范围推迟**而非通过。 PR #3 的 CI 验收范围现为 backend core / ziwei / typecheck / build / functional e2e。本页 FAIL 状态**未解决**；本门禁（脚本、阈值、reference、e2e spec 全部原样）将在单独的 `ui-visual-parity` 分支上恢复为独立 CI job，并作为该分支工作的通过前提。
+
 ## 固定环境
 
 | 项目 | 值 |
