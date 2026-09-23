@@ -147,6 +147,16 @@ def test_date_scan_returns_v3_contract(client, date_scan_seed):
     assert set(catalog_body["factors"]) >= {"REL_LIUHE", "REL_TIANGAN_SHOUSHENG", "REL_TIANGAN_SHOUKE"}
 
 
+def test_date_scan_rejects_legacy_v2_rule_version(client, date_scan_seed):
+    """旧 v2 口径请求必须在进入缓存/计算前被拒绝：不存在"用 v2 请求拿 v3 结构"。"""
+    response = client.post(
+        "/api/v1/research/date-scan",
+        json={"date": "2026-09-22", "relation_rule_version": "bazi-relation-v2", "limit": 1},
+    )
+    assert response.status_code == 422
+    assert "bazi-relation-v2" in response.json()["error"]["message"]
+
+
 def test_date_scan_rejects_noncanonical_profile(client):
     response = client.post(
         "/api/v1/research/date-scan",
