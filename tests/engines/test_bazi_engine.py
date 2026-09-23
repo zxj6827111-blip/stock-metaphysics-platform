@@ -239,6 +239,67 @@ class TestNoGenderContract:
         assert len(chart.da_yun) > 0
         assert "假设" in chart.da_yun_note
 
+    def test_explicit_variant_records_assumption(self, bazi_engine):
+        """顺逆是假设 → 必须写进 assumptions（ADR-0003 规则 4，ADR-0014）。"""
+        chart = bazi_engine.build_chart(
+            birth_datetime=datetime(2001, 8, 27, 9, 30),
+            as_of=datetime(2024, 11, 15, 14, 32),
+            variant_mode=VariantMode.FORWARD,
+            stock_code="600519",
+        )
+        entry = next(a for a in chart.assumptions if a.key == "bazi.variant_mode")
+        assert entry.value == "forward"
+
+    def test_da_yun_note_has_no_enum_repr(self, bazi_engine):
+        """note 会被界面原样展示：禁止出现 `VariantMode.FORWARD` 这类枚举名。"""
+        for mode in (VariantMode.FORWARD, VariantMode.REVERSE, VariantMode.BOTH):
+            chart = bazi_engine.build_chart(
+                birth_datetime=datetime(2001, 8, 27, 9, 30),
+                as_of=datetime(2024, 11, 15, 14, 32),
+                variant_mode=mode,
+                stock_code="600519",
+            )
+            assert "VariantMode" not in chart.da_yun_note
+            assert mode.value in chart.da_yun_note
+
+    @pytest.mark.parametrize("mode", [VariantMode.FORWARD, VariantMode.REVERSE])
+    def test_current_dayun_is_marked_by_engine(self, bazi_engine, mode):
+        """当前大运由引擎按 as_of 判定；展示层不得自己重算。"""
+        as_of = datetime(2024, 11, 15, 14, 32)
+        chart = bazi_engine.build_chart(
+            birth_datetime=datetime(2001, 8, 27, 9, 30),
+            as_of=as_of,
+            variant_mode=mode,
+            stock_code="600519",
+        )
+        assert all("is_current" in item for item in chart.da_yun)
+        current = [item for item in chart.da_yun if item["is_current"]]
+        assert len(current) == 1
+        assert current[0]["start_year"] <= as_of.year <= current[0]["end_year"]
+
+    def test_dayun_does_not_enter_factors(self, bazi_engine, huangli_engine):
+        """§5.4 硬断言：variant 一变，因子必须**一个值都不变**。"""
+        from src.factors.registry.compute import compute_factor_set
+
+        as_of = datetime(2024, 11, 15, 14, 32)
+        huangli = huangli_engine.snapshot(as_of, days=31)
+        snapshots = {}
+        for mode in (VariantMode.NOT_APPLICABLE, VariantMode.FORWARD, VariantMode.REVERSE):
+            chart = bazi_engine.build_chart(
+                birth_datetime=datetime(2001, 8, 27, 9, 30),
+                as_of=as_of,
+                variant_mode=mode,
+                stock_code="600519",
+            )
+            factor_set = compute_factor_set(chart, huangli, as_of, stock_code="600519")
+            snapshots[mode] = {
+                o.factor_id: (o.rule_score, o.normalized_value, o.direction)
+                for o in factor_set.observations
+            }
+        assert snapshots[VariantMode.FORWARD] == snapshots[VariantMode.NOT_APPLICABLE]
+        assert snapshots[VariantMode.REVERSE] == snapshots[VariantMode.NOT_APPLICABLE]
+        assert snapshots[VariantMode.FORWARD], "因子集为空说明这条断言没测到东西"
+
 
 class TestRawChartTraceability:
     def test_engine_version_and_source(self, maotai_chart):

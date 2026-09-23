@@ -14,6 +14,7 @@ from src.core.schemas.common import (
     Exchange,
     SMBaseModel,
     SourceRef,
+    VariantBasis,
     VariantMode,
 )
 
@@ -28,6 +29,11 @@ class StockMaster(SMBaseModel):
     board: str = Field(default="", description="主板 / 创业板 / 科创板 / 北交所")
     industry: str = ""
     listing_date: date | None = None
+    #: 上市首日涨跌幅与「阴阳」标识（阳=首日收涨 / 阴=首日收跌），来自权威表。
+    #: **不是股票的性别**：只在 ``variant_basis=first_day_yinyang`` 时作为显式假设
+    #: 参与运限顺逆推导（ADR-0014 / AGENTS.md §5），缺数据一律 None，禁止默认填充。
+    first_day_pct_chg: float | None = None
+    first_day_yinyang: str | None = Field(default=None, description="阳 / 阴 / None（无数据）")
     total_market_cap: float | None = None
     circulating_market_cap: float | None = None
     is_active: bool = True
@@ -117,6 +123,14 @@ class BirthProfileCreateRequest(SMBaseModel):
 
     birth_basis: BirthBasis = BirthBasis.LISTING_OPEN
     variant_mode: VariantMode = VariantMode.NOT_APPLICABLE
+    variant_basis: VariantBasis = Field(
+        default=VariantBasis.EXPLICIT,
+        description=(
+            "运限变体的来源口径。`explicit`（默认）直接用 variant_mode；"
+            "`first_day_yinyang` 由上市首日涨跌标识推导（阳→forward / 阴→reverse），"
+            "此时 variant_mode 必须保持 not_applicable，否则视为冲突（ADR-0014）。"
+        ),
+    )
     override_datetime: datetime | None = Field(
         default=None, description="仅当 birth_basis=custom 时使用"
     )

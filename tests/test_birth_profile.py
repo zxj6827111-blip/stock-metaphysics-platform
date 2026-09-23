@@ -14,10 +14,21 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from src.core.schemas.common import BirthBasis, DataQualityGrade, Exchange, VariantMode
+from src.core.schemas.common import (
+    BirthBasis,
+    DataQualityGrade,
+    Exchange,
+    VariantBasis,
+    VariantMode,
+)
 from src.core.schemas.stock import BirthProfileCreateRequest, StockMaster
 from src.core.stock import codes, exchange_sessions
 from src.core.stock.birth_profile import BirthProfileError, build_birth_profile, to_row
+from src.core.stock.variant_basis import (
+    FIRST_DAY_YINYANG_DISCLAIMER,
+    VARIANT_BASIS_VERSION,
+    derive_variant_from_first_day,
+)
 
 
 def _stock(code: str, board: str, exchange: Exchange, listing: date, name: str = "测试股") -> StockMaster:
@@ -207,6 +218,82 @@ class TestNoGender:
         assert profile.variant_mode == mode
         assert any(a.key == "birth.variant_mode" for a in profile.assumptions)
         assert "研究对比" in profile.variant_note
+
+
+class TestFirstDayYinyangBasis:
+    """``variant_basis=first_day_yinyang``：显式假设路径（ADR-0014）。
+
+    要守住的三件事：
+    1. 推导只读首日涨跌标识，不猜、不默认；
+    2. 假设与缺口都必须写进 assumptions / variant_note；
+    3. explicit 路径的语义一个字都不许变（ADR-0003 仍然有效）。
+    """
+
+    def _yy_stock(self, yinyang: str | None, pct: float | None = None) -> StockMaster:
+        stock = _stock("600519", "主板", Exchange.SSE, date(2001, 8, 27))
+        stock.first_day_yinyang = yinyang
+        stock.first_day_pct_chg = pct
+        return stock
+
+    @pytest.mark.parametrize(
+        "yinyang,pct,expected",
+        [
+            ("阳", 0.0301, VariantMode.FORWARD),
+            ("阴", -0.108696, VariantMode.REVERSE),
+        ],
+    )
+    def test_yinyang_maps_to_variant(self, yinyang, pct, expected):
+        stock = self._yy_stock(yinyang, pct)
+        profile = build_birth_profile(
+            stock,
+            BirthProfileCreateRequest(variant_basis=VariantBasis.FIRST_DAY_YINYANG),
+        )
+        assert profile.variant_mode == expected
+        keys = {a.key for a in profile.assumptions}
+        assert {"birth.variant_basis", "birth.variant_mode"} <= keys
+        # 免责声明与规则版本都要落到 note 里（§5.3 + §16.5）
+        assert FIRST_DAY_YINYANG_DISCLAIMER in profile.variant_note
+        assert f"{pct * 100:+.2f}%" in profile.variant_note
+        basis = next(a for a in profile.assumptions if a.key == "birth.variant_basis")
+        assert VARIANT_BASIS_VERSION in basis.impact
+
+    def test_missing_first_day_data_is_not_defaulted(self):
+        """缺首日数据 → 不可用语义，绝不用"默认男命"顶替（§2.4）。"""
+        profile = build_birth_profile(
+            self._yy_stock(None, None),
+            BirthProfileCreateRequest(variant_basis=VariantBasis.FIRST_DAY_YINYANG),
+        )
+        assert profile.variant_mode == VariantMode.NOT_APPLICABLE
+        assert "缺上市首日涨跌标识" in profile.variant_note
+        assert "不输出大运" in profile.variant_note
+        basis = next(a for a in profile.assumptions if a.key == "birth.variant_basis")
+        assert basis.value == "first_day_yinyang:unavailable"
+
+    def test_basis_conflicts_with_explicit_variant(self):
+        """推导方向唯一：同时给 variant_mode 是冲突，必须报错而不是静默取一个。"""
+        with pytest.raises(BirthProfileError, match="冲突"):
+            build_birth_profile(
+                self._yy_stock("阳", 0.01),
+                BirthProfileCreateRequest(
+                    variant_basis=VariantBasis.FIRST_DAY_YINYANG,
+                    variant_mode=VariantMode.FORWARD,
+                ),
+            )
+
+    def test_explicit_path_unchanged(self):
+        """默认（explicit）路径不受新口径影响：有首日数据也不自动推导。"""
+        profile = build_birth_profile(self._yy_stock("阳", 0.01))
+        assert profile.variant_mode == VariantMode.NOT_APPLICABLE
+        assert not any(a.key == "birth.variant_basis" for a in profile.assumptions)
+
+    def test_derivation_ignores_other_stock_fields(self):
+        """推导只读 first_day_*：公司名/行业/年干阴阳都不许参与。"""
+        stock = self._yy_stock(None, None)
+        stock.name = "阳阳阳"
+        stock.industry = "男命"
+        derivation = derive_variant_from_first_day(stock)
+        assert derivation.available is False
+        assert derivation.variant_mode == VariantMode.NOT_APPLICABLE
 
 
 class TestOtherBaselines:

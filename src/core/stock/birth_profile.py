@@ -9,7 +9,10 @@
 1. **禁止硬编码 09:30** —— 开盘时刻必须来自 ``exchange_session_calendar``。
 2. 每次构造都产出 ``birth_profile_version``，并且**不覆盖**历史版本。
 3. 股票**无性别**：``variant_mode`` 默认 ``not_applicable``，
-   禁止偷偷填"男命/女命"以启用顺逆大运。
+   禁止偷偷填"男命/女命"以启用顺逆大运。需要运限时只有两条**显式**路径：
+   ``variant_mode=forward/reverse/both``，或 ``variant_basis=first_day_yinyang``
+   （首日涨跌标识 → 阴阳 → 男/女命假设，ADR-0014）；两条都会写入 ``assumptions``，
+   且都不进入任何因子。
 4. 所有假设写入 ``assumptions``，可服务于未来的方案对比回测。
 """
 
@@ -26,6 +29,7 @@ from src.core.schemas.common import (
     DataQualityGrade,
     Exchange,
     SourceRef,
+    VariantBasis,
     VariantMode,
 )
 from src.core.schemas.stock import (
@@ -37,6 +41,7 @@ from src.core.schemas.stock import (
 )
 from src.core.stock import exchange_sessions
 from src.core.stock.exchange_sessions import ex_value
+from src.core.stock.variant_basis import derive_variant_from_first_day
 
 DEFAULT_TZ = "Asia/Shanghai"
 #: 上市日若非交易日，向后最多查找多少个自然日
@@ -286,10 +291,24 @@ def build_birth_profile(
     # ---------------- 股票无性别 ----------------
     variant_mode = req.variant_mode
     variant_note = ""
-    if variant_mode == VariantMode.NOT_APPLICABLE:
+    if req.variant_basis == VariantBasis.FIRST_DAY_YINYANG:
+        # 首日阴阳只能推出唯一方向，与显式 variant_mode 同时给出即为冲突 —— 大声失败，
+        # 不做"谁是主"的静默裁决（AGENTS.md §15 / §26）。
+        if variant_mode != VariantMode.NOT_APPLICABLE:
+            raise BirthProfileError(
+                "variant_basis=first_day_yinyang 与 variant_mode="
+                f"{ex_value(variant_mode)} 冲突：按首日阴阳推导出的方向是唯一的，"
+                "两者请二选一（ADR-0014）。"
+            )
+        derivation = derive_variant_from_first_day(stock)
+        variant_mode = derivation.variant_mode
+        variant_note = derivation.note
+        assumptions.extend(derivation.assumptions)
+    elif variant_mode == VariantMode.NOT_APPLICABLE:
         variant_note = (
             "股票不存在真实性别。运限顺逆依赖性别，因此 Phase 1 不启用大运，"
-            "variant_mode=not_applicable；如需研究可显式切换为 forward/reverse/both。"
+            "variant_mode=not_applicable；如需研究可显式切换为 forward/reverse/both，"
+            "或改用 variant_basis=first_day_yinyang（首日阴阳假设，ADR-0014）。"
         )
     else:
         variant_note = (

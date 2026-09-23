@@ -32,7 +32,36 @@ export const DEFAULT_BIRTH_BASIS: AnalysisBirthBasis = "listing_open";
 export const HORIZON_OPTIONS = ["20d", "60d"] as const;
 export const DEFAULT_HORIZON = "20d";
 
-export type AnalysisVariant = "forward" | "reverse";
+export type AnalysisVariant = "first_day_yinyang" | "forward" | "reverse";
+
+/**
+ * **显式**变体：只能 forward / reverse。
+ *
+ * 需要用户自己选方向的场景（紫微页的顺/逆切换）用它 —— 那里不接受
+ * "按首日阴阳推导"，因为紫微运限方向的来源口径属 ADR-0010 范围。
+ */
+export type ExplicitAnalysisVariant = "forward" | "reverse";
+
+/**
+ * 默认运限变体来源：**按上市首日阴阳推导**（ADR-0014）。
+ *
+ * 阳（首日收涨）→ 男命假设 → forward；阴（首日收跌）→ 女命假设 → reverse；
+ * 缺首日数据时后端不推导、不默认，如实返回"不输出大运 + 原因"。
+ * 它是显式登记的假设（写入出生档案 assumptions / variant_note），不进入任何因子。
+ *
+ * 需要"明确指定方向"的场景（例如紫微页的顺/逆切换）请显式传 `forward` / `reverse`。
+ */
+export const DEFAULT_ANALYSIS_VARIANT: AnalysisVariant = "first_day_yinyang";
+
+/** 请求体：把 UI 的变体来源翻译成后端口径（见 `BirthProfileCreateRequest`）。 */
+export function variantRequestFields(variant: AnalysisVariant): {
+  variant_mode: string;
+  variant_basis: string;
+} {
+  return variant === "first_day_yinyang"
+    ? { variant_mode: "not_applicable", variant_basis: "first_day_yinyang" }
+    : { variant_mode: variant, variant_basis: "explicit" };
+}
 
 /**
  * 出生模型（研究假设）。
@@ -121,7 +150,7 @@ export async function loadMultiAnalysis(
 
   const body = {
     as_of: key.asOf ?? null,
-    variant_mode: key.variant,
+    ...variantRequestFields(key.variant),
     birth_basis: key.birthBasis ?? DEFAULT_BIRTH_BASIS,
     horizon: key.horizon ?? DEFAULT_HORIZON,
     persist: opts.persist ?? true,
@@ -161,12 +190,18 @@ export interface UseAnalysisResult {
 /**
  * 分析数据 Hook。
  *
- * `variant` 默认 `forward`：Phase 2 的紫微需要显式方向，
- * 而"顺行"只是**两个假设之一**，UI 必须同时提供切换（见 ZiweiChart 组件）。
+ * `variant` 默认 `first_day_yinyang`（按首日阴阳推导，ADR-0014）：股票没有真实性别，
+ * 但"这只标的的运限往哪边走"必须有一个**显式登记**的依据，否则大运无从展示。
+ * 需要"明确指定方向"的场景（紫微页的顺/逆切换）仍显式传 `forward` / `reverse`
+ * —— 那些是**两个假设之一**，UI 必须同时提供切换（见 ZiweiChart 组件）。
  */
 export function useAnalysis(
   code: string,
-  variant: AnalysisVariant = "forward",
+  /**
+   * 运限变体来源。默认 `first_day_yinyang`（按首日阴阳推导，ADR-0014）——
+   * 它进缓存键：同一标的的不同变体是**两次不同的分析**，不能互相顶替。
+   */
+  variant: AnalysisVariant = DEFAULT_ANALYSIS_VARIANT,
   asOf?: string,
   /**
    * 出生模型（研究假设）。默认 `listing_open`。

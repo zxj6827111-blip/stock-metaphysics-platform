@@ -26,6 +26,8 @@ import type {
   ConsensusView,
   ConflictView,
   DataQualityView,
+  DaYunStep,
+  DaYunView,
   Direction,
   DistributionBin,
   EngineCardView,
@@ -344,7 +346,41 @@ export function toFateSummary(chart: Record<string, unknown>): FateSummaryRow[] 
   ];
 }
 
-export function toTimeline(chart: Record<string, unknown>): TimelineItem[] {
+/**
+ * 运限（大运）视图：把后端 `BaziChart.da_yun` 原样搬进展示层。
+ *
+ * 前端**不做任何推演**（AGENTS.md §9.12）：`is_current` 由后端按 as_of 判定，
+ * 「起运前」占位行（ganzhi 为空串）也照原样显示，不隐藏、不补算。
+ */
+export function toDaYun(
+  chart: Record<string, unknown>,
+  assumption = "",
+): DaYunView {
+  const raw = Array.isArray(chart.da_yun) ? (chart.da_yun as Record<string, unknown>[]) : [];
+  const steps: DaYunStep[] = raw
+    .map((it) => ({
+      ganzhi: String(it.ganzhi ?? ""),
+      startYear: Number(it.start_year ?? 0),
+      endYear: Number(it.end_year ?? 0),
+      startAge: (it.start_age ?? "") as number | string,
+      isCurrent: it.is_current === true,
+    }))
+    .filter((s) => Number.isFinite(s.startYear) && s.startYear > 0);
+
+  return {
+    variantMode: String(chart.variant_mode ?? "not_applicable"),
+    // 有序列但没有一步带干支 = 只有"起运前"占位行，仍视为不可用
+    available: steps.some((s) => s.ganzhi !== ""),
+    note: String(chart.da_yun_note ?? ""),
+    assumption,
+    steps,
+  };
+}
+
+export function toTimeline(
+  chart: Record<string, unknown>,
+  daYun?: DaYunView,
+): TimelineItem[] {
   const mk = (key: string, title: string, obj: Record<string, unknown> | undefined): TimelineItem => {
     const gz = (obj?.ganzhi ?? {}) as Record<string, string>;
     const start = obj?.start_date ? String(obj.start_date) : "";
@@ -363,13 +399,24 @@ export function toTimeline(chart: Record<string, unknown>): TimelineItem[] {
     };
   };
 
+  const view = daYun ?? toDaYun(chart);
+  const current = view.steps.find((s) => s.isCurrent);
+
   return [
     {
       key: "dayun",
       title: "大运",
-      primary: String(chart.da_yun_note ?? "").slice(0, 22) || "未启用",
-      secondary: String(chart.variant_mode ?? ""),
-      note: "股票无性别 → 大运顺逆不参与 Phase 1 因子",
+      // 之前这里显示的是 `da_yun_note` 的前 22 个字符（"运限按 VariantMode.FORWAR"），
+      // 既不是大运也不是可读句子。现在显示当前大运本身。
+      primary: current
+        ? `${current.ganzhi || "起运前"} · ${current.startYear}-${current.endYear}`
+        : view.steps.length
+          ? `${view.steps.length} 步 · 无当前`
+          : "未输出",
+      secondary: view.variantMode === "not_applicable"
+        ? "不适用（股票无性别）"
+        : variantModeLabel(view.variantMode),
+      note: view.note || "股票无性别 → 大运顺逆不参与因子",
       tone: "gold",
     },
     mk("year", "当前流年", chart.current_year_pillar as Record<string, unknown>),
@@ -662,15 +709,19 @@ export function buildBaziPage(
   factors: ApiFactorSet | null,
   evidence: ApiEvidence | null,
   backtest: ApiEventStudy | null,
+  /** 出生档案 `variant_note`：运限假设的来源说明（ADR-0014）。 */
+  variantAssumption = "",
 ): BaziPageData {
   const split = factors ? splitFactors(factors) : { positive: [], negative: [] };
   const h20 = backtest?.horizons.find((h) => h.horizon === 20);
+  const daYun = toDaYun(chart, variantAssumption);
   return {
     context: ctx,
     wuxing: toWuxingBars(chart),
     pillars: toBaziPillars(chart),
     summary: toFateSummary(chart),
-    timeline: toTimeline(chart),
+    timeline: toTimeline(chart, daYun),
+    daYun,
     variantMode: String(chart.variant_mode ?? "not_applicable"),
     variantNote: String(chart.da_yun_note ?? ""),
     positiveFactors: split.positive,
@@ -693,7 +744,15 @@ export function buildBaziPageFromMulti(
 ): BaziPageData {
   const ctx = buildContextFromMulti(multi);
   const chart = (multi.bazi_chart ?? {}) as Record<string, unknown>;
-  return buildBaziPage(ctx, chart, multi.factors, evidence, backtest);
+  return buildBaziPage(
+    ctx,
+    chart,
+    multi.factors,
+    evidence,
+    backtest,
+    // 运限假设的来源（"首日 +3.01% → 阳 → 男命假设"）由出生档案携带
+    multi.birth_profile?.variant_note ?? "",
+  );
 }
 
 

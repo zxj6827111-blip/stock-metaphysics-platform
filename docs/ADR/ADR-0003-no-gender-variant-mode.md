@@ -94,3 +94,6 @@ def test_explicit_variant_mode_computes_dayun(...)  # 显式声明时才计算
 - [`AGENTS.md`](../AGENTS.md) §5
 - [`docs/methodology.md`](../methodology.md) §4
 - `src/core/schemas/common.py::VariantMode`
+- [ADR-0014](ADR-0014-first-day-yinyang-variant-basis.md)：2026-09-23 追加的
+  `variant_basis=first_day_yinyang`（首日阴阳 → 男/女命假设）。**它不取代本 ADR**：
+  本 ADR 的 6 条规则全部保持有效，ADR-0014 只补上"显式方向由谁选、依据是什么、怎么登记"。

@@ -1159,6 +1159,9 @@ class AnalysisService:
             stock_code=row.stock_code, wind_code=row.wind_code, name=row.name,
             exchange=row.exchange, board=row.board, industry=row.industry,
             listing_date=row.listing_date,
+            # 首日涨跌标识：variant_basis=first_day_yinyang 的唯一输入（ADR-0014）
+            first_day_pct_chg=row.first_day_pct_chg,
+            first_day_yinyang=row.first_day_yinyang,
             total_market_cap=row.total_market_cap,
             circulating_market_cap=row.circulating_market_cap,
             is_active=row.is_active,

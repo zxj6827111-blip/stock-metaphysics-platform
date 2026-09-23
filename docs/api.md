@@ -176,10 +176,16 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
   "horizon": "20d",
   "birth_basis": "listing_open",
   "variant_mode": "not_applicable",
+  "variant_basis": "explicit",
   "huangli_days": 31,
   "persist": true
 }
 ```
+
+| 字段 | 取值 | 说明 |
+|---|---|---|
+| `variant_mode` | `not_applicable`（默认）/ `forward` / `reverse` / `both` | 运限顺逆；股票无性别，不得默认填 |
+| `variant_basis` | `explicit`（默认）/ `first_day_yinyang` | 顺逆的**来源口径**（2026-09-23 新增，ADR-0014）：后者由 `stock_master.first_day_yinyang` 推导（阳→`forward`/男命、阴→`reverse`/女命），此时 `variant_mode` 必须保持 `not_applicable`，否则 `422 BIRTH_PROFILE_ERROR`；缺首日数据 → `not_applicable` + 原因，不输出大运 |
 
 响应（`BaziAnalysisResponse`）：
 
@@ -208,6 +214,10 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
     "current_month_pillar": { "kind":"month", "ganzhi":{"text":"乙亥"}, "clashes_with_natal":["year","hour"], ... },
     "current_day_pillar":   { "kind":"day",   "ganzhi":{"text":"癸未"}, ... },
     "variant_mode": "not_applicable", "da_yun": [], "da_yun_note": "大运顺逆由性别…",
+    // variant_mode ∈ {forward, reverse, both} 时 da_yun 为 10 步：
+    //   [{"start_year":2001,"end_year":2007,"ganzhi":"","start_age":1,"is_current":false},
+    //    {"start_year":2008,"end_year":2017,"ganzhi":"乙未","start_age":8,"is_current":false}, ...]
+    // 第一条是 lunar-python 的「起运前」占位行（ganzhi 为空串）；is_current 由后端按 as_of 判定。
     "engine_version": "smx-bazi-native-1.0.0", "assumptions": [...], "warnings": [...]
   },
   "huangli": { "primary": {...}, "days": [31 天], "raw_huangli": {...} },
@@ -228,6 +238,11 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
 > **`opinion.score` 的语义**：传统规则强度的加权聚合（0–100），
 > **不是预期收益率，也不是上涨概率**。`top_positive_reasons` 中的 `factor_ids`
 > 可以逐条追溯到因子定义与盘面依据。
+
+> `POST /api/v1/stocks/{code}/analysis/multi` 的请求体与本节相同，`variant_basis`
+> 在那里同时决定**八字大运顺逆**与**紫微大限方向**：推出来的方向是"这只标的的运限
+> 往哪边走"这一个假设，不在两个引擎里给出两个方向（ADR-0014）。
+> 紫微单端点 `/analysis/ziwei` 只接受 `variant_basis=explicit`（方向来源口径属 ADR-0010）。
 
 ### 2.2 `GET /api/v1/analysis/{analysis_id}`
 

@@ -97,16 +97,18 @@ LLM（Phase 2）只能解释已经算好的结构化结果。
 |---|---|
 | 默认不适用 | `variant_mode = not_applicable`（默认值） |
 | 不输出大运 | 该模式下 `da_yun = []` |
-| 不进入因子 | 大运不参与任何 Phase 1 因子 |
-| 记录假设 | `assumptions` 中含 `bazi.variant_mode` |
+| 不进入因子 | 大运不参与任何 Phase 1 因子（有硬断言：variant 变化时因子值必须完全不变） |
+| 记录假设 | `assumptions` 中含 `bazi.variant_mode`；由首日阴阳推导时另有 `birth.variant_basis` |
 | 允许研究 | 显式传 `forward` / `reverse` / `both` 才计算，且标注"基于假设规则" |
-| 机器校验 | `tests/engines/test_bazi_engine.py::TestNoGenderContract` |
+| 允许推导（2026-09-23） | `variant_basis=first_day_yinyang`：按「首日收涨→阳→男命 / 首日收跌→阴→女命」假定方向；缺首日数据不推导、不默认。口径见 [ADR-0014](ADR/ADR-0014-first-day-yinyang-variant-basis.md)，真源 `src/core/stock/variant_basis.py` |
+| 机器校验 | `tests/engines/test_bazi_engine.py::TestNoGenderContract`（含 §5.4 因子不变）、`tests/test_birth_profile.py::TestFirstDayYinyangBasis`、`tests/integration/test_api_variant_basis.py` |
 
 UI 上也如实展示：
 
 ```
-Variant A（阳男）  Variant B（阴女）   Phase 2 将并行回测两种假设
-注：股票无天然性别，以下运限推演基于假设规则，请结合多模型综合判断。
+运限假设：顺行（假设规则）　首日涨跌标识「阳」（首日 +3.01%）→ 男命假设 → variant_mode=forward
+大运（假设规则）  起运前 2001–2007 · 乙未 2008–2017 · 甲午 2018–2027（当前）· …
+注：运限推演基于假设规则，非事实（股票无真实性别），不进入任何因子。
 ```
 
 ---

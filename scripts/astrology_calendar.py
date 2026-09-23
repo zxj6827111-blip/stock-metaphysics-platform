@@ -52,6 +52,11 @@ sys.path.insert(0, str(ROOT))
 from sqlalchemy import select  # noqa: E402
 
 from src.core.stock.trading_calendar import get_trading_calendar_provider  # noqa: E402
+from src.core.stock.variant_basis import (  # noqa: E402
+    FIRST_DAY_YINYANG_DISCLAIMER,
+    FIRST_DAY_YINYANG_TO_GENDER,
+    FIRST_DAY_YINYANG_TO_VARIANT,
+)
 from src.db.base import get_session_factory  # noqa: E402
 from src.db.models import StockMasterRow, UniverseMembershipRow  # noqa: E402
 from src.engines.bazi import rules  # noqa: E402
@@ -97,15 +102,15 @@ VariantMode = inspect.signature(BAZI.build_chart).parameters["variant_mode"].def
 #: 首日阴阳 → 性别假设的映射。**这是假设，不是事实**：
 #: 股票没有真实性别（AGENTS.md §5），这里只是把用户的「阳→男 / 阴→女」
 #: 规则显式化，用于起运；大运顺逆再由「性别 + 年干阴阳」自动决定。
+#:
+#: 口径定义在 ``src/core/stock/variant_basis.py``（单一真源，ADR-0014）：
+#: CLI 与 API 必须共用同一套映射 —— 2026-09「界面显示不出大运」正是
+#: CLI 与界面各有一套口径造成的。
 YINYANG_TO_GENDER = {
-    "阳": (VariantMode.FORWARD, "男命"),
-    "阴": (VariantMode.REVERSE, "女命"),
+    yinyang: (variant, FIRST_DAY_YINYANG_TO_GENDER[yinyang])
+    for yinyang, variant in FIRST_DAY_YINYANG_TO_VARIANT.items()
 }
-DAYUN_DISCLAIMER = (
-    "运限推演基于假设规则：股票无真实性别，「阳（首日收涨）→男命 / 阴（首日收跌）→女命」"
-    "是本项目的显式假设，非事实；该口径未回测，不进入任何正式因子，"
-    "不得据此判断涨跌。"
-)
+DAYUN_DISCLAIMER = FIRST_DAY_YINYANG_DISCLAIMER
 
 STEMS = "甲乙丙丁戊己庚辛壬癸"
 BRANCHES = "子丑寅卯辰巳午未申酉戌亥"

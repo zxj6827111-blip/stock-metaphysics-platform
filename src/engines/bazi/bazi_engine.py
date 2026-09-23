@@ -195,8 +195,27 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
                 impact="大运/小限不参与 Phase 1 因子与评分；Phase 2 可并行回测 forward/reverse 两种假设",
             ))
         else:
-            da_yun = self._da_yun(birth_datetime, variant_mode)
-            da_yun_note = f"运限按 {variant_mode} 假设计算，仅用于研究对比，暂不进入因子。"
+            da_yun = self._da_yun(birth_datetime, variant_mode, as_of)
+            mode_value = (
+                variant_mode.value if isinstance(variant_mode, VariantMode) else str(variant_mode)
+            )
+            direction_cn = {
+                VariantMode.FORWARD: "顺行",
+                VariantMode.REVERSE: "逆行",
+                VariantMode.BOTH: "顺逆并列",
+            }.get(variant_mode, "未知方向")
+            # 这段文案会**原样进界面**，因此禁止出现 `VariantMode.FORWARD` 这类枚举名
+            # （`VariantMode` 未覆盖 __str__，f-string 会插出类名）。
+            da_yun_note = (
+                f"运限按变体 {mode_value}（{direction_cn}）假设计算。"
+                "运限推演基于假设规则，仅用于研究对比，不进入任何因子。"
+            )
+            assumptions.append(Assumption(
+                key="bazi.variant_mode",
+                value=mode_value,
+                reason="运限顺逆依赖性别/年干阴阳，由调用方显式登记；引擎不推断也不默认",
+                impact="大运/小限不参与任何因子与评分；假设来源见出生档案 variant_note",
+            ))
 
         chart = BaziChart(
             stock_code=stock_code,
@@ -407,13 +426,24 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
         tp.note = "；".join(bits) if bits else "与原局无显著互动"
 
     # ------------------------------------------------------------------
-    def _da_yun(self, birth_datetime: datetime, variant_mode: VariantMode) -> list[dict]:
+    def _da_yun(
+        self,
+        birth_datetime: datetime,
+        variant_mode: VariantMode,
+        as_of: datetime | None = None,
+    ) -> list[dict]:
         """按 variant_mode 计算大运（仅研究用）。
 
         注意：Phase 1 默认不启用（股票无性别）。此处只在显式传入
         forward/reverse 时计算，用于 Phase 2 的历史对比实验。
+
+        ``as_of`` 只用于**标记**哪一步是当前大运（``is_current``）——
+        判定放在这里而不是展示层，避免前端重复实现口径；它不参与任何排盘。
+        传 None 时全部 ``is_current=False``（引擎不接受"当前时间"这种非确定性输入，见 §17）。
+        lunar-python 的第一条是"起运前"占位行（``ganzhi`` 为空串），原样保留。
         """
         gender_flag = 1 if variant_mode == VariantMode.FORWARD else 0
+        reference_year = as_of.year if as_of is not None else None
         try:
             from lunar_python import Solar
 
@@ -428,6 +458,10 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
                     "end_year": d.getEndYear(),
                     "ganzhi": d.getGanZhi(),
                     "start_age": d.getStartAge(),
+                    "is_current": bool(
+                        reference_year is not None
+                        and d.getStartYear() <= reference_year <= d.getEndYear()
+                    ),
                 }
                 for d in yun.getDaYun()[:10]
             ]

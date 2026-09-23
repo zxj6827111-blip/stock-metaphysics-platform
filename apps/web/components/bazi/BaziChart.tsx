@@ -7,7 +7,7 @@
  * 这是**纯 DOM 表格**，不是图片。
  */
 
-import type { BaziPillarView, WuxingBar, FateSummaryRow, TimelineItem } from "@/lib/types";
+import type { BaziPillarView, WuxingBar, FateSummaryRow, TimelineItem, DaYunView } from "@/lib/types";
 import { variantModeLabel } from "@/lib/dataSource";
 import { Chip } from "../cards/Card";
 import { IconDiamond, IconLayers, IconTaiji } from "../shell/Icons";
@@ -296,6 +296,90 @@ export function TimeStructure({ items }: { items: TimelineItem[] }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 大运（运限）序列。
+ *
+ * 数据全部来自后端 `BaziChart.da_yun` —— 前端**不做任何推演**（§9.12）：
+ * `isCurrent` 由后端按 `as_of` 判定；lunar-python 的「起运前」占位行
+ * （`ganzhi` 为空串）原样显示，不隐藏也不补算。
+ *
+ * 顺逆是**显式假设**（股票无真实性别，AGENTS.md §5 / ADR-0014）：
+ * 假设来源（首日阴阳 → 男/女命）与"不进入任何因子"的说明必须同时可见。
+ */
+export function DaYunStrip({ daYun }: { daYun: DaYunView }) {
+  if (!daYun.available) {
+    // 不可用时**只有一行**：首屏几何预算很紧（r1-refinement 断言古籍证据 y ≤ 900），
+    // 而"为什么不输出"的完整原因已经在时间结构的 note 与盘面 assumptions 里。
+    return (
+      <div
+        data-testid="da-yun-strip"
+        data-da-yun-available="false"
+        className="mt-1 px-1 text-[10px] leading-[14px]"
+        style={{ color: "var(--color-ink-muted)" }}
+      >
+        <span style={{ color: "var(--color-warn)" }}>本次不输出大运</span>
+        {daYun.note ? <span title={daYun.note}>　{daYun.note}</span> : null}
+      </div>
+    );
+  }
+
+  const current = daYun.steps.find((s) => s.isCurrent);
+  return (
+    <div data-testid="da-yun-strip" data-da-yun-available="true" className="mt-1.5 px-1">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[10.5px]">
+        <span className="smp-metric-label text-[10px]">大运（假设规则）</span>
+        <span style={{ color: "var(--color-gold)" }}>{variantModeLabel(daYun.variantMode)}</span>
+        {daYun.assumption ? (
+          <span
+            data-testid="da-yun-assumption"
+            className="line-clamp-1"
+            title={daYun.assumption}
+            style={{ color: "var(--color-ink-sub)" }}
+          >
+            {daYun.assumption}
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-1 grid grid-cols-5 gap-1 lg:grid-cols-10">
+        {daYun.steps.map((s) => (
+          <div
+            key={`${s.startYear}-${s.endYear}-${s.ganzhi}`}
+            data-testid="da-yun-step"
+            data-current={s.isCurrent ? "true" : "false"}
+            className="rounded-[3px] border px-1 py-0.5 text-center"
+            style={{
+              borderColor: s.isCurrent ? "var(--color-gold)" : "var(--color-border)",
+              background: s.isCurrent ? "rgba(212,184,122,0.10)" : "transparent",
+              opacity: s.ganzhi ? 1 : 0.72,
+            }}
+          >
+            <div
+              className="text-[12.5px] font-medium"
+              style={{ color: s.isCurrent ? "var(--color-gold)" : "var(--color-ink)" }}
+            >
+              {s.ganzhi || "起运前"}
+            </div>
+            <div className="text-[9.5px]" style={{ color: "var(--color-ink-muted)" }}>
+              {s.startYear}–{s.endYear}
+            </div>
+            <div className="text-[9.5px]" style={{ color: "var(--color-ink-muted)" }}>
+              {s.startAge}岁
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-0.5 text-[10px] leading-[13px]" style={{ color: "var(--color-ink-muted)" }}>
+        {current ? (
+          <span>
+            当前大运：{current.ganzhi || "起运前"}（{current.startYear}–{current.endYear}）
+          </span>
+        ) : null}
+        {daYun.note ? <span>{current ? "　" : ""}{daYun.note}</span> : null}
       </div>
     </div>
   );

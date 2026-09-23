@@ -195,10 +195,20 @@ class BaziChart(SMBaseModel):
 
     # 运限（受"股票无性别"影响）
     variant_mode: VariantMode = VariantMode.NOT_APPLICABLE
-    da_yun: list[dict] = Field(default_factory=list, description="大运列表（Phase1 不进入因子）")
+    da_yun: list[dict] = Field(
+        default_factory=list,
+        description=(
+            "大运列表（Phase1 不进入因子）。每项含 start_year / end_year / ganzhi / "
+            "start_age / is_current（由 as_of 判定，展示层不得自己重算）。"
+            "第一条是 lunar-python 的「起运前」占位行（ganzhi 为空串），原样保留。"
+        ),
+    )
     da_yun_note: str = Field(
         default="",
-        description="大运顺逆依赖性别，股票无性别 → Phase1 标记 not_applicable，不参与因子",
+        description=(
+            "运限口径说明，**会被界面原样展示**：not_applicable 下解释为何不输出大运，"
+            "其余模式下必须含「假设」字样（ADR-0003 规则 5）。"
+        ),
     )
 
     # 元信息

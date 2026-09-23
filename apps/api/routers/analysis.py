@@ -33,6 +33,7 @@ from src.core.schemas.common import (
     BirthBasis,
     EngineId,
     Exchange,
+    VariantBasis,
     VariantMode,
     VersionStamp,
     Warning_,
@@ -59,6 +60,14 @@ class BaziAnalysisRequest(BaseModel):
     horizon: str = Field(default="20d", description="预测/研究窗口标签")
     birth_basis: BirthBasis = BirthBasis.LISTING_OPEN
     variant_mode: VariantMode = VariantMode.NOT_APPLICABLE
+    variant_basis: VariantBasis = Field(
+        default=VariantBasis.EXPLICIT,
+        description=(
+            "运限变体的来源口径：`explicit`（默认，直接用 variant_mode）或 "
+            "`first_day_yinyang`（由上市首日涨跌标识推导顺逆，股票阴阳假设，ADR-0014）。"
+            "后者要求 variant_mode 保持 not_applicable，缺首日数据时不推导也不默认。"
+        ),
+    )
     huangli_days: int = Field(default=31, ge=1, le=120, description="黄历扫描自然日数")
     persist: bool = True
 
@@ -69,6 +78,11 @@ class MultiAnalysisRequest(BaziAnalysisRequest):
     与 `/analysis/bazi` 的唯一语义差别：``variant_mode`` 同时决定
     **八字大运顺逆**与**紫微大限顺行/逆行**，且必须显式给出
     （紫微不接受 ``not_applicable``，见 ADR-0010）。
+
+    ``variant_basis=first_day_yinyang`` 时，顺逆由上市首日涨跌标识推导
+    （阳→forward / 阴→reverse），该假设同时作用于两个引擎 —— 因为它是
+    "这只标的的运限往哪边走"这一个假设，不应在两个引擎里给出两个方向。
+    推导出的方向会写进出生档案 ``assumptions`` 与 ``variant_note``（ADR-0014）。
     """
 
 
@@ -77,6 +91,9 @@ class ZiweiAnalysisRequest(BaziAnalysisRequest):
 
     ``variant_mode`` 必须显式指定 ``forward`` / ``reverse`` / ``both``：
     股票没有真实性别，紫微运限无法由性别推导，系统**不会**提供默认值。
+
+    ``variant_basis`` 在本端点固定为 ``explicit``：紫微运限方向的来源口径
+    属于 ADR-0010 的范围，本轮不接入首日阴阳推导（传其它值会被显式拒绝）。
     """
 
 
@@ -132,6 +149,7 @@ def analyze_bazi(
         BirthProfileCreateRequest(
             birth_basis=req.birth_basis,
             variant_mode=req.variant_mode,
+            variant_basis=req.variant_basis,
         ),
     )
 
@@ -176,6 +194,12 @@ def analyze_ziwei(
         raise InvalidRequestError(
             "紫微分析必须显式指定 variant_mode=forward（顺行）或 reverse（逆行）或 both。"
             "股票没有真实性别，系统不提供任何默认性别假设（ADR-0010）。"
+        )
+    if req.variant_basis != VariantBasis.EXPLICIT:
+        raise InvalidRequestError(
+            "紫微端点不接受 variant_basis="
+            f"{req.variant_basis.value}：紫微运限方向的来源口径属 ADR-0010 范围，"
+            "请显式指定 variant_mode（首日阴阳推导本轮只接入八字/综合研判，ADR-0014）。"
         )
 
     stock = _resolve_stock(db, market, service, code)
@@ -287,7 +311,11 @@ def analyze_multi(
     stock = _resolve_stock(db, market, service, code)
     profile = build_birth_profile(
         stock,
-        BirthProfileCreateRequest(birth_basis=req.birth_basis, variant_mode=req.variant_mode),
+        BirthProfileCreateRequest(
+            birth_basis=req.birth_basis,
+            variant_mode=req.variant_mode,
+            variant_basis=req.variant_basis,
+        ),
     )
     response = service.run_multi_analysis(
         db, stock=stock, birth_profile=profile, as_of=as_of,

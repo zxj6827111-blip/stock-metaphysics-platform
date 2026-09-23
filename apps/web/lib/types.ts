@@ -166,6 +166,34 @@ export interface TimelineItem {
   tone?: "gold" | "up" | "down" | "flat";
 }
 
+/** 一步大运。序列来自后端 `BaziChart.da_yun`，前端不做任何推演。 */
+export interface DaYunStep {
+  /** 干支；lunar-python 的「起运前」占位行是空串（展示为"起运前"）。 */
+  ganzhi: string;
+  startYear: number;
+  endYear: number;
+  startAge: number | string;
+  /** 是否当前所处大运：由后端按 as_of 判定（展示层不得自己重算）。 */
+  isCurrent: boolean;
+}
+
+/**
+ * 运限（大运）视图。
+ *
+ * ``available=false`` 时 ``steps`` 为空，且 ``note`` 必须说明原因（缺首日数据 /
+ * 未启用变体 / 引擎未产出）—— 不允许用"0 岁起运"之类的默认值顶替（AGENTS.md §2.4）。
+ */
+export interface DaYunView {
+  /** 后端变体原值：forward / reverse / both / not_applicable。 */
+  variantMode: string;
+  available: boolean;
+  /** 后端 `da_yun_note`，原样展示（含"运限推演基于假设规则"）。 */
+  note: string;
+  /** 假设来源说明（出生档案 `variant_note`）：如"首日 +3.01% → 阳 → 男命假设"。 */
+  assumption: string;
+  steps: DaYunStep[];
+}
+
 export interface FactorRowView {
   factorId: string;
   name: string;
@@ -187,6 +215,8 @@ export interface BaziPageData {
   pillars: BaziPillarView[];
   summary: FateSummaryRow[];
   timeline: TimelineItem[];
+  /** 运限（大运）视图：假设 + 10 步序列 + 不可用原因（ADR-0014）。 */
+  daYun: DaYunView;
   variantMode: string;
   variantNote: string;
   positiveFactors: FactorRowView[];

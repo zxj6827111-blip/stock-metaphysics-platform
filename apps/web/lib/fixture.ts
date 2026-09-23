@@ -451,8 +451,10 @@ export const baziFixture: BaziPageData = {
   ],
   timeline: [
     {
-      key: "dayun", title: "大运", primary: "2020 - 2030", secondary: "庚子 运",
-      note: "金水 · 利于流通", tone: "gold",
+      // 演示夹具**不伪造大运**：真实大运依赖"首日阴阳→性别"假设与后端排盘，
+      // 冻不进来就如实显示"未输出"（Demo 模式本身也标注为演示数据）。
+      key: "dayun", title: "大运", primary: "未输出", secondary: "不适用（股票无性别）",
+      note: "演示夹具未冻结大运数据；真实模式按「首日阴阳」假设起运（ADR-0014）", tone: "gold",
     },
     {
       key: "year", title: "当前流年", primary: "2024 甲辰", secondary: "木土",
@@ -467,6 +469,13 @@ export const baziFixture: BaziPageData = {
       note: "情绪波动，宜谨慎", tone: "down",
     },
   ],
+  daYun: {
+    variantMode: "not_applicable",
+    available: false,
+    note: "演示夹具未冻结大运数据，因此不显示序列；真实模式按「首日阴阳」假设起运（ADR-0014）。",
+    assumption: "",
+    steps: [],
+  },
   variantMode: "not_applicable",
   variantNote:
     "注：股票无天然性别，以下运限推演基于假设规则，请结合多模型综合判断。",

@@ -16,7 +16,7 @@ import { PageHero } from "@/components/shell/TopBar";
 import { StockContextBar } from "@/components/stock/StockContextBar";
 import { Card, CardHeader, Chip } from "@/components/cards/Card";
 import { BookRow } from "@/components/cards/EngineCards";
-import { BaziChart, FateSummary, TimeStructure, WuxingDistribution } from "@/components/bazi/BaziChart";
+import { BaziChart, DaYunStrip, FateSummary, TimeStructure, WuxingDistribution } from "@/components/bazi/BaziChart";
 import { FactorList, FactorDisclaimer } from "@/components/factor/Factor";
 import { EvidenceDrawer } from "@/components/evidence/EvidenceDrawer";
 import {
@@ -35,7 +35,7 @@ import {
   invalidateBaziAnalysisCache,
   variantModeLabel,
 } from "@/lib/dataSource";
-import { useAnalysis } from "@/lib/analysisStore";
+import { useAnalysis, DEFAULT_ANALYSIS_VARIANT } from "@/lib/analysisStore";
 import { useBirthBasisParam } from "@/lib/useBirthBasisParam";
 import { useHorizonParam } from "@/lib/useHorizonParam";
 import { api, endpoints, type ApiEvidence, type ApiEventStudy } from "@/lib/api";
@@ -51,8 +51,10 @@ function BaziInner() {
 
   const birthBasis = useBirthBasisParam();
   const horizon = useHorizonParam();
+  // 运限变体默认按「上市首日阴阳」推导（阳→男命/顺行、阴→女命/逆行，ADR-0014）：
+  // 之前这里硬编码 "forward"，对 1758 只"阴"标的给出与表格规则相反的顺逆。
   const { analysis, loading: multiLoading, error: multiError, reload } = useAnalysis(
-    code, "forward", undefined, birthBasis, horizon,
+    code, DEFAULT_ANALYSIS_VARIANT, undefined, birthBasis, horizon,
   );
 
   const [data, setData] = useState<BaziPageData | null>(isMoutaiFixture ? baziFixture : null);
@@ -125,6 +127,7 @@ function BaziInner() {
           res.factors,
           res.evidence,
           res.backtest,
+          res.analysis.birth_profile?.variant_note ?? "",
         ),
       );
       if (res.evidence) {
@@ -305,6 +308,7 @@ function BaziInner() {
               }
             />
             <TimeStructure items={data.timeline} />
+            <DaYunStrip daYun={data.daYun} />
           </Card>
 
           {/* 第三层：正负因素（首屏各 3 条，其余可展开） */}

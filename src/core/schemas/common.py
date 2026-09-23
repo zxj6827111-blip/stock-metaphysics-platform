@@ -66,6 +66,23 @@ class VariantMode(str, Enum):
     NOT_APPLICABLE = "not_applicable"  # 不适用：Phase 1 默认，顺逆不进入因子
 
 
+class VariantBasis(str, Enum):
+    """运限变体的**来源**口径：顺逆这个方向是"凭什么"定的。
+
+    ``VariantMode`` 只说顺排/逆排/不适用，不说方向从哪来。股票没有真实性别
+    （AGENTS.md §5），所以每个顺逆都必须能回答"依据是什么"：
+
+    * ``EXPLICIT``：调用方直接给出 forward/reverse/both。默认值，保持既有语义不变
+      （紫微必须走这条，见 ADR-0010）。
+    * ``FIRST_DAY_YINYANG``：由**上市首日涨跌标识**推导（阳=首日收涨 / 阴=首日收跌），
+      再按"阳男阴女"记为男命/女命假设。这是本项目显式登记的研究假设，**不是事实**，
+      只用于运限推演，不进入任何因子（ADR-0014、AGENTS.md §5.4）。
+    """
+
+    EXPLICIT = "explicit"
+    FIRST_DAY_YINYANG = "first_day_yinyang"
+
+
 class EngineId(str, Enum):
     """术数引擎标识。Phase 1 只启用 CALENDAR / HUANGLI / BAZI。"""
 

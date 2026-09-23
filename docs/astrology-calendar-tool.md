@@ -91,6 +91,14 @@ python scripts/astrology_calendar.py dayun 600519
 * **不进入任何正式因子**（未回测）。将来要进入，唯一合法路径是把
   `FORWARD` / `REVERSE` 当作两种变体**预先注册并回测**
 
+**口径位置（2026-09-23 起）**：映射与免责声明已抽到单一真源
+[`src/core/stock/variant_basis.py`](../src/core/stock/variant_basis.py)（`FIRST_DAY_YINYANG_TO_VARIANT`
+/ `FIRST_DAY_YINYANG_DISCLAIMER` / `VARIANT_BASIS_VERSION`），本脚本 import 复用。
+同一天 API 与界面也接通了同一口径：`variant_basis=first_day_yinyang`
+（见 [ADR-0014](ADR/ADR-0014-first-day-yinyang-variant-basis.md)），八字详情页会直接显示
+当前大运与 10 步序列。**CLI 与界面必须共用这份映射** —— 之前各有一套，正是
+「界面上看不到大运、且阴股方向与表格规则相反」的成因。
+
 验证：抽样 135 只，引擎的大运顺逆判定与「阳男阴女顺行 / 阴男阳女逆行」规则
 **一致率 100.00%**。
 
