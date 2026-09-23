@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -294,3 +294,171 @@ def test_yong_shen_relations_is_day_row_legacy(client, date_scan_seed):
     assert verdict["verdict"] in {"匹配", "不匹配", "未知"}
     # 「天干五合」等关系类型不得出现在喜忌结论位置。
     assert "天干五合" not in (verdict["wuxing_role"], verdict["verdict"])
+
+
+@pytest.fixture
+def four_stock_seed(db_session):
+    """四只真实上市日期的股票，覆盖 2026-09-22 流日行的重复命中样本。"""
+    return (
+        _seed_stock(db_session, "600519", "贵州茅台", "SSE", date(2001, 8, 27)),
+        _seed_stock(db_session, "000001", "平安银行", "SZSE", date(1991, 4, 3)),
+        _seed_stock(db_session, "600036", "招商银行", "SSE", date(2002, 4, 9)),
+        _seed_stock(db_session, "300750", "宁德时代", "SZSE", date(2018, 6, 11)),
+    )
+
+
+def _detail_rows(client, codes):
+    rows = {}
+    for day in ("2026-09-22",):
+        scan = client.post("/api/v1/research/date-scan", json={"date": day, "limit": 500})
+        assert scan.status_code == 200, scan.text
+        body = scan.json()
+        for code in codes:
+            detail = client.get(
+                f"/api/v1/research/date-scan/{body['scan_id']}/stocks/{code}",
+                params={"target_date": day},
+            )
+            assert detail.status_code == 200, detail.text
+            rows[code] = detail.json()["row"]
+    return rows
+
+
+def test_relation_type_counts_are_stock_level_not_event_level(client, four_stock_seed):
+    """relation_type_counts[T] = 命中该关系的**股票数**（不是事件条数）。
+
+    2026-09-22 的确定性事实（两种原解析路径已在引擎测试中对拍一致）：
+    000001 的流日行在年/月两个 cell 各命中一次「三合」与「天干生」；
+    300750 的流日行在年/月两柱各命中一次「天干同五行」。
+    这些重复命中在 counts 里必须折成 1 股 / 1 股。
+    """
+    codes = list(four_stock_seed)
+    body = client.post(
+        "/api/v1/research/date-scan",
+        json={"date": "2026-09-22", "limit": 500},
+    ).json()
+    counts = body["relation_type_counts"]
+    assert body["stock_total"] == len(codes)
+
+    # 聚合不变量：counts[T] == relation_types 含 T 的股票数（逐关系）。
+    for relation, expected in counts.items():
+        by_stock = sum(1 for row in body["rows"] if relation in row["relation_types"])
+        assert expected == by_stock, f"{relation}: counts={expected} 但按股票数为 {by_stock}"
+
+    details = _detail_rows(client, codes)
+    pingan = details["000001"]
+    day_events = [
+        event
+        for matrix_row in pingan["matrix"]["rows"] if matrix_row["source_pillar"] == "day"
+        for cell in matrix_row["cells"] for event in cell["events"]
+    ]
+    sanhe_events = [event for event in day_events if event["relation_type"] == "三合"]
+    assert len(sanhe_events) == 2, "000001 流日行应有两个三合事件（年/月两柱）"
+    assert pingan["relation_types"].count("三合") == 1
+    assert counts["三合"] == 1, "三合 只命中 1 只股票，不得按 2 个事件计入"
+
+    # 事件总数大于股票数的样本必须存在，否则「股票级 ≠ 事件级」无从区分。
+    event_totals: dict[str, int] = {}
+    for code in codes:
+        for matrix_row in details[code]["matrix"]["rows"]:
+            if matrix_row["source_pillar"] != "day":
+                continue
+            for cell in matrix_row["cells"]:
+                for event in cell["events"]:
+                    event_totals[event["relation_type"]] = event_totals.get(event["relation_type"], 0) + 1
+    spread = [
+        relation for relation, total in event_totals.items()
+        if total > counts[relation]
+    ]
+    assert "三合" in spread and "天干生" in spread and "天干同五行" in spread
+    for relation, expected in counts.items():
+        assert expected <= event_totals.get(relation, 0)
+
+
+def test_date_scan_sort_s_is_none_safe():
+    """sort=s/v/u：不可用（None）排在真实 0 之后，绝不与「命中 0 次」混淆。"""
+    from src.core.orchestration.date_relation_scan import _sort_rows
+    from src.core.schemas.relation import RelationMetrics, RelationStockResult
+
+    rows = [
+        RelationStockResult(stock_code="000002", metrics=RelationMetrics(s_raw=None)),
+        RelationStockResult(stock_code="000003", metrics=RelationMetrics(s_raw=0)),
+        RelationStockResult(stock_code="000001", metrics=RelationMetrics(s_raw=2)),
+    ]
+    ordered = _sort_rows(rows, "s")
+    assert [row.stock_code for row in ordered] == ["000001", "000003", "000002"], (
+        "S=2 → S=0 → None；None 不得借 `or -1` 混进真实 0 的分组"
+    )
+
+
+def test_pingan_000001_multi_date_natal_invariance(client, db_session):
+    """平安银行（000001）多日期回归：原局字段跨日全固定，流日字段随日干变化。
+
+    这是 Phase 1.1 验收路径在择日关系上的同构复现：
+    同一批样本日期里 natal/day_master/喜用忌必须为同一串字节，不许闪。
+    """
+    from src.engines.calendar.calendar_engine import CalendarEngine
+
+    code = _seed_stock(db_session, "000001", "平安银行", "SZSE", date(1991, 4, 3))
+    calendar = CalendarEngine()
+
+    # 在扫描窗口里确定性挑 5 个流日干两两不同的日期（来自生产历法而非硬编码）。
+    picked: list[str] = []
+    seen_stems: set[str] = set()
+    for i in range(40):
+        day = date(2026, 1, 5) + timedelta(days=i)
+        stem = calendar.snapshot(datetime(day.year, day.month, day.day, 12)).day_ganzhi.stem
+        if stem not in seen_stems:
+            seen_stems.add(stem)
+            picked.append(day.isoformat())
+        if len(picked) == 5:
+            break
+    assert len(picked) == 5, "2026-01-05 起 40 天内必须凑出 5 个不同干日"
+
+    snapshots = {}
+    for day in picked:
+        scan = client.post("/api/v1/research/date-scan", json={"date": day, "limit": 500})
+        assert scan.status_code == 200, scan.text
+        body = scan.json()
+        assert code in {row["stock_code"] for row in body["rows"]}
+        detail = client.get(
+            f"/api/v1/research/date-scan/{body['scan_id']}/stocks/{code}",
+            params={"target_date": day},
+        )
+        assert detail.status_code == 200, detail.text
+        snapshots[day] = detail.json()["row"]
+
+    base = snapshots[picked[0]]
+    # 000001 喜忌覆盖全部五行（用金 / 喜水 / 忌土火 / 仇木 / 闲-）：
+    # 这是 v3 证据 CSV pingan-000001-2026-v3.csv 的真实分布（匹配 144 / 不匹配 221 / 无 未知）。
+    assert set(base["yong_shen"]) | set(base["xi_shen"]) | set(base["ji_shen"]) \
+        | set(base["chou_shen"]) | set(base["xian_shen"]) == {"木", "火", "土", "金", "水"}
+
+    day_stems = {snapshots[day]["day_stem_verdict"]["day_stem"] for day in picked}
+    assert len(day_stems) == 5, "所选 5 个日期的日干必须两两不同"
+    ten_gods = {snapshots[day]["day_stem_verdict"]["ten_god"] for day in picked}
+    assert len(ten_gods) == 5, "十神必须完全跟随流日干而非出生档案"
+
+    verdicts: set[str] = set()
+    for day in picked:
+        payload = snapshots[day]
+        # —— 原局字段：固定串 ——
+        assert payload["natal"] == base["natal"]
+        assert payload["day_master"] == base["day_master"]
+        assert payload["yong_shen"] == base["yong_shen"]
+        assert payload["xi_shen"] == base["xi_shen"]
+        assert payload["ji_shen"] == base["ji_shen"]
+        assert payload["chou_shen"] == base["chou_shen"]
+        assert payload["xian_shen"] == base["xian_shen"]
+        # —— 流日字段：只随规则变 ——
+        verdict = payload["day_stem_verdict"]
+        assert verdict["day_master"] == payload["day_master"]
+        assert verdict["day_stem"] == calendar.snapshot(
+            datetime(int(day[:4]), int(day[5:7]), int(day[8:10]), 12)
+        ).day_ganzhi.stem
+        assert verdict["ten_god"] == ten_god(base["day_master"], verdict["day_stem"])
+        assert verdict["verdict"] in {"匹配", "不匹配"}, "喜忌全五行覆盖时不允许出现未知"
+        assert verdict["wuxing_role"] in {"用神", "喜神", "忌神", "仇神"}
+        assert verdict["reason"] and "十神" in verdict["reason"]
+        assert payload["ten_gods"] == [verdict["ten_god"]]
+        verdicts.add(verdict["verdict"])
+    assert verdicts == {"匹配", "不匹配"}, "5 个不同干日必须同时产生匹配与不匹配（复现证据 CSV 的分布结论）"

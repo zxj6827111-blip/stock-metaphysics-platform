@@ -95,7 +95,9 @@ def build_relation_observations(
     ``snapshot`` 可由调用方按日期缓存后传入（同一天对所有股票是同一个快照）。
     """
     factor_id = relation_factor_id(relation_type)
-    as_of = datetime.combine(as_of_date, datetime.min.time()).replace(hour=15)
+    # 原局年/月/日与喜忌只由出生档案决定，as_of 不参与（有测试锁定）；
+    # 但仍取与 Date Scan 相同的声明采样时点，避免两个模块各用一个"标准时刻"。
+    as_of = datetime.combine(as_of_date, datetime.min.time()).replace(hour=EVALUATION_HOUR)
     if snapshot is None:
         snapshot = relation_snapshot(calendar, as_of_date)
 

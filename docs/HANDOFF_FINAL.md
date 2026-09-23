@@ -226,7 +226,30 @@ cd apps/web && node scripts/capture-screenshots.mjs --live
 
 ---
 
-## 8. 下一步建议
+## 9. 择日关系扫描 / 关系历史研究（bazi-relation-v3，2026-09-23 补充）
+
+> 本节是 Phase 2 之后迭代的补充记录（PR #3），不改变上文 Phase 2 验收结论。
+
+| 项 | 口径 |
+|---|---|
+| 关系规则版本 | `bazi-relation-v3`（`Settings.relation_rule_version` 为唯一来源，无硬编码） |
+| 矩阵 schema | `relation-matrix-v2`：流年/流月/流日 × 股票年/月/日（3×3，股票时柱不参与） |
+| 聚合范围 | 仅统计流日行（`aggregate_scope=external_day_row`），Date Scan 与 Relation Study 共用同一 helper `events_for_source_pillar(matrix, "day")` |
+| 标准采样时点 | `12:00:00 Asia/Shanghai`（节气交界有 golden case 锁定） |
+| 日期指纹 | `date-relation-fingerprint-v1`（与股票矩阵口径解耦，按设计保持 v1） |
+| 关系目录 | 22 项，前端唯一来源是 `GET /api/v1/research/relation-catalog` |
+| 证据 | `docs/calculation-differences-relation.md` + `docs/relation-v3-evidence/`（000001 全年 CSV 由 `tests/integration/test_relation_v3_evidence.py` 逐日行级复现回归锁定） |
+
+**关键边界（读者最容易误读的地方）**：
+
+* 喜用神仍来自**完整四柱原局**（`yongshen_basis=full_four_pillars`）：矩阵收窄为 3×3 ≠ "股票八字变成三柱"；喜忌部分仍可能间接受出生时辰模型影响。
+* 以下模块**保持旧定义，未升级到 v3**：个股八字页的 `relations_with_external()`（4 柱外部关系），以及 `B_*` / `H_*` 因子。不要误以为"全部八字关系因子都已 v3"。
+* `REL_*` 因子只表示事件命中次数、无涨跌方向；p-value 对照固定 `random_birth_date`（与页面展示的对照均值/上涨率同一面板）；BH 校正范围 `within_relation_split_horizon`，不代表跨关系类型联合校正。
+* 全市场 Relation Study 必须显式 `allow_full_universe=true`，否则 API 返回 422；前端同样要求勾选确认。
+
+---
+
+## 10. 下一步建议
 
 按价值排序：
 
@@ -243,7 +266,7 @@ cd apps/web && node scripts/capture-screenshots.mjs --live
 
 ---
 
-## 9. 最后一句
+## 11. 最后一句
 
 Phase 2 交付的不是"更准的算命"，而是：
 
