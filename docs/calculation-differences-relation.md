@@ -171,6 +171,16 @@ UI 直接展示"流年关系 / 流月关系 / 流日关系"，**前端不得遍�
 | BH q-value 范围 | 文案暗示"全关系研究校正" | `multiplicity_scope = within_relation_split_horizon`，文案如实说明未跨 relation_type 联合校正 |
 | 全市场默认 | 不传 `stock_codes` 即静默跑全市场十年 | 必须 `allow_full_universe = true`，否则 422；前端需显式勾选确认 |
 
+### 11.2 加固轮补丁（2026-09-23，同 PR 内）
+
+* `build_relation_observations()` 的 `as_of` 采样时刻由 15:00 统一为 `evaluation_time = 12:00`。
+  原局年/月/日与喜用忌仇闲只由出生档案决定，`as_of` 不参与（有测试锁定），
+  因此该修正是**等价变换**；但它消除了两个模块各用一个"标准时刻"的口径分叉。
+* Date Scan 列表 `sort=s/v/u` 修正 None 语义：不可用（None）不再借 `value or -1`
+  与真实的 0 混成同一个排序键；排序次序固定为「大 → 小 → 0 → 不可用」。
+* 新增穷尽不变量：120 外部柱 × 120 原局日柱（14,400 个矩阵）全扫，断言
+  「引擎可 emit 的类型 == RELATION_TYPES 目录」双向成立（无隐藏类型、无死条目）。
+
 ## 12. 历史实验影响
 
 * 旧 `REL_*` 且 `rule_version = bazi-relation-v2` 的实验结果**保持 legacy 语义，不原地解释成 v3**；
@@ -204,9 +214,20 @@ UI 直接展示"流年关系 / 流月关系 / 流日关系"，**前端不得遍�
 ## 15. 不变量与测试
 
 * `all_emitted_relation_types ⊆ set(RELATION_TYPES)`（引擎 emit 与 catalog 一致）。
+  —— 穷尽版：`tests/engines/test_date_relation_engine.py::test_all_emitted_relation_types_are_cataloged`
+  对 120×120 干支对全扫，断言反向也成立（目录无死条目）。
 * `relation_type_counts[T] == 按 T 过滤后的 filtered_count`（按命中股票数，同一股票当日多格命中只计一次）。
+  —— 股票级语义由 4 股样本在单元测试与 API 测试双层钉死：
+  000001 流日行两个 cell 命中「三合」，counts 必须为 1（事件级则为 2）。
 * `REL_` 因子命中次数 == Date Scan 同一 (股票, 日期, 关系) 的流日行事件数。
+  —— 已升级为**全目录 22 个关系逐一对拍**（600519 与 000001 两只股票）；
+  并钉死 000001「三合」=2 次非零命中，保证比较不是恒零等式。
+* `REL_*` 因子三件事共用 `settings.relation_rule_version`：注册表定义、观测构造器、目录 API。
+  —— 专用测试同时断言定义表无 `v2` 字符串字面量。
 * 矩阵 3 行 × 每行 3 格；目标列不含 `hour`；行级 `relation_types` == 该行 cell 事件类型去重。
 * 十神 Golden：固定日主遍历十天干；喜忌五角色 + 未知（未知 ≠ 不匹配）。
 * 节气边界：固定 12:00 采样时点的 Golden Case（`2024-02-04` 立春）。
 * 日期变化回归：同一股票不同日期 → 原局字段（三柱/日主/喜用）不变，流日字段按规则变化。
+  —— 平安银行 000001 双通道（静态快照 / 引擎现场排盘）对拍 + 5 个不同干日回归（十神全不同）。
+* 证据文件可复现性：`pingan-000001-2026-v3.csv` 365 行逐日由生产代码再生
+  （`tests/integration/test_relation_v3_evidence.py`，367 项）。

@@ -6,6 +6,15 @@
 > **审计方式**：只读。沿真实调用链验证（数据来源 → 计算 → 是否被主流程调用 → 是否落库 → 是否进入回测 → 是否有测试）
 > **本轮未修改任何代码、未改动数据库、未删除文件**
 
+> **2026-09-23 后续状态（防止把本审计误读为现状）**：本报告是 2026-09-22 的时点审计。此后本 PR 落地了择日关系扫描/关系历史研究的 **v3 口径**，关闭了正文中部分缺口：
+>
+> * 「日期→全市场入口不存在」→ `POST /api/v1/research/date-scan`（PIT 全市场扫描）；
+> * 「无关系指纹」→ `GET /api/v1/research/date-relations/{date}`（`date-relation-fingerprint-v1`）；
+> * 「外部路径缺半合/三会/组合型关系」→ 新的 3×3 日期关系矩阵补齐（目录 22 项，含天干受生/受克），并由 120×120 穷尽测试锁定「引擎可 emit 的类型 == 目录」（`tests/engines/test_date_relation_engine.py`）；
+> * 「引擎级而非关系级回测」→ `POST /api/v1/research/relation-study`（REL_* 关系级事件研究 + 负对照 + BH 校正范围声明）。
+>
+> **仍保持旧定义的部分**：`src/engines/bazi/rules.py::relations_with_external`（个股八字页的 4 柱外部关系）与 `B_*` / `H_*` 因子**未改动、未升级**——不要把 v3 误读为"全部八字关系因子都已换代"。口径差异登记与证据见 [`calculation-differences-relation.md`](calculation-differences-relation.md) 与 [`relation-v3-evidence/`](relation-v3-evidence/)。
+
 ---
 
 ## 目录

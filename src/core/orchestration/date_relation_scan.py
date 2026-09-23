@@ -341,12 +341,18 @@ _build_one = build_stock_relation_result
 
 
 def _sort_rows(rows: list[RelationStockResult], sort: str) -> list[RelationStockResult]:
-    if sort == "s":
-        return sorted(rows, key=lambda row: (-(row.metrics.S_raw or -1), row.stock_code))
-    if sort == "v":
-        return sorted(rows, key=lambda row: (-(row.metrics.V_raw or -1), row.stock_code))
-    if sort == "u":
-        return sorted(rows, key=lambda row: (-(row.metrics.U_raw or -1), row.stock_code))
+    if sort in {"s", "v", "u"}:
+        field = f"{sort.upper()}_raw"
+
+        def metric_key(row: RelationStockResult) -> tuple[int, int, str]:
+            value = getattr(row.metrics, field)
+            # 不可用（None）必须与真实的 0 分开排序：原实现用 `value or -1`，
+            # 会把「命中 0 次」和「算不出来」混成同一个排序键。
+            if value is None:
+                return (1, 0, row.stock_code)
+            return (0, -value, row.stock_code)
+
+        return sorted(rows, key=metric_key)
     return sorted(rows, key=lambda row: row.stock_code)
 
 

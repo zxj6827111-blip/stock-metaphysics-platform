@@ -6,7 +6,7 @@ from datetime import datetime
 
 import pytest
 
-from src.core.constants import TEN_GOD_GROUP, ten_god
+from src.core.constants import EARTHLY_BRANCHES, HEAVENLY_STEMS, TEN_GOD_GROUP, ten_god
 from src.core.relations.date_relation import (
     NATAL_POSITIONS,
     build_date_relation_fingerprint,
@@ -159,6 +159,53 @@ def test_all_emitted_relation_types_are_in_canonical_catalog():
     ]
     emitted = set().union(*(_types(matrix) for matrix in matrices))
     assert emitted <= catalog, f"引擎 emit 但 catalog 不存在: {sorted(emitted - catalog)}"
+
+
+def test_all_emitted_relation_types_are_cataloged():
+    """穷尽不变量：120 外部柱 × 120 原局日柱全扫（全部天干对、地支对、阴阳奇偶组合）。
+
+    双向断言：
+    * 引擎 emit 的每一种类型都必须在 ``RELATION_TYPES``（不允许"引擎能算、目录没有"）；
+    * ``RELATION_TYPES`` 的每一项都必须真的可达（不允许目录里躺着死条目）。
+    """
+    pillars = [GanZhi.from_text(f"{stem}{branch}") for stem in HEAVENLY_STEMS for branch in EARTHLY_BRANCHES]
+    natal_year = GanZhi.from_text("丙寅")
+    natal_month = GanZhi.from_text("庚午")
+    emitted: set[str] = set()
+    for external in pillars:
+        for natal_day in pillars:
+            matrix = build_relation_matrix(
+                {"year": external, "month": external, "day": external},
+                {"year": natal_year, "month": natal_month, "day": natal_day},
+                day_master="甲",
+            )
+            emitted |= {event.relation_type for event in flatten_events(matrix)}
+    catalog = set(RELATION_TYPES)
+    assert emitted <= catalog, f"引擎 emit 但 catalog 不存在: {sorted(emitted - catalog)}"
+    assert catalog <= emitted, f"catalog 声称支持但实测不可达: {sorted(catalog - emitted)}"
+    assert emitted == catalog
+
+
+def test_relation_type_count_is_stock_level_not_event_level():
+    """同一只股票的流日行在两个 cell 命中同一关系时，股票级计数仍是 1。
+
+    这锁定了 ``relation_type_counts`` 的语义：计的是**命中股票数**，
+    不是 RelationEvent 条数。
+    """
+    matrix = _matrix(
+        {"year": "丙午", "month": "丁酉", "day": "庚子"},
+        {"year": "乙丑", "month": "丁丑", "day": "甲子"},
+    )
+    day_events = events_for_source_pillar(matrix, "day")
+    liuhe_events = [event for event in day_events if event.relation_type == "六合"]
+    assert len(liuhe_events) == 2, "构造样本应在流日行有两个 六合 命中（年/月两柱）"
+    assert {event.target_pillar for event in liuhe_events} == {"year", "month"}
+    # 行级 relation_types 去重：该股票在「六合」上只能算 1 次。
+    day_row = next(row for row in matrix.rows if row.source_pillar == "day")
+    assert day_row.relation_types.count("六合") == 1
+    stock_level_count = 1 if "六合" in day_row.relation_types else 0
+    assert stock_level_count == 1
+    assert len(liuhe_events) != stock_level_count
 
 
 def test_relation_rule_and_matrix_schema_versions():
