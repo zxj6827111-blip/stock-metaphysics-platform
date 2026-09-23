@@ -239,6 +239,9 @@ def test_relation_study_and_date_scan_agree_on_pinned_relation(client, db_sessio
     scan_id = scan.json()["scan_id"]
 
     static_cache = _load_static_natal_cache()
+    # 两个引擎无肉眼可见状态，提到循环外共享，避免 22 关系 × 2 股票 × 重建。
+    bazi = BaziEngine()
+    calendar = CalendarEngine()
     for code in (maotai, pingan):
         detail = client.get(
             f"/api/v1/research/date-scan/{scan_id}/stocks/{code}",
@@ -269,8 +272,8 @@ def test_relation_study_and_date_scan_agree_on_pinned_relation(client, db_sessio
                 profile=profile,
                 as_of_date=date(2026, 9, 22),
                 relation_type=relation,
-                bazi=BaziEngine(),
-                calendar=CalendarEngine(),
+                bazi=bazi,
+                calendar=calendar,
                 use_static_natal=static_cache.get(code),
             )
             assert observations[0].raw_value["hit_count"] == day_counts.get(relation, 0), (
