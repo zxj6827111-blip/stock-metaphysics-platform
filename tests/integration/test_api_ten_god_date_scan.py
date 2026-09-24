@@ -492,7 +492,7 @@ def test_p0_date_after_snapshot_freezes_at_snapshot_not_at_last_ipo(client, mark
     assert body["universe_as_of"] == SNAPSHOT_AS_OF.isoformat()
     assert "09-20" in body["future_universe_assumption"]
     assert body["versions"]["universe_evidence_source"] == "universe_membership_source_snapshot"
-    assert body["versions"]["universe_evidence_metadata_version"] == "universe-evidence-asof-v1"
+    assert body["versions"]["universe_evidence_metadata_version"] == "universe-evidence-asof-v2"
 
 
 def test_p0_delisting_inside_the_gap_survives_the_snapshot_freeze(client, market_seed) -> None:
