@@ -37,7 +37,9 @@ interface GeoCase {
   sel: string;
   top?: number;
   height?: number;
+  /** 只给上界（语义上允许变高）时用这两个：上界 ref+heightPlus、下界 ref−heightMinus。 */
   heightPlus?: number;
+  heightMinus?: number;
   fields?: ("x" | "width")[];
 }
 
@@ -59,6 +61,10 @@ const GEO: GeoCase[] = [
     // 本系统这一带要同时放 ① 规则强度与 ② 研究状态/审计字段，
     // 参考图 67px 装不下；上界 ref+24 是**真实语义扩展的上界**，不是 exception。
     heightPlus: 24,
+    // V3-B 追加的下界：本轮实测 54px（比参考矮 13）已被独立审核接受。
+    // 只有上界的话，未来把它压成极薄的一条也照样绿 —— 那不是回归保护。
+    // 取 ref−20（≈47px）：容得下正常措辞波动，拒绝"整带被压扁"。UI 未改。
+    heightMinus: 20,
     fields: ["x", "width"],
   },
   {
@@ -151,16 +157,23 @@ test.describe("V3-A.1 历史验证首屏层级", () => {
       }
       if (typeof ref.height === "number" && (c.height !== undefined || c.heightPlus !== undefined)) {
         const d = b.height - ref.height;
-        const limit = c.heightPlus ?? c.height!;
-        expect(
-          d,
-          `${c.name}.height：candidate ${b.height.toFixed(1)} vs reference ${ref.height} 偏差 ${d.toFixed(1)}px，超出 +${limit}`,
-        ).toBeLessThanOrEqual(limit);
         if (c.height !== undefined) {
           expect(
             Math.abs(d),
             `${c.name}.height：candidate ${b.height.toFixed(1)} vs reference ${ref.height} 超出 ±${c.height}`,
           ).toBeLessThanOrEqual(c.height);
+        } else {
+          const limit = c.heightPlus!;
+          expect(
+            d,
+            `${c.name}.height：candidate ${b.height.toFixed(1)} vs reference ${ref.height} 偏差 ${d.toFixed(1)}px，超出 +${limit}`,
+          ).toBeLessThanOrEqual(limit);
+          if (c.heightMinus !== undefined) {
+            expect(
+              d,
+              `${c.name}.height：candidate ${b.height.toFixed(1)} vs reference ${ref.height} 偏差 ${d.toFixed(1)}px，低于下界 −${c.heightMinus}（整带被压扁）`,
+            ).toBeGreaterThanOrEqual(-c.heightMinus);
+          }
         }
       }
       for (const f of c.fields ?? []) {
