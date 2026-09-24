@@ -60,7 +60,6 @@ import {
 } from "@/lib/api";
 import { buildExportTarget } from "@/lib/reportExport";
 import {
-  DEFAULT_ANALYSIS_VARIANT,
   DEFAULT_BIRTH_BASIS,
   DEFAULT_HORIZON,
   invalidateAnalysis,
@@ -92,9 +91,12 @@ function OverviewInner() {
    * 强制重算与读取**必须用同一个对象**：之前 force 分支只传
    * `{ code, variant }`，读取却带 `birthBasis` / `horizon`，两个 key 不同，
    * 于是点「重新计算」清掉的是另一条缓存，页面照样命中旧分析结果。
+   *
+   * `variant` 用 `"forward"` —— 与 `useAnalysis` 的默认值一致，
+   * 否则页面加载走 A 键、点重算走 B 键，身份又对不上。
    */
   const analysisKey = useMemo<AnalysisKey>(
-    () => ({ code, variant: DEFAULT_ANALYSIS_VARIANT, asOf, birthBasis, horizon }),
+    () => ({ code, variant: "forward", asOf, birthBasis, horizon }),
     [code, asOf, birthBasis, horizon],
   );
   // 演示样本冻结在默认出生模型上：换成别的假设时**不能用它冒充**，

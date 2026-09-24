@@ -64,7 +64,8 @@ test.describe("分析缓存身份", () => {
     const store = await import("../lib/analysisStore");
     const key = {
       code: "600519",
-      variant: store.DEFAULT_ANALYSIS_VARIANT,
+      // 与各研究页 `useAnalysis(code, "forward", …)` 一致
+      variant: "forward" as const,
       birthBasis: "ipo_date" as const,
       horizon: "60d",
     };
