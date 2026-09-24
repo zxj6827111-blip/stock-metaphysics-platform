@@ -70,30 +70,43 @@ function sourceLabel(source?: string): string {
   return "";
 }
 
-export function HuangliTradingDayGrid({
-  analysisId,
-  onSelectDate,
-  selectedDate,
-}: {
-  analysisId: string | null;
-  onSelectDate?: (date: string) => void;
-  selectedDate?: string | null;
-}) {
-  const [tab, setTab] = useState<string>("20d");
+/* ==========================================================================
+   取数：唯一入口
+   ========================================================================== */
+
+export interface HuangliOutlookState {
+  active: (typeof TABS)[number];
+  data: ApiHuangliOutlook | null;
+  days: ApiHuangliOutlook["days"];
+  loading: boolean;
+  error: string | null;
+  coverage: ApiHuangliOutlook["coverage"] | undefined;
+}
+
+/**
+ * 读取「未来交易日黄历」。
+ *
+ * 为什么单独导出：参考图的第一屏是**左 60% 日期网格 / 右 40% 选中日详情**。
+ * 原来 grid、选中日详情、分类口径说明绑在一个组件里，页面要拆成左右两栏
+ * 就只能把整个组件渲染两遍 —— 那会把同一个 `/huangli/outlook` 请求发两次。
+ * 现在取数只有一个入口，两个视图都是纯展示，选中状态由页面持有。
+ *
+ * 演示模式读**各自档位**的冻结样本，绝不发起真实请求：用同一份样本顶替所有
+ * 档位，等于把「今日」渲染成 20 天、「近 3 个月」渲染成 20 天。
+ */
+export function useHuangliOutlook(
+  analysisId: string | null,
+  tabKey: string,
+  nonce = 0,
+): HuangliOutlookState {
+  const active = TABS.find((t) => t.key === tabKey) ?? TABS[1];
   const [data, setData] = useState<ApiHuangliOutlook | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [internalSelected, setInternalSelected] = useState<string | null>(null);
-
-  const active = TABS.find((t) => t.key === tab) ?? TABS[1];
-  const selection = selectedDate ?? internalSelected;
 
   useEffect(() => {
     let cancelled = false;
-    // 演示模式：直接读固定样本，绝不发起真实请求
     if (isFixtureActive()) {
-      // 每个档位读**自己**那份固定样本。用同一份样本顶替所有档位等于把
-      // 「今日」渲染成 20 天、「近 3 个月」渲染成 20 天 —— 读者看到的是错的粒度。
       const byTab: Record<string, ApiHuangliOutlook> = {
         today: huangliOutlookTodayFixture,
         "20d": huangliOutlook20dFixture,
@@ -128,30 +141,36 @@ export function HuangliTradingDayGrid({
     return () => {
       cancelled = true;
     };
-  }, [analysisId, active.key, active.mode, active.value]);
+  }, [analysisId, active.key, active.mode, active.value, nonce]);
 
-  const days = data?.days ?? [];
-  const firstDate = days[0]?.date ?? null;
+  return { active, data, days: data?.days ?? [], loading, error, coverage: data?.coverage };
+}
 
-  // 默认选中第一张卡（"今日"即基准日当天）
-  useEffect(() => {
-    if (!selection && firstDate) setInternalSelected(firstDate);
-  }, [firstDate, selection]);
+/** 默认档位（页面初始化选中状态用）。 */
+export const HUANGLI_DEFAULT_TAB = "20d";
 
-  const selected = useMemo(
-    () => days.find((d) => d.date === selection) ?? days[0] ?? null,
-    [days, selection],
-  );
+/* ==========================================================================
+   视图一：日期网格卡（参考图左栏 ~60%）
+   ========================================================================== */
 
-  const pick = (date: string) => {
-    setInternalSelected(date);
-    onSelectDate?.(date);
-  };
-
-  const coverage = data?.coverage;
-
+export function HuangliOutlookGridCard({
+  state,
+  tab,
+  onTab,
+  selected,
+  onPick,
+  onRetry,
+}: {
+  state: HuangliOutlookState;
+  tab: string;
+  onTab: (key: string) => void;
+  selected: string | null;
+  onPick: (date: string) => void;
+  onRetry?: () => void;
+}) {
+  const { active, data, days, loading, error, coverage } = state;
   return (
-    <Card testId="huangli-outlook">
+    <Card testId="huangli-outlook" anchor="primary-chart">
       <CardHeader
         icon={<IconCalendar size={15} />}
         title={`未来交易日黄历（${labelForTabs(active.key)}）`}
@@ -161,7 +180,7 @@ export function HuangliTradingDayGrid({
               <button
                 key={t.key}
                 type="button"
-                onClick={() => setTab(t.key)}
+                onClick={() => onTab(t.key)}
                 className="rounded-[4px] px-2 py-[3px] text-[11.5px] transition-colors"
                 style={
                   t.key === tab
@@ -215,7 +234,12 @@ export function HuangliTradingDayGrid({
       {loading ? <SectionLoading label="正在按实测交易日历取黄历…" rows={3} /> : null}
 
       {!loading && error ? (
-        <SectionError what="未来交易日黄历" message={error} testId="huangli-outlook-error" />
+        <SectionError
+          what="未来交易日黄历"
+          message={error}
+          onRetry={onRetry}
+          testId="huangli-outlook-error"
+        />
       ) : null}
 
       {!loading && !error && coverage && coverage.status !== "complete" ? (
@@ -244,13 +268,9 @@ export function HuangliTradingDayGrid({
 
       {!loading && days.length ? (
         active.key === "3m" ? (
-          <MonthGroupedGrid
-            data={data!}
-            selected={selection}
-            onPick={pick}
-          />
+          <MonthGroupedGrid data={data!} selected={selected} onPick={onPick} />
         ) : (
-          <DayCardGrid days={days} selected={selection} onPick={pick} columns={10} />
+          <DayCardGrid days={days} selected={selected} onPick={onPick} columns={10} />
         )
       ) : null}
 
@@ -277,19 +297,88 @@ export function HuangliTradingDayGrid({
           · 分类描述传统择日观念，不是买入/卖出建议
         </span>
       </div>
+    </Card>
+  );
+}
 
-      {/* 选中日的详情联动 */}
-      {selected ? <SelectedDayDetail card={selected} rule={data?.class_rule} /> : null}
+/* ==========================================================================
+   视图二：选中日详情卡（参考图右栏 ~40%）
+   ========================================================================== */
+
+export function HuangliSelectedDayCard({
+  selected,
+  rule,
+  loading,
+  error,
+}: {
+  selected: ApiHuangliOutlook["days"][number] | null;
+  rule?: ApiHuangliOutlook["class_rule"];
+  loading: boolean;
+  error: string | null;
+}) {
+  return (
+    <Card testId="huangli-selected-card" anchor="right-summary">
+      <CardHeader
+        icon={<IconCalendar size={15} />}
+        title="选中日期详情"
+        right={
+          selected ? (
+            <span
+              className="rounded-[3px] px-1.5 py-[1px] text-[11.5px] font-semibold"
+              style={{ color: "#0d1a25", background: classTone(selected.class_code) }}
+              data-testid="huangli-selected-class"
+            >
+              {classLabel(selected)}
+            </span>
+          ) : null
+        }
+        dense
+      />
+      {loading ? <SectionLoading label="正在读取选中日期…" rows={4} /> : null}
+      {!loading && error ? (
+        <div className="p-3">
+          <SectionError what="选中日期详情" message={error} testId="huangli-selected-error" />
+        </div>
+      ) : null}
+      {!loading && !error && selected ? (
+        <div className="p-3">
+          <SelectedDayDetail card={selected} rule={rule} />
+        </div>
+      ) : null}
+      {!loading && !error && !selected ? (
+        <div className="p-3">
+          <SectionEmpty
+            what="选中日期详情"
+            hint="在左侧日期卡中选择一个交易日后，这里显示它的传统字段。"
+          />
+        </div>
+      ) : null}
+
+      {/* 时辰窗口：参考图有六格吉凶时辰。本系统后端**没有**逐时辰宜忌/吉凶产出，
+          因此如实标注不可用并说明原因，不画空卡位假装"稍后加载"（AGENTS.md §2.4）。 */}
+      <div
+        className="mx-3 mb-3 rounded border px-2.5 py-2 text-[11.5px] leading-relaxed"
+        style={{
+          borderColor: "var(--color-border)",
+          background: "rgba(124,143,163,0.06)",
+          color: "var(--color-ink-muted)",
+        }}
+        data-testid="huangli-hours-unavailable"
+      >
+        <b style={{ color: "var(--color-ink-sub)" }}>时辰窗口：不可用。</b>
+        黄历引擎按「日」产出通书字段与黄黑道分类，未实现逐时辰的吉凶/宜忌推演；
+        参考图中的六格时辰吉凶在本系统没有对应数据，因此不显示，也不以占位值代替。
+      </div>
 
       {/* 分类口径差异：把"为什么没有平"讲在前面，而不是让读者以为漏了一类 */}
-      {data?.class_rule ? (
-        <div className="mt-2">
+      {rule ? (
+        <div className="px-3 pb-3">
           <SectionNote>
-            <b>分类口径（{data.class_rule.rule_id}）：</b>
-            {stripMdEmphasis(data.class_rule.difference_note_cn)}
+            <b>分类口径（{rule.rule_id}）：</b>
+            {stripMdEmphasis(rule.difference_note_cn)}
             <br />
-            依据字段：<code>{data.class_rule.basis_field}</code>（{data.class_rule.basis_source}）。
-            {stripMdEmphasis(data.class_rule.not_a_recommendation_cn)}
+            依据字段：<code>{rule.basis_field}</code>（{rule.basis_source}）。
+            {stripMdEmphasis(rule.not_a_recommendation_cn)}
           </SectionNote>
         </div>
       ) : null}
