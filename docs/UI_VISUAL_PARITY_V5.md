@@ -44,9 +44,83 @@
 > `visual-reference.spec.ts` 现在断言 `[data-build-mode="production"]` 存在且
 > `nextjs-portal` 不存在，并等待 `[data-charts-ready="true"]` 后才取图。
 
-### 2026-09-24（R1.2 样板收口：02 第二行高度 + 08 纵向偏移 + 右栏拆卡）
+### 2026-09-24（V3-A：05 历史验证首屏层级 + 05/07/10 参考锚点重测）
+
+#### V3-0 参考锚点重测（先测后改）
+
+按 R1.1 批准的方法重测 05 / 07 / 10：亮度边缘剖面 → 分栏区间分别测 → 把候选边界画回图上人工判读；
+检测不出唯一边界的写 null，不估算。**旧 R1 的 sidebar / primaryCard / primaryChart / rightSummary 数值一律不复用。**
+
+| 页 | 项 | R1 旧值 | V3-A 重测 | 说明 |
+|---|---|---|---|---|
+| 05 | sidebar | 224 | **206** | 旧值偏 18px |
+| 05 | primaryCardTop | 298 | **218**（研究条件条顶） | 旧值把整条研究条件漏掉了，量到的是统计磁贴行 |
+| 05 | topbar / Hero底 / 上下文栏底 | 60 / 155 / 208 | **61 / 155 / 209** | 基本一致 |
+| 05 | 新增 | — | filterBar 218..285、summaryMetrics 299..384（9 磁贴）、primaryChart 395..589（708 宽）、holdingPeriodCard 942..1657（715 宽）、controlRow 599..771（四等分）、resultTable 顶 781 | 每行边界都由 5–16 条探测行一致给出 |
+| 07 | sidebar | 229 | **229** | 新法复测同值 |
+| 07 | 新增 | — | conflictBanner 250..352、mainRow 352..779、bottomRow 779..937 | 中/右再细分只有 2/4 强度，`columnSplit.right` 记 null |
+| 10 | sidebar | 223 | **210** | 旧值偏 13px |
+| 10 | 新增 | — | summaryTiles 228..378、mainRow/rightSummary 分栏 x=1182（16/16 一致） | 第三行顶边最强只到 frac≈0.48，如实 null |
+
+**05 / 07 / 10 三页的参考侧矩形现已全部出自新法**，V3 后续阶段不再依赖已失效的 R1 数值。
+
+#### 05 首屏重排
+
+根因：页面上排着 **6 张「研究卡位」空占位卡**（每张 ~160px，合计 ~960px），
+把唯一有真实数据的持有期对比推到 y=1255，于是 `viewport-1440-pages.spec.ts:121` 长期红。
+空卡位既撑高页面又虚报能力。
+
+按参考图 05 实测结构重排为：研究条件/状态 → 统计指标 → 收益分布 | 持有期对比 → 对照行 → 明细（第二屏）。
+
+| anchor | R1.2 candidate | V3-A candidate | reference | R1.2 Δ | V3-A Δ |
+|---|---|---|---|---:|---:|
+| topbar 高 | 68 | 62 | 61 | +7 | **+1** |
+| sidebar 宽 | 210 | 210 | 206 | +4 | **+4** |
+| pageHero 宽 | 1434 | 1434 | 1433 | +1 | **+1** |
+| primaryChart 宽 | — | 709.4 | 708 | — | **+1.4** |
+| holdingPeriodCard 宽 | — | 716.6 | 715 | — | **+1.6** |
+| controlRow 宽 / 高 | — | 1434 / 165.6 | 1433 / 172 | — | **+1 / −6.4** |
+| resultTable 宽 | — | 1434 | 1433 | — | **+1** |
+| holdingPeriodCard 高 | 1397.5 | 397.5 | 194 | +1203.5 | **+203.5** |
+| primaryChart 顶边 y | 776.6 | 598.4 | 395 | +381.6 | **+203.4** |
+| 持有期卡顶（1440） | 1255.75 | **进入 900 内** | — | FAIL | **PASS** |
+
+已声明的 **semantic exception**（写进 `e2e/v3a-backtest.spec.ts` 并钉上界，不是静默放宽）：
+1. `filterBar` 高度 +90：参考图这一带是 67px 的一行筛选条，本系统同一承载位必须放
+   研究状态徽标 + 数据源标记 + 四项条件（AGENTS §9.10、§7 关键失败状态必须可见），压不进 67px。
+2. 图表行顶边 +203.4：逐项可查为统一 Hero token +28（R1.2 已批准）、条件卡 +90、统计卡空态 +50。
+   上界钉在「参考 +220」，并要求显著优于整改前的 776.6。
+
+其余：删除 6 张占位卡后，没有真实数据的两个槽位（收益分布、年度稳定性/牛熊分组）
+**如实标不可用且卡体内不画任何图**；持有期逐 variant × 持有期明细表从首屏卡移到第二屏「明细」，
+内容一行未删（r3 的 `horizon-table` 断言随之改落点）。
+
+#### 顺带修掉的两个残留
+
+- **`Chip` 的 testid 从来没渲染出来**：页面写的是 `<Chip data-testid="data-source-chip">`，
+  而 `Chip` 只接受 `testId` prop ⇒ 该审计钩子静默消失（新加的 V3-A 用例第一次触到才暴露）。已改为 `testId=`。
+- **黄历 outlook 请求测试的过度声明**：注释原先暗示它保证"真实模式只请求一次"，
+  实际它只证明 fixture 不发请求。已改为事实性表述，并**新增源码级守卫**
+  `08：useHuangliOutlook 只在页面调用一次，三张展示卡不得自己取数`
+  （真实模式需要 analysis_id 与后端，属结构问题就直接查结构）。
+- PR #4 描述里的固定 commit 数已删除，统一改为 `git rev-list --count 7f95139..HEAD` 现算。
+
+#### 验证
+
+- typecheck 0；production build 通过（隔离 `.next-visual` / 3111）。
+- **本地全量 E2E：185 passed / 0 failed / 23 skipped** ——
+  `viewport-1440-pages.spec.ts:121` 这条从 09-21 起长期红的硬门**首次转绿**，
+  阈值仍是 `<= 900`，未放宽、未 skip、未改 viewport。
+- 新增 `e2e/v3a-backtest.spec.ts` 6 条；`ui-parity-r1.spec.ts` 25 条全过。
+- `visual:diff` 十页仍全 FAIL（05 41.13% → **40.19%**，−0.94pp），阈值 3% / 1.5% 未动。
+- `visual:anchors`：05 = candidate 10 / reference 11 / **alignedComparable 10**；
+  07 = 5 / 8 / 5；10 = 5 / 3 / 3。
+
+
 
 分支 `codex/ui-visual-parity-r1-clean`，基线 `7f95139`，PR #4（Draft）。
+### 2026-09-24（R1.2 样板收口：02 第二行高度 + 08 纵向偏移 + 右栏拆卡）
+
 提交构成：**4 个视觉提交 + 5 个 R1.1 整改提交 + R1.2 收口提交**。
 总数**不背数字**，一律现算：`git rev-list --count 7f95139..HEAD`
 （记录这一点本身也会新增提交，任何写死的总数都会在下一笔提交后失效）。

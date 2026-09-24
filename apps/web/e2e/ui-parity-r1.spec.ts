@@ -559,8 +559,33 @@ test.describe("R1.2 样板收口", () => {
     await expect(page.getByTestId("huangli-selected-card")).toBeVisible();
     await expect(page.getByTestId("huangli-hours-card")).toBeVisible();
     await expect(page.getByTestId("huangli-data-status-card")).toBeVisible();
-    // 演示模式走冻结样本；真实模式下这条同样保证"一次 state 喂三张卡"。
-    expect(outlookRequests, "右栏拆卡不得增加 outlook 请求数").toBe(0);
+    // 事实性说明：演示模式读冻结样本，所以这条断言证明的是
+    // **「fixture 模式下右栏三卡不产生任何 outlook 网络请求」**。
+    // 它**不能**证明真实模式只请求一次 —— 真实模式的请求数由下面那条源码级守卫保证：
+    // 三张卡都是纯展示组件、不调用 hook，只有页面顶层调用一次 useHuangliOutlook()。
+    expect(outlookRequests, "演示模式下右栏拆卡不得产生真实请求").toBe(0);
+  });
+
+  test("08：useHuangliOutlook 只在页面调用一次，三张展示卡不得自己取数", async () => {
+    // 为什么用源码级断言而不是浏览器计数：真实模式需要 analysis_id 与后端，
+    // 而这条要防的回归是"有人把 hook 再调一遍塞进子组件"——那是结构问题，
+    // 结构问题直接查结构。浏览器计数只能证明 fixture 不发请求。
+    const grid = await readFile("components/huangli/HuangliTradingDayGrid.tsx", "utf8");
+    const pageSrc = await readFile("app/stock/[code]/huangli/page.tsx", "utf8");
+
+    // 页面里恰好一次调用。只数真实调用点（左括号后紧跟参数），
+    // 否则说明文字里写一句 hook 名就会被算成调用。
+    const pageCalls = pageSrc.match(/useHuangliOutlook\([^)]/g) ?? [];
+    expect(pageCalls.length, "黄历页应当只在顶层取一次 outlook 数据").toBe(1);
+
+    // 组件文件里：只有 hook 自身的定义，三个展示组件内不得出现调用
+    const componentSection = grid.slice(grid.indexOf("视图二 / 三 / 四"));
+    expect(
+      /useHuangliOutlook\([^)]/.test(componentSection),
+      "右栏三张展示卡不得自己调用 useHuangliOutlook（会重复发 /huangli/outlook）",
+    ).toBe(false);
+    const hookDefs = grid.match(/export function useHuangliOutlook\(/g) ?? [];
+    expect(hookDefs.length).toBe(1);
   });
 
   test("08：分区语义仍在，但不再各占一整行", async ({ page }) => {
