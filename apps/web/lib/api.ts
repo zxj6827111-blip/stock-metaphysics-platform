@@ -42,7 +42,6 @@ const REQUEST_TIMEOUT_MS = 30_000;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
-  let res: Response;
   // 允许调用方传入自己的 signal（与超时信号合并）
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort("timeout"), REQUEST_TIMEOUT_MS);
@@ -50,20 +49,47 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (init.signal.aborted) controller.abort();
     else init.signal.addEventListener("abort", () => controller.abort(), { once: true });
   }
+
   try {
-    res = await fetch(url, {
+    const res = await fetch(url, {
       ...init,
       headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
       cache: "no-store",
       signal: controller.signal,
     });
+
+    // 响应正文必须在超时保护**之内**读完。
+    // 之前 `clearTimeout` 放在拿到响应头之后、读正文之前，于是"响应头已到、
+    // 正文一直挂着"这种情况不受任何约束，超时形同虚设（复核任务书 §P2-5）。
+    const text = await res.text();
+    let body: unknown = null;
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch {
+      body = null;
+    }
+
+    if (!res.ok) {
+      const errObj = (body as { error?: { code?: string; message?: string; detail?: string; retryable?: boolean } } | null)?.error;
+      throw new ApiError(
+        res.status,
+        errObj?.code ?? `HTTP_${res.status}`,
+        errObj?.message ?? `请求失败 (${res.status})`,
+        errObj?.detail ?? "",
+        errObj?.retryable ?? res.status >= 500,
+      );
+    }
+    return body as T;
   } catch (err) {
+    if (err instanceof ApiError) throw err;
     const timedOut = controller.signal.aborted && !init?.signal?.aborted;
     throw new ApiError(
       0,
       timedOut ? "NETWORK_TIMEOUT" : "NETWORK_ERROR",
       timedOut
-        ? `请求超时（${REQUEST_TIMEOUT_MS / 1000} 秒）：后端未在时限内返回。本次分析未被写入，可直接重试。`
+        ? `请求超时（${REQUEST_TIMEOUT_MS / 1000} 秒）：后端未在时限内返回完整响应，可直接重试。` +
+          `注意：客户端超时**不能**证明这次分析没有被写入 —— 服务端可能已落库，` +
+          `以分析记录列表为准。`
         : "无法连接后端服务，请确认 apps/api 已启动（默认 http://127.0.0.1:8000）",
       String(err),
       true,
@@ -71,26 +97,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } finally {
     clearTimeout(timer);
   }
-
-  const text = await res.text();
-  let body: unknown = null;
-  try {
-    body = text ? JSON.parse(text) : null;
-  } catch {
-    body = null;
-  }
-
-  if (!res.ok) {
-    const errObj = (body as { error?: { code?: string; message?: string; detail?: string; retryable?: boolean } } | null)?.error;
-    throw new ApiError(
-      res.status,
-      errObj?.code ?? `HTTP_${res.status}`,
-      errObj?.message ?? `请求失败 (${res.status})`,
-      errObj?.detail ?? "",
-      errObj?.retryable ?? res.status >= 500,
-    );
-  }
-  return body as T;
 }
 
 /**
@@ -117,7 +123,10 @@ async function requestText(path: string): Promise<string> {
         res.status >= 500,
       );
     }
-    return res.text();
+    // 必须 await：`return res.text()` 会让 finally 在正文读完之前就 clearTimeout，
+    // 超时保护对正文阶段失效。
+    const text = await res.text();
+    return text;
   } catch (err) {
     if (err instanceof ApiError) throw err;
     const timedOut = controller.signal.aborted;
