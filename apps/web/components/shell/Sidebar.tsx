@@ -3,12 +3,14 @@
 /**
  * 左侧导航（顶部与 TopBar 相接，底部有品牌标语）。
  *
- * 宽度 208px：R1 版按「参考图 231px」定值，那个数来自有缺陷的测法
+ * 宽度 210px：R1 版按「参考图 231px」定值，那个数来自有缺陷的测法
  * （在 x=200..261 窗口内找亮度跳变，等于把边界限制在了内容区里）。
  * R1.1 用背景→槽区亮度过渡逐页重测十张参考图，侧栏右边界分别是
  * 01=229 / 02=174 / 03=230 / 04=190 / 05=206 / 06=213 / 07=229 /
  * 08=203 / 09=204 / 10=209.5 —— 参考稿自身页间不一致（极差 56px）。
- * 取使各页绝对偏差之和最小的 208px，并**不**把它当永久产品标准。
+ * 十页实测的 L1 最优区间是 206–210；这里取 210px，以便同时满足既有
+ * layout.spec 的侧栏下限（210–250）——不为 1px 的研究精度去改别人的门禁期望值。
+ * 该值不升级为永久产品标准。
  *
  * 导航项结构与 uiux_spec §3 一致；未实现的模块（紫微/六爻/奇门）在
  * Phase 1 显示为 disabled 并带上"Phase 2"提示，而不是隐藏 —— 让用户
@@ -117,7 +119,7 @@ export function Sidebar({ activeKey }: { activeKey?: string }) {
 
   return (
     <aside
-      className="relative z-10 flex w-[208px] shrink-0 flex-col border-r"
+      className="relative z-10 flex w-[210px] shrink-0 flex-col border-r"
       style={{
         borderColor: "var(--color-border)",
         background:

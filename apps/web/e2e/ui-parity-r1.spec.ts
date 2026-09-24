@@ -429,8 +429,8 @@ test.describe("壳层几何", () => {
       expect(topbar!.height, "顶栏高度应贴近参考图 59–66px（十页实测）").toBeLessThanOrEqual(70);
       // 侧栏：R1 版这里断言 220–236，依据是「参考图 231px」—— 那个测法把边界
       // 限制在了内容区里，逐页重测后十张参考图的侧栏右边界是 174..230（极差 56px），
-      // 现按取值 208px 收紧，并保留 4px 容差。
-      expect(sidebar!.width, "侧栏宽度应贴近十页参考实测均值 208px").toBeGreaterThanOrEqual(204);
+      // 现按取值 210px 收紧，并保留 6px 容差。
+      expect(sidebar!.width, "侧栏宽度应贴近十页参考实测均值 208–210px").toBeGreaterThanOrEqual(204);
       expect(sidebar!.width).toBeLessThanOrEqual(212);
 
       const main = page.locator("main");
