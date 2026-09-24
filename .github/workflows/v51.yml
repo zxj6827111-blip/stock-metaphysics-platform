@@ -185,6 +185,9 @@ jobs:
   #      几何门要的是可复现的 DOM，不是研究数据。
   #
   # 与 frontend-e2e 并存，不替换、不缩小它的作用域。
+  #
+  # 覆盖范围：v3a-backtest + v3b-visual + viewport-1440-pages + r1-refinement
+  # （ui-parity-r1 的远端可移植性问题见下面 run step 的注释，属独立工作包）。
   frontend-ui-structure:
     name: frontend UI structure (production build)
     runs-on: ubuntu-latest
@@ -216,13 +219,26 @@ jobs:
           done
           echo "Web 未在 120s 内就绪"; tail -200 /tmp/smp-web-structure.log; exit 1
       - name: Run UI structure gates (geometry + truthfulness + 1440)
+        # 不含 e2e/ui-parity-r1.spec.ts —— 任务书把它列为"如成本允许"的可选项，
+        # 首次上远端实测有 7 条在 Ubuntu/Node20 上红，两类原因都**不是本轮改动**：
+        #   A. 6 条（:55 / :110 / :126 / :246 / :272 / :313）
+        #      `SyntaxError: Cannot use import statement outside a module` ——
+        #      这些用例在 Node 侧 `await import("../lib/…")` 动态导入 testDir 之外的 TS 模块。
+        #      Windows/Node24 本地全绿（清掉 Playwright 转译缓存后复测仍绿），
+        #      Ubuntu/Node20 干净环境红。要进 CI 得先把动态导入改成静态导入，属独立工作包。
+        #   B. 1 条（:470「02 第二行两张卡与第三行卡顶 ±12px」）
+        #      `关键证据卡高 304.625 vs 参考 278`（Δ 26.6 > 12），而 Windows 本地同一断言在 ±12 内。
+        #      02 是本轮**未改**的冻结页 ⇒ 这是绝对像素门对字体/平台敏感，
+        #      不是层级退化。跨平台可移植性要单独处理（改判据或锁字体度量），
+        #      不在这里靠放宽阈值掩盖。
+        # 证据：run 36003562575 / job "frontend UI structure (production build)"，
+        #      该次为 58 passed / 7 failed，7 条全部落在 ui-parity-r1.spec.ts。
         run: >
           npx playwright test
           e2e/v3a-backtest.spec.ts
           e2e/v3b-visual.spec.ts
           e2e/viewport-1440-pages.spec.ts
           e2e/r1-refinement.spec.ts
-          e2e/ui-parity-r1.spec.ts
           --project=reference-1672x941
           --workers=1
         working-directory: apps/web

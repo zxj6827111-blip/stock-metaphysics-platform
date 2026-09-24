@@ -8,8 +8,21 @@
 
 > **2026-09-24（V3-B0）更新**：`ui-visual-parity` 分支上已新增独立 job
 > **`frontend-ui-structure`**（`.github/workflows/v51.yml`），在**生产构建**上跑几何与真实性门：
-> `npm ci` → `npm run build` → `next start -p 3112` → 显式 readiness → 五个结构 spec。
+> `npm ci` → `npm run build` → `next start -p 3112` → 显式 readiness → 四个结构 spec
+> （`v3a-backtest` / `v3b-visual` / `viewport-1440-pages` / `r1-refinement`）。
 > 原 `frontend-e2e`（`npm run dev` + seeded date-scan）**未替换、未缩小**。
+>
+> **`ui-parity-r1.spec.ts` 首次上远端就红，已从本 job 移出并登记为独立工作包**
+> （run `36003562575`：58 passed / 7 failed，7 条**全部**在该 spec 内；
+> 任务书原本就把它列为"如成本允许"的可选项）：
+>
+> | 类 | 用例 | 现象 | 判定 |
+> |---|---|---|---|
+> | A | `:55`、`:110`、`:126`、`:246`、`:272`、`:313` | `SyntaxError: Cannot use import statement outside a module` —— 这些用例在 **Node 侧** `await import("../lib/…")` 动态导入 `testDir` 之外的 TS 模块 | Windows/Node 24 本地全绿（清掉 Playwright 转译缓存后复测仍绿），Ubuntu/Node 20 干净环境红 ⇒ **平台相关**；要进 CI 得先改成静态导入 |
+> | B | `:470`「02 第二行两张卡与第三行卡顶 ±12px」 | `关键证据卡高 304.625 vs 参考 278`（Δ 26.6 > 12），而 Windows 本地同一断言在 ±12 内 | 02 是本轮**未改**的冻结页 ⇒ 绝对像素门对**字体/平台**敏感，不是层级退化 |
+>
+> 两类都**不靠放宽阈值掩盖**：A 要动导入方式，B 要么锁字体度量、要么把判据从绝对像素
+> 改成相对量。已登记在下方「遗留」。
 >
 > **区分两件事，不许互相顶替**：
 > * **普通 CI green**（5 个原 job）= Python/引擎/构建/功能 e2e 通过，**不含**视觉结构门；
@@ -72,7 +85,10 @@
 
 见上面「CI 归属说明（2026-09-24 V3-B0 更新）」。要点：
 新增独立 job 跑**生产构建**上的结构门，原 `frontend-e2e`（dev + seeded date-scan）不动。
-本地先验证过：该 job 覆盖的五个 spec 在 production build 上全绿。
+本地先验证过：该 job 覆盖的四个 spec 在 production build 上全绿（40 passed）。
+远端首次跑（run `36003562575`）把 `ui-parity-r1.spec.ts` 一起放进去，出现 7 条红，
+两类原因见上方 CI 归属说明；已从 job 移出该 spec 并登记为独立工作包，
+移出后该 job 在本地复跑为 40 passed。
 
 #### 05 filterBar 下界保护（只改测试，UI 一行未动）
 
@@ -211,6 +227,21 @@ category 轴会把 5 个点也铺满整个宽度。改成拿摘要带的「逐�
    再展开断言内容 —— 或直接读 `textContent`。
 4. **"覆盖度"类几何判据有盲区。** 截断数据在 category 轴上照样铺满宽度，
    必须找一条**独立来源**（这里是摘要带的日期区间）交叉核对。
+
+#### V3-B 遗留（已登记，未自行绕门）
+
+1. **`ui-parity-r1.spec.ts` 不能作为可移植 CI 门**：A 类 6 条依赖 Node 侧动态 import
+   `testDir` 外的 TS 模块，Ubuntu/Node 20 直接 SyntaxError；
+   B 类 1 条把 02 的卡高锁在绝对 ±12px，跨平台字体度量一变就红。
+   两者都要专门处理，不能靠放宽阈值或 `skip` 静默。
+2. **07 `bottomRow` 整带底边 970.5 落在 941 之外**（参考 937）：
+   外壳 12px + 4px 栏距 vs 参考三条带紧贴。门禁改用"带顶进入首屏"，
+   没有为塞进 941 砍栏距或压内容。
+3. **07 `mainRow` 右列在 `no_conflict` 场景留白 ~130px**：参考该处是能力雷达 + 4 条归因；
+   本系统拒绝伪造雷达，而无冲突时真实归因就是 0 条。`conflict` 场景会填满。
+4. `filterBar` 高 54px 仍**低于**参考 67px（本轮只补 −20 下界保护，未改 UI）。
+5. 十页 pixel diff 仍全 FAIL；`key_layout_pixel_diff_ratio` / `ssim` 仍未接入。
+6. 首页 / 八字 / 紫微 / 因子 / 古籍 的参考锚点仍是 R1 旧法测值，未重测。
 
 ### 2026-09-24（V3-A.1：05 历史验证收口，删除两条过大 semantic exception）
 
