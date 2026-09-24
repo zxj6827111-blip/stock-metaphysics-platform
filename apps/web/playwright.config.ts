@@ -36,7 +36,27 @@ export default defineConfig({
   projects: [
     {
       name: "reference-1672x941",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1672, height: 941 }, deviceScaleFactor: 1 },
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1672, height: 941 },
+        deviceScaleFactor: 1,
+        /**
+         * 视觉项目的字体光栅化固定。
+         *
+         * 不加这组参数时，同一页面两次取图会出现 ±1–3 通道和的抗锯齿差异
+         * （实测 01-home 5219 px、06-factors 2 px）。单像素门禁阈值是 24，
+         * 这种噪声不影响 diff 结论，但会让"候选图逐字节可复现"做不到，
+         * 而后者是 V0 的硬要求。
+         */
+        launchOptions: {
+          args: [
+            "--force-color-profile=srgb",
+            "--font-render-hinting=none",
+            "--disable-lcd-text",
+            "--disable-gpu",
+          ],
+        },
+      },
       testIgnore: /viewport-1440-pages\.spec\.ts/,
     },
     {

@@ -532,6 +532,9 @@ export const ziweiReverseFixture = rawZiweiReverse as unknown as ApiZiweiChart;
 export const multiAnalysisFixture: ApiMultiAnalysis = {
   ...(rawAnalyze as unknown as ApiMultiAnalysis),
   as_of: "2024-11-15 14:32:00",
+  // 这份样本是在默认研究窗口下冻结的；后端会原样回传该字段，
+  // 上下文栏与导出快照都读它，不再写死成「20 交易日」。
+  horizon: "20d",
   ziwei_charts: {
     forward: ziweiForwardFixture,
     reverse: ziweiReverseFixture,
