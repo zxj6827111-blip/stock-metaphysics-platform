@@ -19,14 +19,27 @@ export interface AnchorRect {
   confidence?: string | null;
 }
 
-let cached: Record<string, { anchors?: Record<string, AnchorRect | null> }> | null = null;
+type FixtureFile = Record<
+  string,
+  {
+    anchors?: Record<string, AnchorRect | null>;
+    controlColumns?: { columns: ReferenceGridColumn[] };
+  }
+>;
 
-async function loadFixture() {
+let cached: FixtureFile | null = null;
+
+/** 对照行的一列参考边界（V3-A.1 从已冻结的 controlRow note 改写而来）。 */
+export interface ReferenceGridColumn {
+  index: number;
+  title: string;
+  x: number;
+  width: number;
+}
+
+async function loadFixture(): Promise<FixtureFile> {
   if (!cached) {
-    cached = JSON.parse(await readFile(FIXTURE_FILE, "utf8")) as Record<
-      string,
-      { anchors?: Record<string, AnchorRect | null> }
-    >;
+    cached = JSON.parse(await readFile(FIXTURE_FILE, "utf8")) as FixtureFile;
   }
   return cached;
 }
@@ -48,4 +61,20 @@ export async function referenceTop(page: string, anchor: string): Promise<number
     throw new Error(`参考顶边不可导出：${page}.${anchor}.y = ${String(rect.y)}`);
   }
   return rect.y;
+}
+
+/**
+ * 取对照行的**逐列**参考边界。
+ *
+ * 为什么单独一个读取口：整行外框对齐了不代表内部结构对齐 ——
+ * V3-A 就是两张 50/50 的卡把 controlRow 的宽高做到了 ±12，
+ * 而参考图是四张近似等宽的对照卡。缺这一份数据，测试就只能测外框。
+ */
+export async function referenceControlColumns(page: string): Promise<ReferenceGridColumn[]> {
+  const fixture = await loadFixture();
+  const cols = fixture[page]?.controlColumns?.columns;
+  if (!cols?.length) {
+    throw new Error(`对照行列边界缺失：${page}.controlColumns（不得臆造阈值）`);
+  }
+  return cols;
 }

@@ -75,6 +75,18 @@
       "primaryCard": { "x": 224, "y": 218, "width": 1433, "height": 67, "confidence": "high", "note": "首个主内容区即研究条件/筛选条（与 filterBar 同一条），保留此键是为了与 anchor 测量脚本的通用 primaryCard 口径对齐。" }
     },
     "columnSplit": { "left": [224, 932], "right": [942, 1657], "confidence": "high", "note": "图表行两栏 708:715 ⇒ 49.7:50.3（近似等分，栏间距 10px）。对照行是四等分。" },
+    "controlColumns": {
+      "_about": "V3-A.1 新增：把上面 controlRow note 里**已经冻结**的四条列边界改写成机器可读结构，供 e2e/v3a-backtest.spec.ts 做对照行内部几何测试。数值一字未改、未重新测量，只是换了承载形式（原来只写在 note 的自由文本里，测试读不到）。",
+      "columns": [
+        { "index": 1, "title": "年度稳定性", "x": 224, "width": 352 },
+        { "index": 2, "title": "牛/熊/震荡分组", "x": 586, "width": 346 },
+        { "index": 3, "title": "随机对照", "x": 942, "width": 340 },
+        { "index": 4, "title": "出生日期平移对照", "x": 1291, "width": 366 }
+      ],
+      "row": { "y": 599, "bottom": 771, "height": 172 },
+      "confidence": "high",
+      "note": "列边界来自 11/11 探测行一致的纵边（x=224,576 | 586,932 | 942,1282 | 1291,1657）；width = 右边界 − 左边界。四列宽 340..366，极差 26px ⇒ 参考稿是「近似等宽」而非严格等分，门禁按 ±20px 容差判等宽。"
+    },
     "note": "V3-A 用 R1.1 方法重测（亮度边缘剖面 + 分栏区间分别测 + 回图人工判读）。旧 R1 值 topbar 60 / sidebar 224 / pageHero 95 / stockContextBar 53 / primaryCardTop 298 全部作废：其中 primaryCardTop=298 实际是统计磁贴行顶边，把筛选条整块漏掉了。"
   },
 

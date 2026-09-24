@@ -147,13 +147,15 @@ export function TopBar({
  * 其余研究页是紧凑的标题 + 竖联 + 星盘。此前所有页共用一套尺寸与装饰，
  * 于是"统一外壳"变成了"抹掉每页构图"（复核任务书 §二.3）。
  *
- * 本轮只落地实际被使用的两档：
- *   * `default`  —— 既有页面保持原样，不因为改造而回归；
- *   * `research` —— 综合研判 / 黄历这类研究主页：更高的头部、更大的标题、
- *     更强的山峦层次，星盘右移并被卡片边界裁切（参考图就是这个效果）。
- * 首页 / 统计 / 证据三档留给各自的工作包接入，不在这里预先建空壳。
+ * 本轮只落地实际被使用的三档：
+ *   * `default`    —— 既有页面保持原样，不因为改造而回归；
+ *   * `research`   —— 综合研判 / 黄历这类研究主页：更高的头部、更大的标题、
+ *     更强的山峦层次，星盘右移并被卡片边界裁切（参考图就是这个效果）；
+ *   * `statistics` —— 历史验证这类统计/证据型页面：参考图 05 的 Hero 只有 94px，
+ *     标题带下面紧接筛选条与九宫格指标，装饰必须让位给信息密度。
+ * 首页 / 证据两档留给各自的工作包接入，不在这里预先建空壳。
  */
-export type HeroVariant = "default" | "research";
+export type HeroVariant = "default" | "research" | "statistics";
 
 const HERO: Record<
   HeroVariant,
@@ -189,6 +191,22 @@ const HERO: Record<
     astrolabeClass: "-right-6",
     mountainOpacity: 0.34,
     coupletSize: 14,
+  },
+  statistics: {
+    // 冻结参考值（e2e/fixtures/reference-anchors.json → 05-backtest.pageHero.height = 94）。
+    // 高度构成：py 8+8 + 上下边框 2 + 内容 76 = 94；内容 76 由竖联
+    // （3 字 × 16px 行高 + 6 间距 + 印章 20 = 74）取整到 76 撑住，
+    // 标题 34px 与副标题 13px 合计 62，不反过来顶高卡片。
+    // 装饰同步收敛：星盘缩到 168 并左移，山脊不透明度降到 0.16，
+    // 因为参考图 05 这一带读起来是"标题带"，不是"主视觉"。
+    box: "px-4 py-2",
+    minH: 76,
+    title: "text-[34px]",
+    subtitle: "text-[13px]",
+    astrolabeSize: 168,
+    astrolabeClass: "right-[150px]",
+    mountainOpacity: 0.16,
+    coupletSize: 12,
   },
 };
 

@@ -44,6 +44,117 @@
 > `visual-reference.spec.ts` 现在断言 `[data-build-mode="production"]` 存在且
 > `nextjs-portal` 不存在，并等待 `[data-charts-ready="true"]` 后才取图。
 
+### 2026-09-24（V3-A.1：05 历史验证收口，删除两条过大 semantic exception）
+
+独立审核结论 `UI_V3A_INDEPENDENT_REVIEW = CHANGES_REQUIRED`。作用域**只有 05**；
+07 / 10 / 首页 / 八字 / 紫微 / 因子 / 古籍 / 综合研判 / 黄历 未开工。
+05 的参考侧数值**未重测、未改动**（V3-A 新测值已由独立审核接受并冻结为本轮真源）。
+
+#### 删掉的两条例外，以及为什么不能留
+
+| 被删门禁 | 它放行的实测偏差 |
+|---|---|
+| `chart.y <= reference.y + 220` | `primaryChart` 顶边 **+203.4px** |
+| `filter.height <= reference.height + 102` | `filterBar` 高度 **+90.0px** |
+
++203px 已经不是"容差"而是"把没对齐登记成已解释"。本轮改为**通过布局收口**达到逐项容差，
+并把阈值表写回 `e2e/v3a-backtest.spec.ts`（6 条 → 9 条）。
+
+#### 布局收口的四个手段
+
+1. **新增 `statistics` Hero 变体**（`HeroVariant` / `ResearchPageProps.heroVariant` / `HERO` 三处）。
+   05 属统计/证据型页面，参考 Hero 只有 94px：`minH 104→76`、标题 `40→34px`、副标题 `14→13px`、
+   星盘 `214→168` 并左移、山脊不透明度 `0.24→0.16`、竖联字号 `13→12`。
+   **02 / 08 已批准的 `default` / `research` 两档数值一字未改**，未全站套 `statistics`。
+2. **① 术数规则强度与 ② 统计有效性合并**为 `research-status-card` 内的两行紧凑结构，
+   独立整宽 `rule-strength` 横条删除（每行 ≈36px 是首屏累计偏高的直接来源）；
+   置信度/一致度与 NO_SIGNAL 口径解释进 `<details>`；
+   `section-deterministic` / `section-empirical` / `rule-strength` 三个 testid 全部保留。
+3. **持有期卡恢复"图为主角"**：实验选择器与状态徽标移入 CardHeader，
+   INVALID_CONTROL 大警告移入对照区，outperform/underperform 方法论提醒移入第二屏，
+   完整区间/基准/方法压成一行 metadata。收益分布不可用卡首屏只留一句话，
+   "为什么不能高斯生成 / 不能反推"进 `<details>`，两栏改 `items-stretch` 使两卡等高。
+4. **stats-summary 在无真实数据时九块磁贴照排**（`—` / `不可用` / `未验证`，不填 0），
+   警告压成一行可展开 summary。此前该带是 `UnavailableBlock`，
+   `summary-metrics` 锚点**根本不存在**，几何测试无从测起。
+5. **controlRow 恢复参考图的四列结构**：年度稳定性 / 牛·熊·震荡分组 / 随机对照 / 出生日期平移对照。
+   前两列后端没有 ⇒ 如实"不可用 / 未计算"且卡体内不画图；
+   后两列只做 `random_birth_date` / `random_factor` / `shift_plus_7d` / `shift_minus_7d` 的字段映射，
+   不重新计算、不为填满四张卡伪造数据。
+   为此把 `reference-anchors.json` 中 05 `controlRow` note 里**已冻结**的四条列边界
+   改写成机器可读的 `controlColumns` 键（数值一字未改），新增 `referenceControlColumns()` 读取口，
+   避免测试里出现第二份数字。
+
+#### before / after 实测（1672×941，production build）
+
+| anchor | reference | V3-A | V3-A.1 | 本轮目标 | 结果 |
+|---|---|---|---|---|---|
+| pageHero 高 | 94 | 122.0（+28.0） | **94.0（+0.0）** | ±12 | PASS |
+| filterBar 顶 y / 高 | 218 / 67 | 292.8（+74.8）/ 157.0（+90.0） | **219.3（+1.3）/ 54.0（−13.0）** | ±12 / ≤ +24 | PASS |
+| summaryMetrics 顶 y / 高 | 299 / 85 | 锚点未渲染 | **292.3（−6.7）/ 72.0（−13.0）** | ±16 | PASS |
+| primaryChart 顶 y / 高 | 395 / 194 | 598.4（**+203.4**）/ 166.1 | **403.8（+8.8）/ 202.5（+8.5）** | ±20 / ±24 | PASS |
+| holdingPeriodCard 顶 y / 高 | 395 / 194 | 598.4（**+203.4**）/ 397.5（**+203.5**） | **403.8（+8.8）/ 202.5（+8.5）** | ±20 / ±24 | PASS |
+| controlRow 顶 y / 高 | 599 / 172 | 1007.9（+408.9）/ 165.6 | **618.3（+19.3）/ 164.5（−7.5）** | ±24 / ±16 | PASS |
+| resultTable 顶 y | 781 | 1185.5（+404.5） | **794.8（+13.8）** | ±24 | PASS |
+| 持有期卡顶（1440×900） | — | 618.9 | **403.8** | ≤900（阈值未放宽） | PASS |
+| `main` / 整页横向溢出 | — | 0 | **0** | ≤2 | PASS |
+
+对照行内部（1672）：candidate 列左边界 `224/585/945/1306`、宽度 `353×4`、间距 `8/7/8`；
+reference 列左边界 `224/586/942/1291`、宽度 `352/346/340/366` ⇒ 逐列偏差 ≤ 15px（门禁 ±20px）。
+`visual-anchors.mjs` 独立口径：05 `anchorsTotal=22 / candidateMeasured=11 / alignedComparable=11`
+（V3-A 时 `summaryMetrics` 测不到）。
+
+#### 门禁不是空门：两种独立验证
+
+删除 `ref+220` 之后必须证明新阈值会拒绝那种偏差：
+
+1. **变异构建**：源码改回 `xl:grid-cols-4`→`2`、持有期图高 `108`→`320`（+220px），
+   重新 build + start 跑真实 spec ⇒ **3 failed / 6 passed**，
+   首条即 `primaryChart.height：candidate 414.5 vs reference 194 偏差 220.5px，超出 +24`。
+2. **同构建 CSS 注入自检**（`apps/web/artifacts/v3a1/gate-selftest.mjs` 可重跑）：
+   基线 0 条不通过，注入同样两处退化后 6 条不通过。
+
+#### 十页像素差异：05 反而升高，如实记录
+
+`05-backtest` 40.19% → **44.13%**（阈值 3% 与参考图未动，十页仍全 FAIL）。
+分带归因：`pageHero` −4.39pp、`controlRow` −2.83pp、`summaryMetrics` −1.38pp、
+`stockContextBar` −0.51pp 都在改善；升高集中在 `resultTable` 带 **+21.74pp**（y=850–940）。
+
+已排查两种解释：
+- **14px 纵向错位**：把候选在该带上移 0/10/13/14px 重比，变化率 76.02% → 77.01/77.26/77.23%，
+  **不降**，假设不成立。
+- **内容替换**：V3-A 在这一带是持有期卡下方的大片深色空白，V3-A.1 换成了真实的
+  「持有期逐组明细」表头与灰字数据行，而参考图是 5 行带红绿彩色数字与色块的演示明细表。
+  **用真实的表替换一块空白，反而离参考更远。**
+
+与 R1.1 记录的同类现象一致：像素差异比例奖励"内容像不像"，不奖励"结构对不对"。
+参考图 05 的九宫格数值、收益分布直方图、四张对照图全是演示数据，
+本系统在这些位置必须显示不可用 ⇒ **这几带在拿到真实数据前不可能收敛**。
+本轮未为收敛比例补画任何伪图。
+
+#### 验证（Level 2 + 生产构建 E2E，非完整 CI）
+
+- `npm run typecheck` 0 错误；`NEXT_DIST_DIR=.next-e2e npm run build` 通过。
+- 全量本地 E2E：**188 passed / 0 failed / 23 skipped**（V3-A 是 185，本轮 spec 6→9 条）。
+- `viewport-1440-pages.spec.ts:121` 阈值 `<=900` 一字未动，仍绿。
+- `ui-parity-r1.spec.ts` / `r1-refinement.spec.ts` / `visual-reference.spec.ts` 全过。
+- **首轮全量曾 9 条失败，全部是"本机没有后端"的环境缺口**（指纹：`factor-search` 等元素找不到，
+  与本轮改动无关）。用 `output/ui-final/isolate_db.py`（sqlite backup API，源库 `mode=ro`）
+  出 676 MB 快照 + `uvicorn --port 8000` 后复跑 ⇒ 50 passed，再跑全量 ⇒ 0 failed。
+  前端起在 `NEXT_DIST_DIR=.next-e2e` + `next start -p 3111`，未抢他会话占用的 3000。
+
+#### 本轮新经验
+
+1. **"锚点未渲染"比"锚点偏 200px"更危险。** V3-A 的 `summary-metrics` 因为空态走
+   `UnavailableBlock` 而根本不存在，几何测试对它无话可说，于是"这条没红"被读成"这条没问题"。
+   空态必须保留可测的结构槽位（值给 `—` / `不可用`），否则门禁是瞎的。
+2. **整行外框对齐 ≠ 内部结构对齐。** V3-A 的 controlRow 宽高都在 ±12 内，
+   内部却是两张 50/50 卡而参考是四列。结构测试必须逐列量，且列边界要有机器可读的冻结来源。
+3. **删掉一条放宽的门禁，就要同时交一份"它会拒绝"的证据。**
+   否则无法区分"收紧了"与"换了一种写法继续放行"。变异构建与 CSS 注入自检成本很低（各一次 build / 零 build）。
+4. **解释像素回归前先做排除实验。** "14px 错位导致 resultTable 带变差"听起来合理，
+   实测平移后不降反升，才把归因落到"真实表替换空白"上。未验证的归因不写进结论。
+
 ### 2026-09-24（V3-A：05 历史验证首屏层级 + 05/07/10 参考锚点重测）
 
 #### V3-0 参考锚点重测（先测后改）
@@ -86,6 +197,9 @@
 | 持有期卡顶（1440） | 1255.75 | **进入 900 内** | — | FAIL | **PASS** |
 
 已声明的 **semantic exception**（写进 `e2e/v3a-backtest.spec.ts` 并钉上界，不是静默放宽）：
+
+> **这两条例外已在 V3-A.1 删除**（独立审核判定 +203px 不能作为永久例外）。
+> 下面保留原文是为了记录当时的判断与它被推翻的过程；现行门禁见本节上面那条 V3-A.1。
 1. `filterBar` 高度 +90：参考图这一带是 67px 的一行筛选条，本系统同一承载位必须放
    研究状态徽标 + 数据源标记 + 四项条件（AGENTS §9.10、§7 关键失败状态必须可见），压不进 67px。
 2. 图表行顶边 +203.4：逐项可查为统一 Hero token +28（R1.2 已批准）、条件卡 +90、统计卡空态 +50。

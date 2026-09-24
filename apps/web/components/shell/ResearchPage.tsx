@@ -18,7 +18,7 @@ import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/shell/AppShell";
 import { PageError, PageLoading } from "@/components/shell/PageState";
-import { PageHero } from "@/components/shell/TopBar";
+import { PageHero, type HeroVariant } from "@/components/shell/TopBar";
 import { StockContextBar } from "@/components/stock/StockContextBar";
 import { Card } from "@/components/cards/Card";
 import { FIXTURE_QUERY_VALUE } from "@/lib/fixture";
@@ -35,8 +35,9 @@ export interface ResearchPageProps {
   couplet?: string[];
   /** 竖排题词（每行四字，参考图右侧）。 */
   motto?: string[];
-  /** Hero 变体；研究主页用 `research`（更高头部、更强装饰）。 */
-  heroVariant?: "default" | "research";
+  /** Hero 变体；研究主页用 `research`（更高头部、更强装饰），
+   *  统计/证据型页面（05 历史验证）用 `statistics`（紧凑标题带，让位给指标密度）。 */
+  heroVariant?: HeroVariant;
   code: string;
   analysis: ApiMultiAnalysis | null;
   loading: boolean;

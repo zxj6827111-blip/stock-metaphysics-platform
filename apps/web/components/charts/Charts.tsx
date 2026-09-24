@@ -418,10 +418,13 @@ export function HorizonComparisonChart({
   labels,
   series,
   height = 168,
+  captionLines,
 }: {
   labels: string[];
   series: { name: string; values: (number | null)[]; tone: "up" | "down" | "flat" }[];
   height?: number;
+  /** 摘要行数；05 首屏的持有期卡只有 194px 参考高度，传 1 收成一行为标题带。 */
+  captionLines?: 1;
 }) {
   const option = useMemo(
     () => ({
@@ -502,7 +505,13 @@ export function HorizonComparisonChart({
   return (
     <figure className="m-0" data-testid="horizon-comparison-chart">
       <SmpECharts option={option} height={height} />
-      <figcaption className="mt-1 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+      <figcaption
+        className={`mt-1 text-[10.5px] ${captionLines === 1 ? "line-clamp-1" : ""}`}
+        // 文本摘要不能因为收高度而消失：单行截断时把全文挂到 title 上，
+        // DOM 里也仍然是完整句子（可搜索、可截图放大）。
+        title={captionLines === 1 ? summary : undefined}
+        style={{ color: "var(--color-ink-faint)" }}
+      >
         {summary || "暂无数据"}。仅绘制后端已算出的平均收益 / 平均超额收益；
         缺失持有期断开，不做插值，也不由前端派生基准序列。
       </figcaption>

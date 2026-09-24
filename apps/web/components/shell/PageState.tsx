@@ -185,10 +185,14 @@ export function ResearchStatusBadge({
   status,
   reasons = [],
   compact,
+  showCode,
 }: {
   status: string;
   reasons?: string[];
   compact?: boolean;
+  /** 紧凑档里仍把后端原始状态码带在徽标上（05 历史验证首屏只有一行预算，
+   *  但 §2.4/§16 要求状态可追溯，不能只剩中文标签）。 */
+  showCode?: boolean;
 }) {
   const t = RESEARCH_STATUS_TONE[status];
   const unknown = !t;
@@ -201,6 +205,7 @@ export function ResearchStatusBadge({
         title={reasons.join("\n")}
       >
         研究状态：{shown.label}
+        {showCode ? <code className="ml-1 font-normal opacity-85">{status}</code> : null}
         {unknown ? `（无法识别的状态码 ${status}）` : ""}
       </span>
       {!compact && reasons.length ? (
