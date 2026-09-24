@@ -213,9 +213,11 @@ function HuangliInner() {
       onReload={reload}
       loadingLabel="正在读取黄历与日课数据…"
     >
-      {/* ============ 第一屏：左 60% 今日摘要 + 交易日网格 / 右 40% 选中日详情 ============ */}
-      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-3">
+      {/* ============ 第一屏：左 58% 今日摘要 + 交易日网格 / 右 42% 选中日详情 ============ */}
+      {/* 分栏比按参考图 08 实测量定：左栏 x=233..1044（811px）、右栏 x=1071..1657（586px），
+          扣除栏间距后约 58:42，故用 1.38fr:1fr（原先 1.5fr 让左栏宽出约 8px）。 */}
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-3" data-anchor="main-column">
           <SectionLabel
             index="①"
             title="传统黄历数据"
@@ -385,7 +387,7 @@ function HuangliInner() {
           />
         </div>
 
-        <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3" data-anchor="detail-column">
           <HuangliSelectedDayCard
             selected={outlookSelected}
             rule={outlook.data?.class_rule}

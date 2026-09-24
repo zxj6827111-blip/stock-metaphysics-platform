@@ -406,6 +406,7 @@ function DayCardGrid({
       className="grid gap-1.5"
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
       data-testid="huangli-day-grid"
+      data-anchor="day-grid"
     >
       {days.map((d) => (
         <DayCard key={d.date} card={d} active={d.date === selected} onPick={onPick} />

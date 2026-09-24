@@ -459,8 +459,11 @@ function OverviewInner() {
 
       {data ? (
         <>
-          {/* A + B + C (约 50:29:21 比例) */}
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1.16fr)_minmax(0,0.84fr)]">
+          {/* A + B + C (约 50:29:21 比例，与参考图 02 首行三卡 708/406/333 一致) */}
+          <div
+            className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1.16fr)_minmax(0,0.84fr)]"
+            data-anchor="first-row"
+          >
             <Card testId="engine-scores" anchor="primary-card">
               <CardHeader
                 icon={<IconGrid size={14} />}
@@ -483,11 +486,13 @@ function OverviewInner() {
             <ConflictCard conflict={data.conflict} />
           </div>
 
-          {/* D + E + F：下部双列独立垂直堆叠 (58% : 42%) */}
-          <div className="mt-3 grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)]">
-            {/* 左列 (58%)：未来时间窗口 + 历史验证摘要（保障 y <= 760px 进入首屏） */}
+          {/* D + E + F：下部双列独立垂直堆叠。
+              参考图 02 实测：左列 x=191..995（804px）、右列 x=1010..1660（650px）
+              ⇒ 扣栏间距后约 55.3:44.7，故 1.25fr:1fr（原先 1.38fr 左列宽约 35px）。 */}
+          <div className="mt-3 grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+            {/* 左列：未来时间窗口 + 历史验证摘要（保障摘要标题进入首屏） */}
             <div className="flex flex-col gap-3">
-              <Card testId="time-window">
+              <Card testId="time-window" anchor="primary-chart">
                 <CardHeader
                   icon={<IconChart size={14} />}
                   title="未来时间窗口"
@@ -575,7 +580,7 @@ function OverviewInner() {
                 </div>
               </Card>
 
-              <Card testId="backtest-summary">
+              <Card testId="backtest-summary" anchor="history-summary">
                 <CardHeader
                   icon={<IconTrend size={14} />}
                   title="历史验证摘要"

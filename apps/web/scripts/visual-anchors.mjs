@@ -33,6 +33,9 @@ const FIXTURE_FILE = path.resolve(process.cwd(), "e2e", "fixtures", "reference-a
  * 每个 anchor 给一组**按优先级排列**的选择器：
  * 先试语义化 `data-anchor`（本轮引入），再退回既有 `data-testid` / 结构选择器，
  * 这样同一份脚本既能量改造前的页面，也能量改造后的页面。
+ *
+ * anchor 名必须与 `e2e/fixtures/reference-anchors.json` 里的键一一对应：
+ * 名字对不上就等于 reference 侧永远 null，会被如实计进 referenceAnchorsMissing。
  */
 const ANCHORS = {
   topbar: ['[data-anchor="topbar"]', "header"],
@@ -50,6 +53,13 @@ const ANCHORS = {
     '[data-testid="key-evidence"]',
     '[data-testid="huangli-selected-day"]',
   ],
+  // R1.1 新增：样板页（02 / 08）的分栏与分区边界
+  firstRow: ['[data-anchor="first-row"]'],
+  historySummary: ['[data-anchor="history-summary"]', '[data-testid="backtest-summary"]'],
+  dataQuality: ['[data-anchor="data-quality"]', '[data-testid="data-quality-card"]'],
+  mainColumn: ['[data-anchor="main-column"]'],
+  detailColumn: ['[data-anchor="detail-column"]'],
+  dayGrid: ['[data-anchor="day-grid"]', '[data-testid="huangli-day-grid"]'],
 };
 
 /** 页面主图表各页不同，单独配置。 */
@@ -85,8 +95,14 @@ const ANCHOR_ORDER = [
   "pageHero",
   "stockContextBar",
   "primaryCard",
+  "firstRow",
   "primaryChart",
+  "historySummary",
   "rightSummary",
+  "dataQuality",
+  "mainColumn",
+  "detailColumn",
+  "dayGrid",
 ];
 
 function measureInPage(selectorGroups) {
@@ -162,41 +178,46 @@ async function measureCandidates(baseUrl) {
   return results;
 }
 
-/** 把冻结的参考边界换算成矩形；只有顶边没有底边的条目如实给 partial（height=null）。 */
+/**
+ * 把冻结的参考矩形原样取出。
+ *
+ * 参考侧只承认 fixture 里**人工核对过**的矩形：没有底边的条目 height=null，
+ * 检测不出的整条为 null。脚本不再对参考图做任何现场推断。
+ */
 function referenceRects(fixture) {
   const out = {};
   for (const [key, v] of Object.entries(fixture)) {
     if (key.startsWith("_")) continue;
-    const top = v.topbarHeight;
-    const side = v.sidebarWidth;
-    const x = side != null ? side + 14 : null;
-    const width = x != null ? 1672 - 8 - x : null;
-    const rect = (y0, y1) =>
-      y0 != null && y1 != null && y1 > y0 && x != null
-        ? { x, y: y0, width, height: y1 - y0 }
-        : null;
-    out[key] = {
-      topbar: top != null ? { x: 0, y: 0, width: 1672, height: top } : null,
-      sidebar: top != null && side != null ? { x: 0, y: top, width: side, height: 941 - top } : null,
-      pageHero: rect(top, v.pageHeroBottom),
-      stockContextBar: rect(v.pageHeroBottom, v.stockContextBarBottom),
-      primaryCard: v.primaryCardTop != null && x != null ? { x, y: v.primaryCardTop, width, height: null } : null,
-      primaryChart: null,
-      rightSummary: null,
-    };
+    const anchors = v.anchors ?? {};
+    out[key] = {};
+    for (const name of ANCHOR_ORDER) {
+      const a = anchors[name];
+      out[key][name] =
+        a == null
+          ? null
+          : {
+              x: a.x ?? null,
+              y: a.y ?? null,
+              width: a.width ?? null,
+              height: a.height ?? null,
+              confidence: a.confidence ?? null,
+            };
+    }
   }
   return out;
 }
 
+/** 只有双方在同一字段上都有数字，才允许算 delta。 */
 function delta(candidate, reference) {
   if (!candidate || !reference) return null;
   const d = {};
+  let comparableFields = 0;
   for (const k of ["x", "y", "width", "height"]) {
-    d[k] =
-      typeof candidate[k] === "number" && typeof reference[k] === "number"
-        ? Math.round((candidate[k] - reference[k]) * 10) / 10
-        : null;
+    const ok = typeof candidate[k] === "number" && typeof reference[k] === "number";
+    if (ok) comparableFields += 1;
+    d[k] = ok ? Math.round((candidate[k] - reference[k]) * 10) / 10 : null;
   }
+  d.comparableFields = comparableFields;
   return d;
 }
 
@@ -213,24 +234,35 @@ async function main() {
     for (const name of ANCHOR_ORDER) {
       const cv = c.anchors[name] ?? null;
       const rv = ref[name] ?? null;
+      const dl = delta(cv, rv);
       rows[name] = {
         candidate: cv,
         reference: rv,
-        delta: delta(cv, rv),
+        delta: dl,
+        // 三个口径必须分开说：找到 DOM ≠ 参考侧有值 ≠ 两边可比。
+        candidateMeasured: !!cv,
+        referenceMeasured: !!rv,
+        alignedComparable: !!cv && !!rv && (dl?.comparableFields ?? 0) > 0,
         firstFoldVisible:
           cv != null ? Math.round((cv.y + cv.height) * 10) / 10 <= VIEWPORT.height : null,
-        measured: { candidate: !!cv, reference: !!rv },
       };
     }
+    const count = (f) => Object.values(rows).filter((v) => f(v)).length;
     pages[key] = {
       route: c.route,
       chartReadySignal: c.chartReadySignal,
       scroll: c.scroll,
       anchors: rows,
-      candidateAnchorsMissing: Object.entries(rows).filter(([, v]) => !v.measured.candidate).map(([k]) => k),
-      referenceAnchorsMissing: Object.entries(rows).filter(([, v]) => !v.measured.reference).map(([k]) => k),
+      summary: {
+        anchorsTotal: ANCHOR_ORDER.length,
+        candidateMeasured: count((v) => v.candidateMeasured),
+        referenceMeasured: count((v) => v.referenceMeasured),
+        alignedComparable: count((v) => v.alignedComparable),
+      },
+      candidateAnchorsMissing: Object.entries(rows).filter(([, v]) => !v.candidateMeasured).map(([k]) => k),
+      referenceAnchorsMissing: Object.entries(rows).filter(([, v]) => !v.referenceMeasured).map(([k]) => k),
       belowFold: Object.entries(rows)
-        .filter(([, v]) => v.measured.candidate && !v.firstFoldVisible)
+        .filter(([, v]) => v.candidateMeasured && !v.firstFoldVisible)
         .map(([k, v]) => `${k}@y=${v.candidate.y}+h=${v.candidate.height}`),
     };
   }
@@ -251,14 +283,26 @@ async function main() {
 
   console.log(`\n== anchor measurement (${label}) ==`);
   for (const [key, p] of Object.entries(pages)) {
-    console.log(`${key}  charts-ready=${p.chartReadySignal}  scroll=${JSON.stringify(p.scroll)}`);
+    const s = p.summary;
+    // 措辞纪律：candidate 找到 DOM 只算 candidateMeasured，
+    // 只有双方都有值才叫 alignedComparable。
+    console.log(
+      `${key}  charts-ready=${p.chartReadySignal}  scroll=${JSON.stringify(p.scroll)}\n` +
+        `  candidateMeasured=${s.candidateMeasured}/${s.anchorsTotal}` +
+        `  referenceMeasured=${s.referenceMeasured}/${s.anchorsTotal}` +
+        `  alignedComparable=${s.alignedComparable}/${s.anchorsTotal}`,
+    );
     for (const name of ANCHOR_ORDER) {
       const a = p.anchors[name];
       const c = a.candidate;
       const r = a.reference;
-      const cs = c ? `${String(c.x).padStart(7)},${String(c.y).padStart(6)} ${String(c.width).padStart(7)}x${String(c.height).padStart(6)}` : "      — not measured";
-      const rs = r ? `${String(r.x).padStart(7)},${String(r.y).padStart(6)} ${String(r.width).padStart(7)}x${String(r.height ?? "—")}` : "      — ref not derivable";
-      console.log(`  ${name.padEnd(16)} cand ${cs}   ref ${rs}   fold=${a.firstFoldVisible === null ? "—" : a.firstFoldVisible ? "yes" : "NO"}`);
+      const num = (v) => (typeof v === "number" ? String(v).padStart(7) : "      —");
+      const cs = c ? `${num(c.x)},${num(c.y)} ${num(c.width)}x${num(c.height)}` : "      — not measured";
+      const rs = r ? `${num(r.x)},${num(r.y)} ${num(r.width)}x${num(r.height)}` : "     — ref not derivable";
+      const d = a.alignedComparable && a.delta
+        ? `Δ ${num(a.delta.x)},${num(a.delta.y)} ${num(a.delta.width)}x${num(a.delta.height)}`
+        : "Δ        — 不可比较";
+      console.log(`  ${name.padEnd(17)} cand ${cs}  ref ${rs}  ${d}  fold=${a.firstFoldVisible === null ? "—" : a.firstFoldVisible ? "yes" : "NO"}`);
     }
     if (p.belowFold.length) console.log(`  ⚠ below 941px fold: ${p.belowFold.join(", ")}`);
   }

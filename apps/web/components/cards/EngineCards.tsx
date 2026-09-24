@@ -373,7 +373,7 @@ export function DataQualityBadge({ quality }: { quality: DataQualityView }) {
           : "var(--color-up)";
 
   return (
-    <Card testId="data-quality-card">
+    <Card testId="data-quality-card" anchor="data-quality">
       {/* 这里此前挂着一个「查看详情」按钮，但它既没有 onClick 也没有跳转目标，
           点下去没有任何反应 —— 研究终端里的假按钮等于虚报能力，故直接不渲染。
           本卡的可核对信息（评级依据 / 引擎版本 / 风险提示）已全部在卡内展示。 */}
