@@ -37,8 +37,12 @@ export function useAnalysisContextSuffix(): string {
  *
  * 演示夹具里的 `detailHref` 是**冻结时**拼好的，只带当时那份样本的上下文；
  * 直接拿来渲染，就会出现"URL 选了 60d，点进详情却回到默认窗口"。
- * 这里按参数名逐个补：URL 上有的以 URL 为准（用户此刻的选择），
- * 没有的原样保留。
+ *
+ * 优先级（不可反过来）：**当前 URL 上的上下文覆盖链接里的旧值**。
+ * 链接里的值是"上一次点进来时"的快照，当前 URL 才是用户此刻的选择；
+ * 若让链接优先，用户在 URL 上改的假设就会在跳转那一刻被静默撤销。
+ * 当前 URL 上不存在该参数时，链接自己带的值原样保留。
+ * 与分析上下文无关的查询参数（如 `?date=`）一律不动。
  */
 export function withAnalysisContext(href: string, params: URLSearchParams | null): string {
   if (!params || !href) return href;
@@ -46,7 +50,7 @@ export function withAnalysisContext(href: string, params: URLSearchParams | null
   const q = new URLSearchParams(query);
   for (const name of ANALYSIS_CONTEXT_PARAMS) {
     const value = params.get(name);
-    if (value && !q.has(name)) q.set(name, value);
+    if (value) q.set(name, value);
   }
   const s = q.toString();
   return s ? `${path}?${s}` : path;

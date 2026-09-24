@@ -188,11 +188,22 @@ function OverviewInner() {
           ? overviewFixture.conflict
           : null;
 
-      const dq = toDataQualityView(
-        base.quality,
-        multi.birth_profile.data_quality?.notes ?? [],
-        `v${multi.versions?.engine_version ?? "-"}`,
-      );
+      // 数据质量卡的每一项都要能指回真实字段：出生档案、版本戳、古籍检索结果。
+      // 证据接口失败时 `evidenceItems` 传 null ⇒ 卡片显示「未验证」而不是绿勾。
+      const dq = toDataQualityView({
+        grade: base.quality,
+        notes: multi.birth_profile.data_quality?.notes ?? [],
+        engineVersion: multi.versions?.engine_version || null,
+        birthProfile: multi.birth_profile,
+        evidenceItems:
+          evidenceRes.status === "fulfilled"
+            ? [
+                ...evidenceRes.value.evidence.supporting_evidence,
+                ...evidenceRes.value.evidence.counter_evidence,
+                ...evidenceRes.value.evidence.neutral_evidence,
+              ]
+            : null,
+      });
 
       setData(
         buildOverview(
@@ -284,8 +295,8 @@ function OverviewInner() {
   /**
    * 页内跳转统一带分析上下文（见 lib/analysisContext.ts）。
    *
-   * 演示夹具里的 `detailHref` 是冻结时拼好的，不含当前 URL 的选择，
-   * 所以这里按参数名补齐 —— 否则"选了 60d 点进详情却回到默认窗口"。
+   * 演示夹具里的 `detailHref` 是冻结时拼好的，带的是**当时**的上下文，
+   * 所以这里用 URL 上此刻的选择逐项覆盖 —— 否则"选了 60d 点进详情却回到 20d"。
    */
   const contextSuffix = analysisContextSuffix(search);
   const engines = useMemo(

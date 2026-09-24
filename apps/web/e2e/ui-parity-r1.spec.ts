@@ -105,21 +105,87 @@ test.describe("上下文贯穿", () => {
     await expect(page).toHaveURL(/asOf=/);
   });
 
-  test("withAnalysisContext 补齐冻结链接缺失的上下文参数", async () => {
+  test("withAnalysisContext：当前 URL 上下文覆盖链接里冻结的旧值", async () => {
     const mod = await import("../lib/analysisContext");
+
+    // 决定性的那条：链接冻结了 20d，用户此刻在 URL 上选了 60d ⇒ 必须是 60d。
+    // 反过来（链接优先）会让用户在 URL 上改的假设在跳转那一刻被静默撤销。
+    expect(
+      mod.withAnalysisContext("/stock/600519/bazi?horizon=20d", new URLSearchParams({ horizon: "60d" })),
+    ).toBe("/stock/600519/bazi?horizon=60d");
+
+    // 缺失的上下文照样补齐
     const params = new URLSearchParams({ fixture: "ui-reference", horizon: "60d" });
-    // 夹具里冻结的 href 只带 fixture：URL 上新增的 horizon 必须补进去
     expect(mod.withAnalysisContext("/stock/600519/bazi?fixture=ui-reference", params)).toBe(
       "/stock/600519/bazi?fixture=ui-reference&horizon=60d",
     );
-    // 链接上已有的参数以链接为准，不重复追加
-    expect(
-      mod.withAnalysisContext("/stock/600519/bazi?horizon=20d", new URLSearchParams({ horizon: "60d" })),
-    ).toBe("/stock/600519/bazi?horizon=20d");
-    // 上下文参数之外的查询不动
-    expect(mod.withAnalysisContext("/research/date-scan?date=2026-09-22", params)).toBe(
-      "/research/date-scan?date=2026-09-22&fixture=ui-reference&horizon=60d",
+  });
+
+  test("withAnalysisContext：四项逐个覆盖，无关参数既不删也不改", async () => {
+    const mod = await import("../lib/analysisContext");
+    const current = new URLSearchParams({
+      fixture: "ui-reference",
+      birthBasis: "ipo_date",
+      horizon: "60d",
+      asOf: "2024-11-15T14:32:00",
+    });
+    const out = mod.withAnalysisContext(
+      "/stock/600519/bazi?fixture=ui-reference&horizon=20d&birthBasis=listing_open&foo=bar",
+      current,
     );
+    const [path, query = ""] = out.split("?");
+    const q = new URLSearchParams(query);
+
+    expect(path).toBe("/stock/600519/bazi");
+    // 三项旧值全部被当前上下文覆盖
+    expect(q.get("horizon"), "链接冻结的 20d 必须被当前 60d 覆盖").toBe("60d");
+    expect(q.get("birthBasis"), "链接冻结的出生模型必须被当前选择覆盖").toBe("ipo_date");
+    expect(q.get("asOf")).toBe("2024-11-15T14:32:00");
+    expect(q.get("fixture")).toBe("ui-reference");
+    // 与分析上下文无关的参数原样保留
+    expect(q.get("foo"), "不得顺手删掉目标链接里的无关参数").toBe("bar");
+
+    // 当前 URL 上没有的那一项，链接自带的值必须留着（补齐≠清空）
+    const partial = new URLSearchParams({ horizon: "60d" });
+    const q2 = new URLSearchParams(
+      mod.withAnalysisContext("/research/date-scan?date=2026-09-22&asOf=2020-01-01", partial).split("?")[1],
+    );
+    expect(q2.get("asOf")).toBe("2020-01-01");
+    expect(q2.get("date")).toBe("2026-09-22");
+    expect(q2.get("horizon")).toBe("60d");
+    expect(q2.has("fixture"), "URL 上没有 fixture 就不该凭空造一个").toBe(false);
+  });
+
+  /**
+   * 浏览器级反例：只测 helper 不够 —— 真实页面上渲染的 href 才是用户点到的东西。
+   *
+   * 夹具的 `detailHref` 冻结了 `horizon=20d`（见 lib/fixture.ts），
+   * 当前 URL 是 60d：跳转落地后必须仍然是 60d。
+   */
+  test("浏览器级：从 overview?…&horizon=60d 点冻结详情链接，落地仍是 60d", async ({ page }) => {
+    await page.goto(`/stock/600519/overview${FIX}&horizon=60d`, { waitUntil: "load" });
+    await expect(page.locator('[data-testid="engine-detail-bazi"]')).toHaveCount(1);
+
+    // href 本身就已经被当前上下文覆盖，不再是夹具里冻结的 20d
+    const href = await page.getByTestId("engine-detail-bazi").getAttribute("href");
+    expect(href, `渲染出的 href 未跟随当前上下文：${href}`).toMatch(/horizon=60d/);
+    expect(href).not.toMatch(/horizon=20d/);
+
+    await page.getByTestId("engine-detail-bazi").click();
+    await expect(page).toHaveURL(/\/stock\/600519\/bazi/);
+    await expect(page).toHaveURL(/horizon=60d/);
+  });
+
+  test("浏览器级：三项上下文一起穿过跳转", async ({ page }) => {
+    await page.goto(
+      `/stock/600519/overview${FIX}&horizon=60d&asOf=2024-11-15T14:32:00`,
+      { waitUntil: "load" },
+    );
+    await page.getByTestId("engine-detail-huangli").click();
+    await expect(page).toHaveURL(/\/stock\/600519\/huangli/);
+    await expect(page).toHaveURL(/horizon=60d/);
+    await expect(page).toHaveURL(/asOf=2024-11-15T14%3A32%3A00/);
+    await expect(page).toHaveURL(/fixture=ui-reference/);
   });
 });
 
@@ -164,9 +230,97 @@ test.describe("研究窗口一致性", () => {
 });
 
 /* ==========================================================================
-   V0-B-4：按钮外观必须有真实动作
+   R1.1-4：数据质量卡不得硬编码"已核对"
    ========================================================================== */
 
+test.describe("数据质量事实性", () => {
+  /** 取某一项（label 精确匹配），拿不到就直接失败，避免静默通过。 */
+  const item = (dq: { items: { label: string; value: string; state: string }[] }, label: string) => {
+    const hit = dq.items.find((i) => i.label === label);
+    expect(hit, `数据质量卡缺少项目「${label}」`).toBeDefined();
+    return hit!;
+  };
+
+  test("缺证据的项必须显示未提供/未验证，而不是绿勾已验证", async () => {
+    const { toDataQualityView } = await import("../lib/dataSource");
+
+    // 最空的一份输入：后端什么也没回传
+    const bare = toDataQualityView({});
+    expect(item(bare, "出生档案推导").value).toBe("未提供");
+    expect(item(bare, "出生档案推导").state).toBe("warn");
+    expect(item(bare, "古籍来源完整性").value).toBe("未验证");
+    expect(item(bare, "古籍来源完整性").state).toBe("warn");
+    expect(item(bare, "术数引擎版本").value).toBe("未提供");
+    expect(item(bare, "行情/资料完整性").state).not.toBe("ok");
+    // 决定性反例：曾经这四项是硬编码的全绿勾。没有任何输入时不得全 ok。
+    expect(bare.items.every((i) => i.state === "ok"), "无输入却全部 ok = 回到硬编码").toBe(false);
+
+    // 有出生档案、但推导证据没落地（上市日/首个交易日都为空）
+    const noProof = toDataQualityView({
+      grade: "A",
+      birthProfile: {
+        evidence: { listing_date: null, first_trading_day: null },
+        data_quality: { grade: "A", score: 0.95, notes: [] },
+      } as never,
+    });
+    expect(item(noProof, "出生档案推导").value).toBe("未验证");
+    expect(item(noProof, "出生档案推导").state).toBe("warn");
+  });
+
+  test("有依据时按后端等级与许可状态如实分级", async () => {
+    const { toDataQualityView } = await import("../lib/dataSource");
+    const bp = (grade: string) =>
+      ({
+        evidence: { listing_date: "2001-08-27", first_trading_day: "2001-08-27" },
+        data_quality: { grade, score: 0.9, notes: [] },
+      }) as never;
+
+    expect(item(toDataQualityView({ grade: "A", birthProfile: bp("A") }), "出生档案推导").value).toBe(
+      "来源确定",
+    );
+    // B 的官方语义是"完整但存在假设" —— 不得显示成已验证
+    const b = item(toDataQualityView({ grade: "B", birthProfile: bp("B") }), "出生档案推导");
+    expect(b.value).toBe("含假设");
+    expect(b.state).toBe("warn");
+
+    const lic = (license_status: string) => ({ license_status }) as never;
+    const allClear = toDataQualityView({ evidenceItems: [lic("public_domain"), lic("verified")] });
+    expect(item(allClear, "古籍来源完整性").value).toBe("公版原文 · 2 条");
+    expect(item(allClear, "古籍来源完整性").state).toBe("ok");
+    // 混进一条未核实 ⇒ 整项不能再说"公版原文"
+    const mixed = toDataQualityView({ evidenceItems: [lic("public_domain"), lic("unknown")] });
+    expect(item(mixed, "古籍来源完整性").value).toBe("含 1 条未核实");
+    expect(item(mixed, "古籍来源完整性").state).toBe("warn");
+    // "检索成功但零条"与"接口没成功"语义不同
+    expect(item(toDataQualityView({ evidenceItems: [] }), "古籍来源完整性").value).toBe("无检索结果");
+  });
+
+  test("质量说明必须逐条保留：首条前置 + 其余可展开", async ({ page }) => {
+    const { toDataQualityView } = await import("../lib/dataSource");
+    const notes = ["行情来源降级", "存在未闭合的时区假设", "样本含退市标的"];
+    const dq = toDataQualityView({ grade: "B", notes });
+    expect(dq.riskNote).toBe(notes[0]);
+    expect(dq.riskNotes, "riskNotes 必须携带全部说明，不得只留第一条").toEqual(notes);
+
+    // 演示模式下同样不得静默丢失：卡里必须能展开出第二条
+    await page.goto(`/stock/600519/overview${FIX}`, { waitUntil: "load" });
+    const risk = page.getByTestId("risk-summary");
+    await expect(risk).toBeVisible();
+    const more = page.getByTestId("risk-notes-more");
+    await expect(more).toHaveCount(1);
+    await more.locator("summary").click();
+    await expect(more).toContainText("移除 URL 中的 fixture 参数");
+
+    // 演示样本没有真实核对依据，卡面不得出现"已验证 / 公版原文 / 数据完整"式结论
+    const card = page.getByTestId("data-quality-card");
+    expect(await card.innerText()).toMatch(/未提供|未验证/);
+    expect(await card.innerText()).not.toMatch(/已验证|公版原文 · |数据完整 · 来源可靠/);
+  });
+});
+
+/* ==========================================================================
+   V0-B-4：按钮外观必须有真实动作
+   ========================================================================== */
 test.describe("交互闭环", () => {
   test("综合研判页不再存在无动作的「查看详情」按钮", async ({ page }) => {
     await page.goto(`/stock/600519/overview${FIX}`, { waitUntil: "load" });

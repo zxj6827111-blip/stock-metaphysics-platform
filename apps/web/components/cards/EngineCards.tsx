@@ -394,6 +394,20 @@ export function DataQualityBadge({ quality }: { quality: DataQualityView }) {
         <span>
           <span className="font-semibold">风险提示：</span>
           {quality.riskNote}
+          {/* 后端登记的质量说明不止一条时，其余必须可展开 —— 
+              只渲染 notes[0] 会把真实风险静默丢掉。 */}
+          {(quality.riskNotes?.length ?? 0) > 1 ? (
+            <details className="mt-1" data-testid="risk-notes-more">
+              <summary className="cursor-pointer text-[11px] underline decoration-dotted">
+                其它 {quality.riskNotes!.length - 1} 条数据质量说明
+              </summary>
+              <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                {quality.riskNotes!.slice(1).map((n, i) => (
+                  <li key={i}>{n}</li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
         </span>
       </div>
       <div className="flex gap-3.5 px-3.5 pb-3">
@@ -423,7 +437,12 @@ export function DataQualityBadge({ quality }: { quality: DataQualityView }) {
         <div className="min-w-0 flex-1">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
             {quality.items.map((it) => (
-              <div key={it.label} className="flex items-center gap-1.5 text-[11.5px]">
+              <div
+                key={it.label}
+                className="flex items-center gap-1.5 text-[11.5px]"
+                data-testid={`data-quality-item-${it.label}`}
+              >
+                {/* 勾只属于"已核对"。warn / bad 挂绿勾 = 把没证明的事画成证明过。 */}
                 <span
                   style={{
                     color:
@@ -434,7 +453,7 @@ export function DataQualityBadge({ quality }: { quality: DataQualityView }) {
                           : "var(--color-up)",
                   }}
                 >
-                  <IconCheck size={12} />
+                  {it.state === "ok" ? <IconCheck size={12} /> : <IconWarning size={12} />}
                 </span>
                 <span style={{ color: "var(--color-ink-sub)" }}>{it.label}</span>
                 <span className="ml-auto" style={{ color: "var(--color-ink)" }}>
@@ -444,8 +463,11 @@ export function DataQualityBadge({ quality }: { quality: DataQualityView }) {
             ))}
           </div>
           <div className="smp-divider my-2" />
+          {/* 这里原来固定写着「数据完整 · 来源可靠 · 计算一致」——
+              一句与上面四项无关的总括性保证，任何一项是 warn 时它都是假话，故删除。
+              改为如实说明这些结论各自的来源。 */}
           <p className="text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
-            数据完整 · 来源可靠 · 计算一致
+            以上四项分别来自本次分析的出生档案、版本戳与古籍检索结果；未回传的字段显示「未提供 / 未验证」。
           </p>
         </div>
       </div>
