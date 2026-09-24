@@ -44,6 +44,57 @@
 > `visual-reference.spec.ts` 现在断言 `[data-build-mode="production"]` 存在且
 > `nextjs-portal` 不存在，并等待 `[data-charts-ready="true"]` 后才取图。
 
+### 2026-09-24（R1.1 整改：分支解污 + 语义反例 + 锚点口径三分）
+
+分支：`codex/ui-visual-parity-r1-clean`（基于 `7f95139`），HEAD 见 PR。
+上一轮 `codex/ui-visual-parity-r1` 保留不删；其中非视觉的 `7b00ce4` + `ad4594a`
+（ADR-0013 / ADR-0014 首日阴阳运限）另置保护分支 `feat/bazi-first-day-yinyang-variant`
+→ `ad4594a` 单独审核。`git diff 7f95139..HEAD` 已不含 `apps/api/routers/analysis.py`、
+`src/core/stock/variant_basis.py`、`src/engines/bazi/bazi_engine.py`、
+`tests/integration/test_api_variant_basis.py`、ADR-0014 与 DaYunStrip。
+
+| # | 页面 | Reference | Diff R1 后 | Diff R1.1 后 | Δ | Anchor（candidate / reference / 双方可比较） | 结论 |
+|---:|---|---|---:|---:|---:|---|---|
+| 01 | 首页 | `01_home.png` | 44.36% | 44.89% | +0.53pp | 3 / 1 / 1（侧栏按 R1.1 方法重测） | FAIL |
+| 02 | 综合研判 | `02_integrated_analysis.png` | 47.53% | 48.22% | **+0.69pp** | 10 / 10 / **10** | FAIL |
+| 03 | 八字详情 | `03_bazi_detail.png` | 43.36% | 44.10% | +0.74pp | 6 / 5 / 5 | FAIL |
+| 04 | 紫微详情 | `04_ziwei_detail.png` | 39.83% | 39.54% | −0.29pp | 5 / 5 / 5 | FAIL |
+| 05 | 历史验证 | `05_backtest_validation.png` | 41.40% | 40.96% | −0.44pp | 6 / 5 / 5 | FAIL |
+| 06 | 因子字典 | `06_factor_dictionary.png` | 44.04% | 43.93% | −0.11pp | 5 / 5 / 5 | FAIL |
+| 07 | 模型分歧 | `07_model_conflict_center.png` | 55.21% | 55.45% | +0.24pp | 5 / 5 / 5 | FAIL |
+| 08 | 黄历 | `08_huangli_detail.png` | 54.50% | 54.62% | +0.12pp | 10 / 10 / **10** | FAIL |
+| 09 | 古籍证据 | `09_classics_evidence_search.png` | 44.22% | 44.25% | +0.03pp | 5 / 3 / 3 | FAIL |
+| 10 | 时间窗口 | `10_time_window.png` | 43.59% | 43.61% | +0.02pp | 5 / 4 / 4 | FAIL |
+
+**口径纠正**：R1 版那句「7 个 anchor 全部量到」把 *candidate 找到了 DOM* 说成了
+接近对齐的结论。R1.1 起三个量分开报：`candidateMeasured`（DOM 找到）、
+`referenceMeasured`（参考侧有人工冻结矩形）、`alignedComparable`（两侧都有值、
+至少一个字段可算 delta）。只有第三种才产生 delta。
+
+**R1 侧栏测法作废**：旧实现「#1E3444 边框长程段 + 在 x=200..261 内找最大亮度跳变」
+把边界限制在了内容区里，因此 02 得到 231px。按「侧栏背景→更暗槽区」的亮度过渡
+逐页重测（每页在 y=250..800 取 4–6 条探测行，同页读数完全一致）：
+01=229 / 02=174 / 03=230 / 04=190 / 05=206 / 06=213 / 07=229 / 08=203 / 09=204 / 10=209.5。
+极差 56px 说明参考稿自身页间不统一，故侧栏宽度不作为产品标准；
+实现取 210px（十页 L1 最优区间 206–210 的上限，同时兼容既有 `layout.spec` 的 210–250 下限）。
+效果：02 侧栏宽度偏差 +57→+36、首行左卡宽度偏差 −14→−3；08 侧栏 +29→+7。
+
+**02 / 08 结构 delta（candidate − reference，px）**：
+02 = topbar 高 +7、Hero 高 −2、上下文栏高 −3.7、首行卡 高 +9.4 / 宽 −3、
+主图卡 高 **−59.5**、关键证据卡 高 −19.4、整列 x 偏移 +33（02 参考侧栏 174 是十页离群值）。
+08 = topbar 高 +5、侧栏宽 +7、Hero 高 +13、今日摘要卡 高 −3.6、
+日期网格 高 **−6.5**（自身几乎等尺寸）但顶边 y **+156.3**（被上方各层逐层推下）、
+右栏首卡 高 **+419.5**（本轮把选中日详情/分类依据/原始字段/时辰不可用/数据状态合并为一张卡）。
+
+**未调校并登记为待裁决**：02 主图卡补到参考的 278px 高，会把历史验证摘要标题推到 ~746，
+与既有 `r1-refinement` 门禁「标题 y ≤ 730」互斥 —— 参考图自身的第三行顶边是 742。
+本轮保持既有门禁优先，不改别人的期望值。
+
+**本轮 pixel ratio 上升的归因**：02 在结构 anchor 全面变近的同时 +0.69pp，
+因此不是几何退化，而是演示模式数据质量卡不再显示四个伪造绿勾
+（改「未提供 / 未验证」并替换卡底总括句）带来的文本像素差。
+该推断由锚点实测支撑，未做逐变更 A/B 拆分。按任务书 §7，总体 pixel ratio 不作为 R1.1 判据。
+
 ### 2026-09-24（ui-visual-parity R1：V0 + V1 + V2 两个样板页）
 
 | # | 页面 | Reference | Diff 本轮前 | Diff 本轮后 | Δ | Anchor 结果 | 结论 |
