@@ -67,6 +67,7 @@ export function TopBar({
         borderColor: "var(--color-border)",
         background: "linear-gradient(180deg, rgba(12,24,34,0.96), rgba(9,19,29,0.92))",
       }}
+      data-anchor="topbar"
     >
       {/* 品牌标 + 平台名（品牌标用独立的自绘矢量 Logo，不是放大的功能图标） */}
       <Link href="/" className="flex shrink-0 items-center gap-2.5" data-testid="brand">
@@ -136,6 +137,59 @@ export function TopBar({
   );
 }
 
+/**
+ * 页面 Hero 的有限变体。
+ *
+ * 参考图里十页的 Hero **不是同一张卡**：首页是接近半屏的大标题 + 搜索区，
+ * 历史验证右侧是「历史统计 VS 传统术数」对照块，古籍页是书影，
+ * 其余研究页是紧凑的标题 + 竖联 + 星盘。此前所有页共用一套尺寸与装饰，
+ * 于是"统一外壳"变成了"抹掉每页构图"（复核任务书 §二.3）。
+ *
+ * 本轮只落地实际被使用的两档：
+ *   * `default`  —— 既有页面保持原样，不因为改造而回归；
+ *   * `research` —— 综合研判 / 黄历这类研究主页：更高的头部、更大的标题、
+ *     更强的山峦层次，星盘右移并被卡片边界裁切（参考图就是这个效果）。
+ * 首页 / 统计 / 证据三档留给各自的工作包接入，不在这里预先建空壳。
+ */
+export type HeroVariant = "default" | "research";
+
+const HERO: Record<
+  HeroVariant,
+  {
+    box: string;
+    minH: number;
+    title: string;
+    subtitle: string;
+    astrolabeSize: number;
+    astrolabeClass: string;
+    mountainOpacity: number;
+    coupletSize: number;
+  }
+> = {
+  default: {
+    box: "px-4 py-2",
+    minH: 104,
+    title: "text-[40px]",
+    subtitle: "text-[14px]",
+    astrolabeSize: 214,
+    astrolabeClass: "right-[126px]",
+    mountainOpacity: 0.24,
+    coupletSize: 13,
+  },
+  research: {
+    // 参考图各页 Hero 高 107–121px（08 黄历 109、03 八字 117、07 分歧 121），
+    // 所以变体差在**标题尺寸与装饰强度**，不是把头部垫高。
+    box: "px-5 py-2",
+    minH: 104,
+    title: "text-[44px]",
+    subtitle: "text-[14.5px]",
+    astrolabeSize: 236,
+    astrolabeClass: "-right-6",
+    mountainOpacity: 0.34,
+    coupletSize: 14,
+  },
+};
+
 /** 页面级 Hero 标题区（参考图中首页/综合研判/八字/紫微/黄历等共用的大标题块）。 */
 export function PageHero({
   title,
@@ -145,6 +199,7 @@ export function PageHero({
   couplet = ["观天时", "察地利", "究人道", "研规律"],
   motto = ["顺势而为", "知行合一"],
   showDecorations = true,
+  variant = "default",
 }: {
   title: string;
   subtitle?: string;
@@ -154,26 +209,30 @@ export function PageHero({
   /** 右侧竖排短句（参考图为两行四字）：每项一行。 */
   motto?: string[];
   showDecorations?: boolean;
+  variant?: HeroVariant;
 }) {
+  const hero = HERO[variant];
   return (
     <div
-      className="relative mb-2 overflow-hidden rounded-[8px] border px-4 py-2 smp-card"
+      className={`relative mb-2 overflow-hidden rounded-[8px] border smp-card ${hero.box}`}
       style={{
         background: "linear-gradient(135deg, rgba(16,31,43,0.92) 0%, rgba(13,26,37,0.96) 100%)",
         borderColor: "var(--color-border)",
       }}
       data-testid="page-hero"
+      data-anchor="page-hero"
+      data-hero-variant={variant}
     >
       {/* 装饰层：星盘在竖联与题词之间，并让出各自的横向区间 ——
           三者都用绝对定位是为了复刻参考图中"星盘上下被卡片裁切"的效果，
           因此必须显式留白，不能靠内容自身撑开（否则会出现文字压在星盘上）。 */}
       {showDecorations && (
         <>
-          <MountainSilhouette opacity={0.24} />
+          <MountainSilhouette opacity={hero.mountainOpacity} />
           <Astrolabe
-            size={214}
+            size={hero.astrolabeSize}
             glow={true}
-            className="pointer-events-none absolute right-[126px] top-1/2 -translate-y-1/2 hidden xl:block"
+            className={`pointer-events-none absolute ${hero.astrolabeClass} top-1/2 -translate-y-1/2 hidden xl:block`}
           />
           {motto && motto.length > 0 && (
             <div
@@ -195,10 +254,13 @@ export function PageHero({
         </>
       )}
 
-      <div className="relative z-10 flex min-h-[104px] items-center justify-between gap-4">
+      <div
+        className="relative z-10 flex items-center justify-between gap-4"
+        style={{ minHeight: hero.minH }}
+      >
         <div className="min-w-0">
           <h1
-            className="smp-serif-title smp-gold-shimmer text-[40px] font-bold leading-[1.08] tracking-[0.04em]"
+            className={`smp-serif-title smp-gold-shimmer ${hero.title} font-bold leading-[1.08] tracking-[0.04em]`}
             style={{
               color: "var(--color-gold-strong)",
               fontFamily: "var(--font-serif-cn)",
@@ -209,7 +271,10 @@ export function PageHero({
             {title}
           </h1>
           {subtitle ? (
-            <p className="mt-1.5 text-[14px] tracking-[0.08em]" style={{ color: "var(--color-ink-sub)" }}>
+            <p
+              className={`mt-1.5 tracking-[0.1em] ${hero.subtitle}`}
+              style={{ color: "var(--color-ink-sub)", fontFamily: "var(--font-serif-cn)" }}
+            >
               {subtitle}
             </p>
           ) : null}
@@ -227,8 +292,12 @@ export function PageHero({
               {couplet.map((col, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-1.5">
                   <div
-                    className="text-[13px] leading-[16px] tracking-[0.22em]"
-                    style={{ writingMode: "vertical-rl", color: "rgba(212,184,122,0.85)" }}
+                    className="leading-[16px] tracking-[0.22em]"
+                    style={{
+                      writingMode: "vertical-rl",
+                      color: "rgba(212,184,122,0.85)",
+                      fontSize: hero.coupletSize,
+                    }}
                   >
                     {col}
                   </div>

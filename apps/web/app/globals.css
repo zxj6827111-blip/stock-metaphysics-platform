@@ -158,6 +158,8 @@ body::before {
   }
 
   .smp-card-header {
+    /* 参考图的卡片头不是"更高"，而是"标题更重"：字重/字号已提到
+       .smp-card-title，padding 保持 2.5 不再多占首屏高度。 */
     @apply flex items-center gap-2 px-4 py-2.5;
     border-bottom: 1px solid var(--color-border);
   }
@@ -171,8 +173,14 @@ body::before {
   }
 
   .smp-card-title {
-    @apply flex items-center gap-2 text-[13px] font-medium;
-    color: var(--color-ink);
+    /* 参考图的卡片标题是**金色衬线、明显重于正文**的一级（实测约 16px）。
+       此前这里是 13px / font-medium / 主文本色，与正文只差一点字重，
+       于是整页读起来"字小、卡片平、主次不明显"——这是十页共用的根因，
+       不是某一页的问题（docs/UI_INDEPENDENT_REVIEW_2026-09-22.md §二.1）。 */
+    @apply flex items-center gap-2 text-[15.5px] font-semibold leading-[1.25];
+    font-family: var(--font-serif-cn);
+    letter-spacing: 0.035em;
+    color: var(--color-gold);
   }
 
   .smp-card-title-icon {
@@ -180,8 +188,21 @@ body::before {
   }
 
   .smp-section-title {
-    @apply text-[15px] font-semibold tracking-wide;
+    @apply text-[16px] font-semibold tracking-wide;
+    font-family: var(--font-serif-cn);
     color: var(--color-ink);
+  }
+
+  /**
+   * 关键数字：参考图里分数/百分比是 28–34px 的视觉主角。
+   * 之前统一走 `.smp-metric-value`（13px），首屏读不到"这只标的现在几分"。
+   */
+  .smp-key-number {
+    @apply font-mono text-[30px] font-semibold leading-[1.05] tabular-nums;
+  }
+
+  .smp-key-number--sm {
+    @apply font-mono text-[22px] font-semibold leading-[1.1] tabular-nums;
   }
 
   .smp-gold {
@@ -189,7 +210,7 @@ body::before {
   }
 
   .smp-chip {
-    @apply inline-flex items-center gap-1 rounded-[4px] border px-1.5 py-[1px] text-[11px] leading-[16px];
+    @apply inline-flex items-center gap-1 rounded-[4px] border px-1.5 py-[2px] text-[11.5px] leading-[17px];
   }
 
   .smp-chip--up {
@@ -229,8 +250,8 @@ body::before {
   }
 
   .smp-btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-[6px] border px-3 py-[7px]
-      text-[12px] transition-colors;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-[6px] border px-3.5 py-[8px]
+      text-[13px] transition-colors;
     border-color: var(--color-border-strong);
     color: var(--color-ink-sub);
     background: var(--color-surface-2);
@@ -252,7 +273,7 @@ body::before {
   }
 
   .smp-nav-item {
-    @apply relative flex items-center gap-2.5 px-4 py-[12px] text-[13.5px] transition-colors;
+    @apply relative flex items-center gap-2.5 px-4 py-[10px] text-[14.5px] transition-colors;
     color: var(--color-ink-sub);
     border-left: 2px solid transparent;
   }
@@ -274,12 +295,12 @@ body::before {
   }
 
   .smp-metric-label {
-    @apply text-[11px];
+    @apply text-[11.5px];
     color: var(--color-ink-muted);
   }
 
   .smp-metric-value {
-    @apply font-mono text-[13px] tabular-nums;
+    @apply font-mono text-[13.5px] tabular-nums;
     color: var(--color-ink);
   }
 
@@ -337,7 +358,7 @@ body::before {
   }
 
   .smp-disclaimer {
-    @apply rounded-[6px] border px-3 py-2 text-[11px] leading-[17px];
+    @apply rounded-[6px] border px-3 py-2 text-[11.5px] leading-[18px];
     color: var(--color-ink-muted);
     border-color: var(--color-border);
     background: rgba(0, 0, 0, 0.16);
