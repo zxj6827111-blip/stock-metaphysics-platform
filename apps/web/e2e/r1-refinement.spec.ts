@@ -103,7 +103,15 @@ test.describe("R1-1 上下文栏：主要操作默认可见，不靠横向滚动
       await page.setViewportSize({ width: vp.width, height: vp.height });
       for (const path of ["/stock/600519/overview", "/stock/600519/bazi"]) {
         await page.goto(`${path}${FIXTURE}`, { waitUntil: "load" });
+        // 必须等客户端接管之后再量。生产构建的流式 SSR 会先把整页内容放进
+        // <div hidden id="S:0">，再由 $RC 搬进 Suspense 边界；在这个窗口里
+        // getByTestId(...).first() 命中的是**隐藏副本**，boundingBox() 直接返回 null
+        // （元素存在但不可见，所以不会超时，只会立刻假成"未渲染上下文栏"）。
+        // 本文件 :139 的注释早就记过这个坑，这条用例当时漏加了等待 ——
+        // 本地快路径碰不到，Ubuntu CI 上稳定复现（run 36005061127）。
+        await expect(page.locator('[data-app-ready="true"]')).toBeAttached();
         const bar = page.getByTestId("stock-context-bar").first();
+        await expect(bar).toBeVisible();
         const box = await bar.boundingBox();
         expect(box, `${path} @ ${vp.key} 未渲染上下文栏`).not.toBeNull();
         expect(box!.height, `${path} @ ${vp.key} 上下文栏高 ${box!.height}px`).toBeLessThanOrEqual(82);
