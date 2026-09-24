@@ -60,6 +60,17 @@ const ANCHORS = {
   mainColumn: ['[data-anchor="main-column"]'],
   detailColumn: ['[data-anchor="detail-column"]'],
   dayGrid: ['[data-anchor="day-grid"]', '[data-testid="huangli-day-grid"]'],
+  // V3-A 新增：05 历史验证的分区边界（键名与 reference-anchors.json 一一对应）
+  filterBar: ['[data-anchor="filter-bar"]', '[data-testid="research-status-card"]'],
+  summaryMetrics: ['[data-anchor="summary-metrics"]'],
+  holdingPeriodCard: ['[data-anchor="holding-period-card"]', '[data-testid="horizon-comparison"]'],
+  controlRow: ['[data-anchor="control-row"]', '[data-testid="negative-control"]'],
+  resultTable: ['[data-anchor="result-table"]', '[data-testid="backtest-detail"]'],
+  // 07 / 10 登记用（本轮不整改这两页，测到就记，测不到保持 not measured）
+  conflictBanner: ['[data-anchor="conflict-banner"]'],
+  mainRow: ['[data-anchor="main-row"]'],
+  bottomRow: ['[data-anchor="bottom-row"]'],
+  summaryTiles: ['[data-anchor="summary-tiles"]'],
 };
 
 /** 页面主图表各页不同，单独配置。 */
@@ -103,6 +114,16 @@ const ANCHOR_ORDER = [
   "mainColumn",
   "detailColumn",
   "dayGrid",
+  // V3-A：05 历史验证分区（07 / 10 只登记不整改）
+  "filterBar",
+  "summaryMetrics",
+  "summaryTiles",
+  "holdingPeriodCard",
+  "controlRow",
+  "resultTable",
+  "conflictBanner",
+  "mainRow",
+  "bottomRow",
 ];
 
 function measureInPage(selectorGroups) {
