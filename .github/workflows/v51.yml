@@ -173,6 +173,74 @@ jobs:
             apps/web/playwright-report/**
             ci-logs/**
 
+  # 视觉结构回归（V3-B0）：**生产构建**上的几何与真实性门禁。
+  #
+  # 为什么必须独立成一个 job，而不是往 frontend-e2e 里加两行：
+  #   1. `frontend-e2e` 跑的是 `npm run dev`。dev 会注入 Next 开发指示器、
+  #      hydration 行为也不同 —— 在它上面宣称"production parity"是假的
+  #      （docs/UI_INDEPENDENT_REVIEW_2026-09-22.md §五、docs/UI_VISUAL_PARITY_V5.md 固定环境）。
+  #   2. 那个 job 只跑 v51-regression + date-scan-v3，**不覆盖** V3-A/V3-B 的几何门。
+  #      所以"5/5 green"从来不代表首屏层级没退化（V3-A.1 复核时明确记录了这一点）。
+  #   3. 本 job 全程 fixture 模式，不连后端、不碰真实行情网络：
+  #      几何门要的是可复现的 DOM，不是研究数据。
+  #
+  # 与 frontend-e2e 并存，不替换、不缩小它的作用域。
+  frontend-ui-structure:
+    name: frontend UI structure (production build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+        working-directory: apps/web
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      # 生产构建 + next start 到独立端口 3112（不复用 3111，避免与 seeded e2e job 抢端口）
+      - run: npm run build
+        working-directory: apps/web
+      - name: Start production web
+        run: npx next start -p 3112 > /tmp/smp-web-structure.log 2>&1 &
+        working-directory: apps/web
+      # 显式 readiness：按目标路由的真实状态码等，不用固定 sleep 掩盖竞态
+      - name: Wait for web readiness
+        run: |
+          for i in $(seq 1 120); do
+            if curl -fsS -o /dev/null "http://127.0.0.1:3112/stock/600519/backtest?fixture=ui-reference"; then
+              echo "web ready after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "Web 未在 120s 内就绪"; tail -200 /tmp/smp-web-structure.log; exit 1
+      - name: Run UI structure gates (geometry + truthfulness + 1440)
+        run: >
+          npx playwright test
+          e2e/v3a-backtest.spec.ts
+          e2e/v3b-visual.spec.ts
+          e2e/viewport-1440-pages.spec.ts
+          e2e/r1-refinement.spec.ts
+          e2e/ui-parity-r1.spec.ts
+          --project=reference-1672x941
+          --workers=1
+        working-directory: apps/web
+        env:
+          SMP_WEB_BASE: http://127.0.0.1:3112
+      - name: Server log on failure
+        if: failure()
+        run: |
+          echo "=== production web log ==="; tail -200 /tmp/smp-web-structure.log || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ui-structure-artifacts
+          if-no-files-found: ignore
+          path: |
+            apps/web/test-results/**
+            apps/web/playwright-report/**
+
   # 视觉回归已在 2026-09-23 明确移出 PR #3 的 CI scope（非"通过"，是"推迟"）：
   # 门禁工具链原样保留 —— doc/ui-reference/*.png、apps/web/scripts/visual-diff.mjs、
   # apps/web/e2e/visual-reference.spec.ts、docs/UI_VISUAL_PARITY_V5.md（真实 FAIL 数据未动）。
