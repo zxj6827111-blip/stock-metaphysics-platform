@@ -27,8 +27,10 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
-import { Card, CardHeader } from "@/components/cards/Card";
+import { Card, CardHeader, SectionTag } from "@/components/cards/Card";
 import {
+  HuangliDataStatusCard,
+  HuangliHoursCard,
   HuangliOutlookGridCard,
   HuangliSelectedDayCard,
   HUANGLI_DEFAULT_TAB,
@@ -36,7 +38,7 @@ import {
 } from "@/components/huangli/HuangliTradingDayGrid";
 import { HuangliPerformancePanel } from "@/components/huangli/HuangliPerformancePanel";
 import { ResearchPage } from "@/components/shell/ResearchPage";
-import { PageLoading, ResearchStatusBadge } from "@/components/shell/PageState";
+import { PageLoading } from "@/components/shell/PageState";
 import { SectionError, SectionLoading } from "@/components/shell/SectionState";
 import { IconBook, IconCalendar, IconTrend } from "@/components/shell/Icons";
 import { api, endpoints } from "@/lib/api";
@@ -52,50 +54,6 @@ interface HuangliResponse {
   config_version: string;
   as_of: string;
   huangli: Record<string, unknown>;
-}
-
-/** 区段标签：一行、带序号与色标，替代改造前的全宽横幅。 */
-function SectionLabel({
-  index,
-  title,
-  tone,
-  hint,
-  testId,
-}: {
-  index: string;
-  title: string;
-  tone: "gold" | "info" | "muted";
-  hint?: string;
-  /** 分区身份必须可被测试与审计指认：沿用改造前的 data-testid，不换名。 */
-  testId: string;
-}) {
-  const color =
-    tone === "gold"
-      ? "var(--color-gold)"
-      : tone === "info"
-        ? "var(--color-info)"
-        : "var(--color-ink-sub)";
-  return (
-    <div className="flex flex-wrap items-baseline gap-2 pt-1" data-testid={testId}>
-      <span
-        className="rounded-[3px] px-1.5 py-[1px] text-[11px] font-semibold"
-        style={{ color: "#0d1a25", background: color }}
-      >
-        {index}
-      </span>
-      <span
-        className="text-[13.5px] font-semibold"
-        style={{ color, fontFamily: "var(--font-serif-cn)" }}
-      >
-        {title}
-      </span>
-      {hint ? (
-        <span className="text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
-          {hint}
-        </span>
-      ) : null}
-    </div>
-  );
 }
 
 function HuangliInner() {
@@ -218,18 +176,18 @@ function HuangliInner() {
           扣除栏间距后约 58:42，故用 1.38fr:1fr（原先 1.5fr 让左栏宽出约 8px）。 */}
       <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-3" data-anchor="main-column">
-          <SectionLabel
-            index="①"
-            title="传统黄历数据"
-            tone="gold"
-            hint="历法与通书口径，不是对股票的判断"
-            testId="section-traditional-huangli"
-          />
-
           <Card testId="traditional-huangli" anchor="primary-card">
             <CardHeader
               icon={<IconCalendar size={15} />}
               title="今日黄历简要"
+              tag={
+                <SectionTag
+                  index="①"
+                  label="传统黄历 · 历法字段"
+                  tone="gold"
+                  testId="section-traditional-huangli"
+                />
+              }
               right={
                 <span className="text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
                   {dateText}
@@ -370,13 +328,6 @@ function HuangliInner() {
             ) : null}
           </Card>
 
-          <SectionLabel
-            index="②"
-            title="未来交易日黄历"
-            tone="gold"
-            hint="日期来自实测指数成交日序列"
-            testId="section-future-huangli"
-          />
           <HuangliOutlookGridCard
             state={outlook}
             tab={tab}
@@ -384,43 +335,35 @@ function HuangliInner() {
             selected={outlookSelected?.date ?? null}
             onPick={setPickedDate}
             onRetry={() => setHlNonce((n) => n + 1)}
+            sectionTag={
+              <SectionTag
+                index="②"
+                label="未来交易日 · 交易日日课"
+                tone="gold"
+                testId="section-future-huangli"
+              />
+            }
           />
         </div>
 
         <div className="flex min-w-0 flex-col gap-3" data-anchor="detail-column">
+          {/* 右栏三张展示卡：数据只由上面的 useHuangliOutlook() 取一次，
+              这里全部是纯展示组件 —— 子组件不再调用 hook，所以不会重复请求。 */}
           <HuangliSelectedDayCard
             selected={outlookSelected}
-            rule={outlook.data?.class_rule}
             loading={outlook.loading}
             error={outlook.error}
           />
-
-          {/* 数据状态常驻：研究状态 + 分类口径 + 日期来源，不因折叠消失 */}
-          <div
-            className="rounded border px-2.5 py-2 text-[11.5px] leading-relaxed"
-            style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}
-            data-testid="huangli-data-status"
-          >
-            <div className="mb-1 font-semibold" style={{ color: "var(--color-ink-sub)" }}>
-              数据状态
-            </div>
-            <div>
-              交易日口径：{outlook.data ? `${outlook.data.exchange} 实测成交日` : "未读取"}；
-              分类版本：
-              <code className="smp-num">{outlook.data?.class_rule_version ?? "—"}</code>
-            </div>
-            <div className="mt-1">
-              快照版本：engine <code className="smp-num">{hl?.engine_version ?? "—"}</code> · config{" "}
-              <code className="smp-num">{hl?.config_version ?? "—"}</code> · as_of{" "}
-              <code className="smp-num">{hl?.as_of ?? "—"}</code>
-            </div>
-            <div className="mt-1.5">
-              <ResearchStatusBadge
-                status={analysis?.consensus?.research_status ?? "NOT_RUN"}
-                reasons={consensusReasons(analysis?.consensus)}
-              />
-            </div>
-          </div>
+          <HuangliHoursCard />
+          <HuangliDataStatusCard
+            data={outlook.data}
+            rule={outlook.data?.class_rule}
+            engineVersion={hl?.engine_version}
+            configVersion={hl?.config_version}
+            asOf={hl?.as_of}
+            researchStatus={analysis?.consensus?.research_status ?? "NOT_RUN"}
+            reasons={consensusReasons(analysis?.consensus)}
+          />
 
           <div
             className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-[12px]"
@@ -439,27 +382,31 @@ function HuangliInner() {
       </div>
 
       {/* ============ 第二屏：历史描述与统计 ============ */}
-      <SectionLabel
-        index="③"
-        title="黄历证据与历史表现"
-        tone="info"
-        hint="本项目研究统计 · 描述性，不是策略回测"
-        testId="section-huangli-performance"
+      <HuangliPerformancePanel
+        analysisId={analysisId}
+        sectionTag={
+          <SectionTag
+            index="③"
+            label="黄历证据与历史表现 · 研究统计"
+            tone="info"
+            testId="section-huangli-performance"
+          />
+        }
       />
-      <HuangliPerformancePanel analysisId={analysisId} />
 
       {/* ============ 后续区域：与原局的关系（研究映射） ============ */}
-      <SectionLabel
-        index="④"
-        title="与股票原局的关系"
-        tone="muted"
-        hint="本项目研究映射，不是传统定论"
-        testId="section-huangli-factors"
-      />
       <Card testId="huangli-factors">
         <CardHeader
           icon={<IconTrend size={15} />}
           title={`黄历相关因子（${huangliFactors.length} 个）`}
+          tag={
+            <SectionTag
+              index="④"
+              label="与股票原局的关系 · 研究映射"
+              tone="muted"
+              testId="section-huangli-factors"
+            />
+          }
           dense
         />
         {huangliFactors.length ? (

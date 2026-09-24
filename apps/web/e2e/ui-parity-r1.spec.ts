@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
 
+import { referenceAnchor, referenceTop } from "./support/referenceAnchors";
+
 /**
  * UI Visual Parity R1 的反例验证。
  *
@@ -442,7 +444,8 @@ test.describe("壳层几何", () => {
       expect(topbar!.height, "顶栏高度应贴近参考图 59–66px（十页实测）").toBeLessThanOrEqual(70);
       // 侧栏：R1 版这里断言 220–236，依据是「参考图 231px」—— 那个测法把边界
       // 限制在了内容区里，逐页重测后十张参考图的侧栏右边界是 174..230（极差 56px），
-      // 现按取值 210px 收紧，并保留 6px 容差。
+      // 现按统一产品 token 210px 收紧（±6px 容差）。理由不是十页都是 210px，
+      // 而是正式 AppShell 需要统一尺寸 + 既有 layout.spec 要求 >= 210px。
       expect(sidebar!.width, "侧栏宽度应贴近十页参考实测均值 208–210px").toBeGreaterThanOrEqual(204);
       expect(sidebar!.width).toBeLessThanOrEqual(212);
 
@@ -455,4 +458,132 @@ test.describe("壳层几何", () => {
       expect(docOverflow, "整页横向溢出").toBeLessThanOrEqual(2);
     });
   }
+});
+
+/* ==========================================================================
+   R1.2：两个样板页的收口目标
+   ========================================================================== */
+
+test.describe("R1.2 样板收口", () => {
+  test.use({ viewport: { width: 1672, height: 941 } });
+
+  test("02：第二行两张卡与第三行卡顶都落在 reference ±12px", async ({ page }) => {
+    const refChart = await referenceAnchor("02-overview", "primaryChart");
+    const refRight = await referenceAnchor("02-overview", "rightSummary");
+    const refHistoryTop = await referenceTop("02-overview", "historySummary");
+    const refQualityTop = await referenceTop("02-overview", "dataQuality");
+
+    await page.goto(`/stock/600519/overview${FIX}`, { waitUntil: "load" });
+    const box = async (testId: string) => {
+      const el = page.getByTestId(testId).first();
+      await expect(el).toBeVisible();
+      const b = await el.boundingBox();
+      expect(b, `${testId} 未渲染`).not.toBeNull();
+      return b!;
+    };
+
+    const chart = await box("time-window");
+    const right = await box("key-evidence");
+    const history = await box("backtest-summary");
+    const quality = await box("data-quality-card");
+
+    // 高度：R1.1 的 -59.5 / -19.4 必须收进 ±12
+    expect(
+      Math.abs(chart.height - refChart.height!),
+      `主图卡高 ${chart.height} vs 参考 ${refChart.height}`,
+    ).toBeLessThanOrEqual(12);
+    expect(
+      Math.abs(right.height - refRight.height!),
+      `关键证据卡高 ${right.height} vs 参考 ${refRight.height}`,
+    ).toBeLessThanOrEqual(12);
+    // 第三行顶边：由参考图 anchor 给阈值，测试里不抄第二份数字
+    expect(Math.abs(history.y - refHistoryTop), `历史摘要卡顶 ${history.y}`).toBeLessThanOrEqual(12);
+    expect(Math.abs(quality.y - refQualityTop), `数据质量卡顶 ${quality.y}`).toBeLessThanOrEqual(12);
+
+    // 风险摘要必须**完整**在 941 首屏内（可用性门，不因补高而掉出首屏）
+    const risk = page.getByTestId("risk-summary").first();
+    await expect(risk).toBeInViewport();
+    const rBox = await risk.boundingBox();
+    expect(rBox!.y + rBox!.height, "风险摘要底边超出 941px 首屏").toBeLessThanOrEqual(941);
+  });
+
+  test("08：日期网格顶边压回 reference ±20px，且网格高度仍 ±12px", async ({ page }) => {
+    const refGrid = await referenceAnchor("08-huangli", "dayGrid");
+    await page.goto(`/stock/600519/huangli${FIX}`, { waitUntil: "load" });
+    await expect(page.locator('[data-app-ready="true"]')).toHaveCount(1);
+
+    const grid = page.getByTestId("huangli-day-grid");
+    await expect(grid).toBeInViewport();
+    const g = await grid.boundingBox();
+    expect(g, "日期网格未渲染").not.toBeNull();
+    // R1.1 的 +156.3px 纵向偏移是本轮主目标：先收进 ±20（最终目标 ±12 记录在报告里）
+    expect(Math.abs(g!.y - refGrid.y), `日期网格顶边 y=${g!.y} vs 参考 ${refGrid.y}`).toBeLessThanOrEqual(20);
+    expect(
+      Math.abs(g!.height - refGrid.height!),
+      `日期网格高 ${g!.height} vs 参考 ${refGrid.height}`,
+    ).toBeLessThanOrEqual(12);
+    expect(g!.y + g!.height, "第二行日期卡掉出首屏").toBeLessThanOrEqual(941);
+  });
+
+  test("08：右栏首卡回到参考量级（≈196px），长字段进展开层", async ({ page }) => {
+    const refRight = await referenceAnchor("08-huangli", "rightSummary");
+    await page.goto(`/stock/600519/huangli${FIX}`, { waitUntil: "load" });
+
+    const card = page.getByTestId("huangli-selected-card");
+    await expect(card).toBeInViewport();
+    const b = await card.boundingBox();
+    expect(b).not.toBeNull();
+    // R1.1 是 615.5px（+419.5）。拆卡后必须回到参考 ±20px 的容差内。
+    expect(
+      Math.abs(b!.height - refRight.height!),
+      `右栏首卡高 ${b!.height} vs 参考 ${refRight.height}（R1.1 曾为 615.5）`,
+    ).toBeLessThanOrEqual(20);
+
+    // 卡面保留判定所需；完整原始字段仍在 DOM 里（折叠 ≠ 删除）
+    const day = page.getByTestId("huangli-selected-day");
+    await expect(day).toContainText("建除十二值");
+    await expect(day).toContainText("冲煞");
+    const full = page.getByTestId("huangli-selected-day-full");
+    await expect(full).toContainText("彭祖百忌");
+    await expect(full.locator("summary")).toBeVisible();
+    await full.locator("summary").click();
+    await expect(page.getByTestId("huangli-selected-day-full-fields")).toContainText("吉神方位");
+  });
+
+  test("08：拆成三张卡后 /huangli/outlook 仍然只请求一次", async ({ page }) => {
+    let outlookRequests = 0;
+    page.on("request", (req) => {
+      if (req.url().includes("/huangli/outlook")) outlookRequests += 1;
+    });
+    await page.goto(`/stock/600519/huangli${FIX}`, { waitUntil: "load" });
+    await expect(page.getByTestId("huangli-selected-card")).toBeVisible();
+    await expect(page.getByTestId("huangli-hours-card")).toBeVisible();
+    await expect(page.getByTestId("huangli-data-status-card")).toBeVisible();
+    // 演示模式走冻结样本；真实模式下这条同样保证"一次 state 喂三张卡"。
+    expect(outlookRequests, "右栏拆卡不得增加 outlook 请求数").toBe(0);
+  });
+
+  test("08：分区语义仍在，但不再各占一整行", async ({ page }) => {
+    await page.goto(`/stock/600519/huangli${FIX}`, { waitUntil: "load" });
+    for (const id of [
+      "section-traditional-huangli",
+      "section-future-huangli",
+      "section-huangli-performance",
+      "section-huangli-factors",
+    ]) {
+      const tag = page.getByTestId(id).first();
+      await expect(tag).toBeVisible();
+      const b = await tag.boundingBox();
+      expect(b, `${id} 未渲染`).not.toBeNull();
+      // 卡头内标签：高度必须小于一整行横幅（旧 SectionLabel ~24px + 12px 间距）
+      expect(b!.height, `${id} 仍是占行的独立横幅`).toBeLessThanOrEqual(20);
+    }
+    // 首屏的口径行也必须收成一行：可见、且不超过两行高
+    const rule = page.getByTestId("huangli-outlook-rule");
+    await expect(rule).toBeVisible();
+    const rb = await rule.boundingBox();
+    expect(rb!.height, `口径块仍占 ${rb!.height}px 高`).toBeLessThanOrEqual(40);
+    await expect(rule).toContainText("实测成交日");
+    await expect(rule.getByTestId("huangli-outlook-rule-details")).toBeVisible();
+  });
 });

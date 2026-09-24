@@ -62,7 +62,9 @@ export function TopBar({
 
   return (
     <header
-      className="relative z-20 flex h-[68px] shrink-0 items-center gap-4 border-b px-5"
+      /* 高度 62px：十张参考图顶栏底边分别是 59..66（均值 62.1），与侧栏同理取统一产品 token，
+     * 不逐页改。参考图里 Hero 直接接顶栏、无空隙，见 AppShell 的 main 内边距。 */
+    className="relative z-20 flex h-[62px] shrink-0 items-center gap-4 border-b px-5"
       style={{
         borderColor: "var(--color-border)",
         background: "linear-gradient(180deg, rgba(12,24,34,0.96), rgba(9,19,29,0.92))",

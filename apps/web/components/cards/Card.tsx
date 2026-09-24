@@ -66,12 +66,15 @@ export interface CardHeaderAction {
 export function CardHeader({
   icon,
   title,
+  tag,
   right,
   action,
   dense,
 }: {
   icon?: ReactNode;
   title: string;
+  /** 分区身份小标签，跟在标题后。分区语义不能删，但它不必在卡片之间占一整行。 */
+  tag?: ReactNode;
   right?: ReactNode;
   action?: CardHeaderAction;
   dense?: boolean;
@@ -85,6 +88,7 @@ export function CardHeader({
       <h2 className="smp-card-title">
         {icon ? <span className="smp-card-title-icon">{icon}</span> : null}
         {title}
+        {tag}
       </h2>
       <div className="ml-auto flex items-center gap-3">
         {right}
@@ -112,6 +116,45 @@ export function CardHeader({
         ) : null}
       </div>
     </header>
+  );
+}
+
+/**
+ * 分区身份标签：序号 + 短口径词，挂在卡片头的标题后面。
+ *
+ * 为什么不用独立的整行标签：参考图 08 的左栏从上下文栏（y=220）直接进首卡（y=230），
+ * 两张卡之间只有 7px 缝；每加一行独立标签就把日期卡往下推 ~36px，
+ * 首屏构图就再也对不上参考图。分区语义是 AGENTS.md §9.6 的硬要求，
+ * 所以**语义保留、承载方式改为卡内标签**，`data-testid` 也随标签一起保留，
+ * 测试与审计仍可逐字指认分区。
+ */
+export function SectionTag({
+  index,
+  label,
+  tone = "gold",
+  testId,
+}: {
+  index: string;
+  label: string;
+  tone?: "gold" | "info" | "muted";
+  /** 分区身份必须可被测试与审计指认：沿用改造前的 data-testid，不换名。 */
+  testId: string;
+}) {
+  const color =
+    tone === "gold"
+      ? "var(--color-gold)"
+      : tone === "info"
+        ? "var(--color-info)"
+        : "var(--color-ink-sub)";
+  return (
+    <span
+      className="ml-2 inline-flex items-center gap-1 rounded-[3px] border px-1.5 py-0 align-middle text-[10.5px] font-normal leading-[14px]"
+      style={{ borderColor: "var(--color-border)", color, background: "rgba(212,184,122,0.05)" }}
+      data-testid={testId}
+    >
+      <span className="font-semibold">{index}</span>
+      <span>{label}</span>
+    </span>
   );
 }
 

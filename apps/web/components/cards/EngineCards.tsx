@@ -41,6 +41,9 @@ const ENGINE_ICON: Record<string, React.ComponentType<{ size?: number }>> = {
   backtest: IconGauge,
 };
 
+// 三张首行卡（EngineScoreCard / ConsensusCard / ConflictCard）的 min-h 取 140px：
+// 参考图 02 首行整排高 197px，本轮卡片头 + 内边距固定后，148px 会让整排到 206.4px（+9.4），
+// 而这 9.4px 会把第二行整体下推、使历史验证摘要卡顶超出参考的 742±12。
 const ENGINE_ACCENT: Record<string, string> = {
   bazi: "var(--color-gold)",
   ziwei: "#b07cd6",
@@ -54,7 +57,7 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
   const dirTone = engine.direction > 0 ? "up" : engine.direction < 0 ? "down" : "flat";
 
   return (
-    <Card className="flex min-h-[148px] flex-col p-2.5" testId={`engine-card-${engine.engine}`}>
+    <Card className="flex min-h-[140px] flex-col p-2.5" testId={`engine-card-${engine.engine}`}>
       <div className="flex items-center gap-1.5">
         <span
           className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
@@ -155,7 +158,7 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
 export function ConsensusCard({ consensus }: { consensus: ConsensusView | null }) {
   if (!consensus) {
     return (
-      <Card className="flex min-h-[148px] flex-col p-2.5" testId="consensus-card">
+      <Card className="flex min-h-[140px] flex-col p-2.5" testId="consensus-card">
         <div className="flex items-center gap-1.5">
           <span className="smp-card-title-icon">
             <IconTarget size={14} />
@@ -184,7 +187,7 @@ export function ConsensusCard({ consensus }: { consensus: ConsensusView | null }
           : "flat";
 
   return (
-    <Card className="flex min-h-[148px] flex-col p-2.5" testId="consensus-card">
+    <Card className="flex min-h-[140px] flex-col p-2.5" testId="consensus-card">
       <div className="flex items-center gap-1.5">
         <span className="smp-card-title-icon">
           <IconTarget size={14} />
@@ -285,7 +288,7 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 export function ConflictCard({ conflict }: { conflict: ConflictView | null }) {
   if (!conflict) {
     return (
-      <Card className="flex min-h-[148px] flex-col p-2.5" testId="conflict-card">
+      <Card className="flex min-h-[140px] flex-col p-2.5" testId="conflict-card">
         <div className="flex items-center gap-1.5">
           <span className="smp-card-title-icon">
             <IconWarning size={14} />
@@ -306,7 +309,7 @@ export function ConflictCard({ conflict }: { conflict: ConflictView | null }) {
 
   if (!conflict.hasConflict) {
     return (
-      <Card className="flex min-h-[148px] flex-col p-2.5" testId="conflict-card">
+      <Card className="flex min-h-[140px] flex-col p-2.5" testId="conflict-card">
         <div className="flex items-center gap-1.5">
           <span className="smp-card-title-icon">
             <IconWarning size={14} />
@@ -339,7 +342,7 @@ export function ConflictCard({ conflict }: { conflict: ConflictView | null }) {
   }
 
   return (
-    <Card className="flex min-h-[148px] flex-col p-2.5" testId="conflict-card">
+    <Card className="flex min-h-[140px] flex-col p-2.5" testId="conflict-card">
       <div className="flex items-center gap-1.5">
         <span style={{ color: "var(--color-conflict)" }}>
           <IconWarning size={14} />

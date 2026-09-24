@@ -548,7 +548,10 @@ function OverviewInner() {
                           <span style={{ color: "var(--color-ink-sub)" }}>高冲突区</span>
                         </span>
                       </div>
-                      <TimeWindowChart data={data.timeWindow} height={122} />
+                      {/* 高度按参考图 02 的绘图区实测值定：主图卡 450..728、图例底 537、
+                          轴标签 ~708 ⇒ 绘图区 171px。R1 曾压到 122 去迁就一条已被参考图推翻的
+                          「标题 y<=730」门禁，导致主图卡比参考矮 59.5px。 */}
+                      <TimeWindowChart data={data.timeWindow} height={171} />
                       <p className="px-1 pb-1 pt-1 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
                         纵轴为术数研究指数（0-100 规则强度），不是收益率或上涨概率。逐窗口的完整解读在
                         <Link
@@ -625,7 +628,9 @@ function OverviewInner() {
                   title={`关键证据${data.evidence.length > 3 ? `（摘要 3 / 共 ${data.evidence.length}）` : ""}`}
                   action={{ label: "查看更多", onClick: () => setDrawer(true), testId: "evidence-more-btn" }}
                 />
-                <div className="space-y-2 p-3">
+                {/* 行距/内边距按参考图恢复视觉重量：参考右卡与左卡等高（278px），
+                    本轮左卡补高后若证据区仍用旧的紧凑行距会矮约 20px。 */}
+                <div className="space-y-2.5 p-3.5">
                   {data.evidence.length === 0 ? (
                     <div className="py-6 text-center text-[12px]" style={{ color: "var(--color-ink-faint)" }}>
                       暂无证据条目

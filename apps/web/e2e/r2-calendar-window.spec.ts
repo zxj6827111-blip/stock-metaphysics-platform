@@ -60,9 +60,11 @@ test.describe("黄历：未来交易日日期卡", () => {
     const gridCard = page.getByTestId("huangli-outlook");
     await expect(gridCard).toContainText("图例");
     await expect(gridCard).toContainText("不是买入/卖出建议");
-    const selectedCard = page.getByTestId("huangli-selected-card");
-    await expect(selectedCard).toContainText("huangli-day-class-v1");
-    await expect(selectedCard).toContainText("不产出「平」");
+    // R1.2：右栏拆成三张卡后，分类口径（rule_id 与「不产出「平」」）落在
+    // 「数据状态与分类口径」卡上。仍然只是**落点变更**，两条内容断言原样保留。
+    const statusCard = page.getByTestId("huangli-data-status-card");
+    await expect(statusCard).toContainText("huangli-day-class-v1");
+    await expect(statusCard).toContainText("不产出「平」");
   });
 
   test("点击日期卡联动当天干支/宜忌/冲煞", async ({ page }) => {

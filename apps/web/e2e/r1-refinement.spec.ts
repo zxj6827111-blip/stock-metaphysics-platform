@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { referenceTop } from "./support/referenceAnchors";
+
 /**
  * R1 整改验收（docs/UI_REAUDIT_2026-09-21.md）。
  *
@@ -292,19 +294,35 @@ test.describe("R1-2 公共展示：内部状态中文化，裸标签与裸码不
 });
 
 test.describe("R1-3 三页收口：首屏几何目标", () => {
-  test("综合研判：历史摘要标题 y<=730，风险摘要 y<=820", async ({ page }) => {
+  test("综合研判：历史验证摘要卡顶边对齐 reference（±12px），风险摘要完整在首屏", async ({ page }) => {
     await page.setViewportSize({ width: 1672, height: 941 });
     await page.goto(`/stock/600519/overview${FIXTURE}`, { waitUntil: "load" });
 
-    const title = page.locator('[data-testid="backtest-summary"] h2').first();
-    await expect(title).toBeVisible();
-    const tBox = await title.boundingBox();
-    expect(tBox!.y, `历史摘要标题 y=${tBox!.y} > 730`).toBeLessThanOrEqual(730);
+    // 阈值直接读 e2e/fixtures/reference-anchors.json 的 historySummary.y，
+    // 不在测试里抄第二份数字（两份真相迟早有一份跟着参考图重测时失配）。
+    //
+    // 旧断言测的是卡内 h2 的 y 且写死 730：参考图第三行顶边实测 742，
+    // 主图卡按参考补高后标题必然落到 ~760，两者不可能同时成立，
+    // 因此 R1.2 决定废止 730 这条，改测**整张卡**的顶边并对齐参考 ±12px。
+    const refTop = await referenceTop("02-overview", "historySummary");
+    const card = page.getByTestId("backtest-summary").first();
+    await expect(card).toBeVisible();
+    const cBox = await card.boundingBox();
+    expect(cBox, "历史验证摘要卡未渲染").not.toBeNull();
+    expect(
+      Math.abs(cBox!.y - refTop),
+      `历史验证摘要卡顶 y=${cBox!.y} 偏离参考顶边 ${refTop} 超过 12px`,
+    ).toBeLessThanOrEqual(12);
 
+    // 风险摘要是可用性首屏门（不是几何门）：必须**完整**落在 941px 内，不能只比顶边。
     const risk = page.getByTestId("risk-summary").first();
-    await expect(risk).toBeVisible();
+    await expect(risk).toBeInViewport();
     const rBox = await risk.boundingBox();
-    expect(rBox!.y, `风险摘要 y=${rBox!.y} > 820`).toBeLessThanOrEqual(820);
+    expect(rBox).not.toBeNull();
+    expect(
+      rBox!.y + rBox!.height,
+      `风险摘要底边 ${rBox!.y + rBox!.height} 超出 941px 首屏`,
+    ).toBeLessThanOrEqual(941);
 
     // 首屏摘要必须同时含支持与反证（不能只切前 3 条利多）
     const evidence = page.getByTestId("key-evidence").first();
