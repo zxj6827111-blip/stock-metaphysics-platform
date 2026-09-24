@@ -38,6 +38,8 @@ export interface ResearchPageProps {
   /** Hero 变体；研究主页用 `research`（更高头部、更强装饰），
    *  统计/证据型页面（05 历史验证）用 `statistics`（紧凑标题带，让位给指标密度）。 */
   heroVariant?: HeroVariant;
+  /** 单页 Hero 内容高度微调（见 `PageHero.heroMinHeight` 的说明）。 */
+  heroMinHeight?: number;
   code: string;
   analysis: ApiMultiAnalysis | null;
   loading: boolean;
@@ -56,6 +58,7 @@ export function ResearchPage({
   couplet,
   motto,
   heroVariant = "default",
+  heroMinHeight,
   code,
   analysis,
   loading,
@@ -126,6 +129,7 @@ export function ResearchPage({
         couplet={couplet}
         motto={motto}
         variant={heroVariant}
+        heroMinHeight={heroMinHeight}
       />
       {ctx ? (
         <StockContextBar

@@ -220,6 +220,7 @@ export function PageHero({
   motto = ["顺势而为", "知行合一"],
   showDecorations = true,
   variant = "default",
+  heroMinHeight,
 }: {
   title: string;
   subtitle?: string;
@@ -230,8 +231,18 @@ export function PageHero({
   motto?: string[];
   showDecorations?: boolean;
   variant?: HeroVariant;
+  /**
+   * 覆盖该变体的内容最小高度（总高 = heroMinHeight + 上下 padding + 上下边框）。
+   *
+   * 为什么要有它：十张参考图的 Hero 高度是一条连续谱（94 / 102 / 106 / 109 / 117 / 121 / 124 / 141），
+   * 三档变体穷举不了。变体负责**成组的语义差**（标题尺寸与装饰强度），
+   * 这个 prop 负责**单页的十几像素微调**，避免为一页新增一档变体。
+   * 不传时与该变体行为完全一致 ⇒ 已批准的 02 / 05 / 08 不受影响。
+   */
+  heroMinHeight?: number;
 }) {
   const hero = HERO[variant];
+  const minH = heroMinHeight ?? hero.minH;
   return (
     <div
       className={`relative mb-2 overflow-hidden rounded-[8px] border smp-card ${hero.box}`}
@@ -276,7 +287,7 @@ export function PageHero({
 
       <div
         className="relative z-10 flex items-center justify-between gap-4"
-        style={{ minHeight: hero.minH }}
+        style={{ minHeight: minH }}
       >
         <div className="min-w-0">
           <h1
