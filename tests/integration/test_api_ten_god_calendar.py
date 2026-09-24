@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from itertools import pairwise
 
 import pytest
@@ -39,8 +39,22 @@ def _clear_caches():
     TEN_GOD_SCAN_CACHE.clear()
 
 
-def seed_stock(db_session, code: str, name: str, exchange: str, listing: date) -> str:
-    """写入最小 canonical 样本：主档 + canonical 出生档案 + v4-full 成员资格。"""
+def seed_stock(
+    db_session,
+    code: str,
+    name: str,
+    exchange: str,
+    listing: date,
+    *,
+    source_snapshot: str = "test",
+    delist_date: date | None = None,
+    delist_source: str = "test",
+) -> str:
+    """写入最小 canonical 样本：主档 + canonical 出生档案 + v4-full 成员资格。
+
+    ``source_snapshot`` 决定 universe 证据截止日的解析路径（ISO 日期 / 供应商标签），
+    ``delist_date`` 用于验证冻结点选错时会抹掉真实退市事件。
+    """
     suffix = {"SSE": "SH", "SZSE": "SZ", "BSE": "BJ"}.get(exchange, "SH")
     if db_session.get(StockMasterRow, code) is None:
         db_session.add(StockMasterRow(
@@ -68,7 +82,10 @@ def seed_stock(db_session, code: str, name: str, exchange: str, listing: date) -
             source="test",
             birth_profile_version=CANONICAL_PROFILE,
             evidence_json={"first_trading_day": listing.isoformat(), "lookup_key": "test"},
-            assumptions_json=[],
+            assumptions_json=[
+                {"key": f"assumption_{n}", "value": str(n), "reason": f"追溯说明 {n}", "impact": "无"}
+                for n in range(10)
+            ],
             data_quality_json={"grade": "A", "score": 1.0, "notes": []},
             variant_mode="not_applicable",
             variant_note="",
@@ -85,10 +102,11 @@ def seed_stock(db_session, code: str, name: str, exchange: str, listing: date) -
             exchange=exchange,
             board="主板",
             list_date=listing,
-            status="active",
+            delist_date=delist_date,
+            status="delisted" if delist_date else "active",
             source="test",
-            source_snapshot="test",
-            delist_source="test",
+            source_snapshot=source_snapshot,
+            delist_source=delist_source,
         ))
     db_session.flush()
     db_session.commit()
@@ -346,20 +364,117 @@ def test_trading_view_is_display_only_and_keeps_natural_day_count(client, golden
     }).json()
     assert all_days["natural_day_count"] == trading["natural_day_count"] == 10
     assert trading["displayed_day_count"] < all_days["displayed_day_count"]
-    assert all(row["is_trading_day"] is not False for row in trading["days"])
+    # 「仅交易日」＝只显示已确认的交易日
+    assert all(row["is_trading_day"] is True for row in trading["days"])
+    assert {row["date"] for row in trading["days"]} == {
+        row["date"] for row in all_days["days"] if row["is_trading_day"] is True
+    }
     codes = {item["code"] for item in trading["warnings"]}
     assert "TEN_GOD_TRADING_VIEW_IS_DISPLAY_ONLY" in codes
 
 
-def test_unknown_trading_days_survive_the_trading_view(client, golden_stock) -> None:
-    """view=trading 不得把 null 当成休市悄悄删掉。"""
-    body = client.get(CALENDAR_PATH.format(code=golden_stock), params={
-        "start_date": "2027-06-14", "days": 4, "years": 0, "months": 0, "view": "trading",
-    }).json()
-    assert body["unknown_trading_day_count"] >= 1
-    assert any(row["is_trading_day"] is None for row in body["days"])
-    codes = {item["code"] for item in body["warnings"]}
+def test_unknown_trading_days_excluded_from_view_but_not_forgotten(client, golden_stock) -> None:
+    """日历未覆盖的日期不进「仅交易日」视图，但必须仍可统计、可在全部日期里看到。
+
+    产品口径是"默认仅交易日"，不是"默认仅已确认交易日＋被误分类的未知"；
+    同时未知也不得被改写成 false（那等于把它说成休市）。
+    """
+    params = {"start_date": "2027-06-14", "days": 4, "years": 0, "months": 0}
+    trading = client.get(CALENDAR_PATH.format(code=golden_stock), params={**params, "view": "trading"}).json()
+    everything = client.get(CALENDAR_PATH.format(code=golden_stock), params={**params, "view": "all"}).json()
+
+    assert trading["days"] == []
+    assert trading["natural_day_count"] == 4
+    assert trading["unknown_trading_day_count"] == 4
+    assert trading["trading_day_count"] == 0
+    # 未知仍是 null，不是 false
+    assert {row["is_trading_day"] for row in everything["days"]} == {None}
+    assert all(row["trading_calendar_source"] == "out_of_coverage" for row in everything["days"])
+    # 十神结果一行未少
+    assert all(row["stem_ten_god"] in TEN_GODS for row in everything["days"])
+    codes = {item["code"] for item in trading["warnings"]}
     assert "TRADING_CALENDAR_OUT_OF_COVERAGE" in codes
+    warning = next(item for item in trading["warnings"] if item["code"] == "TRADING_CALENDAR_OUT_OF_COVERAGE")
+    assert "不进入「仅交易日」视图" in warning["message"]
+    assert "全部日期" in warning["message"]
+
+
+def test_mixed_known_and_unknown_days_in_trading_view(client, golden_stock) -> None:
+    """跨过覆盖边界的窗口：trading 视图只留已确认交易日，unknown 计数仍准确。"""
+    body = client.get(CALENDAR_PATH.format(code=golden_stock), params={
+        "start_date": "2026-12-29", "days": 6, "years": 0, "months": 0, "view": "trading",
+    }).json()
+    everything = client.get(CALENDAR_PATH.format(code=golden_stock), params={
+        "start_date": "2026-12-29", "days": 6, "years": 0, "months": 0,
+    }).json()
+    assert all(row["is_trading_day"] is True for row in body["days"])
+    assert body["unknown_trading_day_count"] >= 1
+    assert body["natural_day_count"] == everything["natural_day_count"] == 6
+    sources = {row["trading_calendar_source"] for row in everything["days"]}
+    assert "published_exchange_calendar" in sources
+
+
+def test_default_window_start_uses_shanghai_calendar_not_server_local_time() -> None:
+    """UTC 与上海跨日时，默认起点必须是上海那一天。"""
+    from zoneinfo import ZoneInfo
+
+    from src.core.orchestration.ten_god_calendar import default_window_start
+
+    # 上海 2026-09-24 00:30 == UTC 2026-09-23 16:30：本地日期会少一天
+    shanghai_instant = datetime(2026, 9, 24, 0, 30, tzinfo=ZoneInfo("Asia/Shanghai"))
+    assert shanghai_instant.astimezone(UTC).date() == date(2026, 9, 23)
+    assert default_window_start(shanghai_instant) == date(2026, 9, 24)
+    # 反向：UTC 已是 24 日，上海仍算 24 日（不得取成 25 日）
+    utc_instant = datetime(2026, 9, 24, 15, 0, tzinfo=UTC)
+    assert default_window_start(utc_instant) == date(2026, 9, 24)
+    # 显式不依赖服务器本地时区
+    assert default_window_start(datetime(2026, 1, 1, 0, 0, tzinfo=ZoneInfo("Asia/Shanghai"))) == date(2026, 1, 1)
+
+
+def test_endpoint_uses_shanghai_default_when_start_date_omitted(client, golden_stock, monkeypatch) -> None:
+    """端点在未传 start_date 时必须走上海默认起点，而不是 date.today()。"""
+    from src.core.orchestration import ten_god_calendar as module
+
+    calls: list[object] = []
+    real = module.default_window_start
+
+    def spy(now=None):
+        calls.append(now)
+        return real(now)
+
+    monkeypatch.setattr(module, "default_window_start", spy)
+    body = client.get(CALENDAR_PATH.format(code=golden_stock), params={"days": 2, "years": 0, "months": 0}).json()
+    assert calls, "端点未使用 default_window_start()，说明仍在依赖服务器本地时区"
+    assert body["calendar_window_start"] == real().isoformat()
+
+
+def test_days_zero_reports_no_day_window(client, golden_stock) -> None:
+    """days=0 不得伪造"一天窗口"；自然日底表也确实是 0 行。"""
+    body = client.get(CALENDAR_PATH.format(code=golden_stock), params={
+        "start_date": "2026-09-24", "days": 0, "years": 2, "months": 2,
+    }).json()
+    assert body["calendar_window_start"] is None
+    assert body["calendar_window_end"] is None
+    assert body["days"] == []
+    assert body["natural_day_count"] == 0
+    assert body["displayed_day_count"] == 0
+    # 段仍然照常给出，说明"没有日窗口"不等于"没有结果"
+    assert len(body["years"]) == 2 and len(body["months"]) == 2
+
+
+def test_one_day_window_start_equals_end(client, golden_stock) -> None:
+    body = client.get(CALENDAR_PATH.format(code=golden_stock), params={
+        "start_date": "2026-09-24", "days": 1, "years": 0, "months": 0,
+    }).json()
+    assert body["calendar_window_start"] == body["calendar_window_end"] == "2026-09-24"
+
+
+def test_stock_summary_keeps_every_assumption_for_traceability(client, golden_stock) -> None:
+    """追溯信息不得为了 API 好看而被截断。"""
+    body = client.get(CALENDAR_PATH.format(code=golden_stock), params={"days": 0, "years": 0, "months": 0}).json()
+    assumptions = body["stock"]["assumptions"]
+    assert len(assumptions) == 10, "assumptions 被截断，丢失可追溯性"
+    assert assumptions == [f"追溯说明 {n}" for n in range(10)]
 
 
 def test_trading_calendar_coverage_descriptor_is_reported(client, golden_stock) -> None:
@@ -384,6 +499,9 @@ def test_versions_are_all_present_and_match_settings(client, golden_stock) -> No
     assert versions["bazi_engine_version"] == settings.bazi_engine_version
     assert versions["birth_profile_version"] == CANONICAL_PROFILE
     assert versions["trading_calendar_version_token"]
+    assert versions["config_version"] == settings.config_version
+    # 本端点不查股票池，因此不提供 universe_version（空值会假装有版本可追溯）
+    assert "universe_version" not in versions
     assert "不构成收益预测或交易建议" in body["disclaimer"]
     assert "独立维度" in body["disclaimer"]
 

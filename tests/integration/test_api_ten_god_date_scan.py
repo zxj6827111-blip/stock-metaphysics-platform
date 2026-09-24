@@ -26,9 +26,13 @@ CANONICAL_PROFILE = "v2-phase4b-listing_open"
 SCAN_PATH = "/api/v1/research/ten-gods/date-scan"
 LEGACY_SCAN_PATH = "/api/v1/research/date-scan"
 
-#: 5 只股票的样本池。688981 的上市日（2026-09-01）刻意设在整个池的最后，
-#: 用它作为"可证据化边界"：晚于它的查询日期必须走 latest-known 分支。
-UNIVERSE_CUTOFF = date(2026, 9, 1)
+#: 样本池的**正式快照证据截止日**。刻意与"最后一只 IPO 日"不同：
+#: 两者的差（09-01 ~ 09-20）正是旧 `max(list_date)` 实现会判错的范围。
+SNAPSHOT_AS_OF = date(2026, 9, 20)
+LAST_IPO_DATE = date(2026, 9, 1)
+#: 在该区间内退市的股票：冻结点选错时会被错误保留
+DELISTED_IN_GAP = "600001"
+DELIST_DATE = date(2026, 9, 10)
 
 
 @pytest.fixture(autouse=True)
@@ -43,14 +47,45 @@ def _clear_caches():
     TEN_GOD_SCAN_CACHE.clear()
 
 
+@pytest.fixture(autouse=True)
+def _fixed_evidence_as_of(monkeypatch):
+    """把证据截止日固定注入本模块。
+
+    临时库是 session 级的，别的集成测试也会往 ``v4-full`` 写自己的
+    ``source_snapshot``；若依赖"全库标签唯一"，解析器会因混入他人标签而
+    fail closed，测试结果就会随执行顺序漂移。解析器本身的行为由
+    ``tests/core/test_universe_evidence_as_of.py`` 直接覆盖，这里只测冻结语义。
+    """
+    from src.core.orchestration import ten_god_date_scan as module
+    from src.research.universe.snapshot_metadata import UniverseEvidenceAsOf
+
+    monkeypatch.setattr(
+        module, "resolve_universe_evidence_as_of",
+        lambda db, version: UniverseEvidenceAsOf(
+            universe_version=version, as_of=SNAPSHOT_AS_OF,
+            source="universe_membership_source_snapshot",
+            detail=f"测试注入：source_snapshot={SNAPSHOT_AS_OF.isoformat()}",
+        ),
+    )
+
+
 @pytest.fixture
 def market_seed(db_session) -> list[str]:
+    """全部成员写同一个 ISO 快照标签 → 解析器走 source_snapshot 直取路径。"""
     codes = [
-        seed_stock(db_session, "600000", "癸未日主", "SSE", date(1992, 5, 7)),
-        seed_stock(db_session, "600519", "贵州茅台", "SSE", date(2001, 8, 27)),
-        seed_stock(db_session, "000001", "平安银行", "SZSE", date(1991, 4, 3)),
-        seed_stock(db_session, "300750", "宁德时代", "SZSE", date(2018, 6, 11)),
-        seed_stock(db_session, "688981", "边界新股", "SSE", UNIVERSE_CUTOFF),
+        seed_stock(db_session, "600000", "癸未日主", "SSE", date(1992, 5, 7),
+                   source_snapshot=SNAPSHOT_AS_OF.isoformat()),
+        seed_stock(db_session, "600519", "贵州茅台", "SSE", date(2001, 8, 27),
+                   source_snapshot=SNAPSHOT_AS_OF.isoformat()),
+        seed_stock(db_session, "000001", "平安银行", "SZSE", date(1991, 4, 3),
+                   source_snapshot=SNAPSHOT_AS_OF.isoformat()),
+        seed_stock(db_session, "300750", "宁德时代", "SZSE", date(2018, 6, 11),
+                   source_snapshot=SNAPSHOT_AS_OF.isoformat()),
+        seed_stock(db_session, "688981", "边界新股", "SSE", LAST_IPO_DATE,
+                   source_snapshot=SNAPSHOT_AS_OF.isoformat()),
+        seed_stock(db_session, DELISTED_IN_GAP, "区间内退市", "SSE", date(2000, 1, 4),
+                   source_snapshot=SNAPSHOT_AS_OF.isoformat(),
+                   delist_date=DELIST_DATE, delist_source="tushare_pit_universe"),
     ]
     # 再放一只"只进池、无出生档案"的股票：验证不可用不被 0 冒充。
     # 临时库是 session 级的，多个测试共用，因此必须幂等插入。
@@ -69,7 +104,7 @@ def market_seed(db_session) -> list[str]:
         db_session.add(UniverseMembershipRow(
             universe_version="v4-full", stock_code="601999", exchange="SSE", board="主板",
             list_date=date(2007, 1, 1), status="active", source="test",
-            source_snapshot="test", delist_source="test",
+            source_snapshot=SNAPSHOT_AS_OF.isoformat(), delist_source="test",
         ))
     db_session.flush()
     db_session.commit()
@@ -253,18 +288,22 @@ def test_filtering_happens_before_pagination(client, market_seed) -> None:
 def _members_listed_by(db_session, as_of: date) -> set[str]:
     """直接从库里算出 as_of 当日应在池内的股票，不写死数字。
 
-    临时库是 session 级的，其他集成测试也会往 v4-full 里塞股票；
-    任何"样本池正好 N 只"的硬编码都会随测试执行顺序而变化。
+    必须与 PIT 同一条判据（含退市）：``list_date <= as_of`` 且
+    （无退市日 或 ``as_of <= delist_date``）。临时库是 session 级的，
+    其他集成测试也会往 v4-full 里塞股票，任何硬编码数量都会随执行顺序漂移。
     """
     rows = db_session.execute(
         select(UniverseMembershipRow).where(UniverseMembershipRow.universe_version == "v4-full")
     ).scalars().all()
-    return {row.stock_code for row in rows if row.list_date <= as_of}
+    return {
+        row.stock_code for row in rows
+        if row.list_date <= as_of and (row.delist_date is None or as_of <= row.delist_date)
+    }
 
 
 def test_counts_are_defined_and_internally_consistent(client, db_session, market_seed) -> None:
     body = _scan(client, {"date": "2026-09-23", "limit": 500})
-    assert body["stock_total"] == len(_members_listed_by(db_session, UNIVERSE_CUTOFF))
+    assert body["stock_total"] == len(_members_listed_by(db_session, SNAPSHOT_AS_OF))
     assert body["stock_total"] >= 6
     # 601999 没有出生档案 → 不可用，不计入 valid
     assert body["valid_scan_count"] == sum(
@@ -284,7 +323,7 @@ def test_unavailable_stock_is_not_faked_with_zero(client, market_seed) -> None:
     body = _scan(client, {"date": "2026-09-23", "limit": 50})
     row = next(item for item in body["rows"] if item["stock_code"] == "601999")
     assert row["availability"] == "unavailable"
-    assert row["ten_god"] == ""
+    assert row["ten_god"] is None
     assert row["s_raw"] is None and row["v_raw"] is None and row["u_raw"] is None
     assert row["unavailable"] == ["stock_birth_profile"]
     codes = {item["code"] for item in body["warnings"]}
@@ -335,9 +374,10 @@ def test_historical_date_uses_strict_point_in_time_universe(client, db_session, 
 def test_future_date_freezes_latest_known_universe_and_says_so(client, market_seed) -> None:
     body = _scan(client, {"date": "2027-03-01", "limit": 50})
     assert body["universe_mode"] == "latest_known_for_future"
-    assert body["universe_as_of"] == UNIVERSE_CUTOFF.isoformat()
+    assert body["universe_as_of"] == SNAPSHOT_AS_OF.isoformat()
     assert "冻结" in body["future_universe_assumption"]
-    assert "不包含未知的未来上市与未来退市事件" in body["future_universe_assumption"]
+    assert "上市与退市事件不可知" in body["future_universe_assumption"]
+    assert "不是 Point-in-Time 股票池" in body["future_universe_assumption"]
     codes = {row["stock_code"] for row in body["rows"]}
     assert "688981" in codes
     warning = next(item for item in body["warnings"] if item["code"] == "TEN_GOD_FUTURE_UNIVERSE_FROZEN")
@@ -426,3 +466,105 @@ def test_response_declares_its_ten_god_provenance(client, market_seed) -> None:
     assert body["timezone"] == "Asia/Shanghai"
     assert body["versions"]["ten_god_rule_version"] == settings.ten_god_rule_version
     assert "不等于「适合」" in body["disclaimer"]
+
+
+# ---------------------------------------------------------------------------
+# P0：universe 证据截止日 ≠ 最后一只 IPO 日
+# ---------------------------------------------------------------------------
+def test_p0_date_between_last_ipo_and_snapshot_is_point_in_time(client, market_seed) -> None:
+    """回归 A：snapshot=09-20、最后 IPO=09-01、target=09-10 → 必须是 PIT。
+
+    旧的 ``max(list_date)`` 实现会把这一判成"未来"并按 09-01 冻结成员集。
+    """
+    assert LAST_IPO_DATE < date(2026, 9, 10) < SNAPSHOT_AS_OF
+    body = _scan(client, {"date": "2026-09-10", "limit": 500})
+    assert body["universe_mode"] == "point_in_time"
+    assert body["universe_as_of"] == "2026-09-10"
+    assert body["future_universe_assumption"] == ""
+    codes = {row["stock_code"] for row in body["rows"]}
+    assert "688981" in codes, "09-01 已上市的股票在 09-10 的 PIT 池里必须存在"
+
+
+def test_p0_date_after_snapshot_freezes_at_snapshot_not_at_last_ipo(client, market_seed) -> None:
+    """回归 B：target=09-21 > 证据截止日 → 冻结点必须是 09-20，不是 09-01。"""
+    body = _scan(client, {"date": "2026-09-21", "limit": 500})
+    assert body["universe_mode"] == "latest_known_for_future"
+    assert body["universe_as_of"] == SNAPSHOT_AS_OF.isoformat()
+    assert "09-20" in body["future_universe_assumption"]
+    assert body["versions"]["universe_evidence_source"] == "universe_membership_source_snapshot"
+    assert body["versions"]["universe_evidence_metadata_version"] == "universe-evidence-asof-v1"
+
+
+def test_p0_delisting_inside_the_gap_survives_the_snapshot_freeze(client, market_seed) -> None:
+    """回归 C：09-01~09-20 之间退市的股票，冻结在 09-20 时必须已不在池内。
+
+    旧实现冻结在 09-01（退市尚未发生）→ 会把它错误保留下来。
+    """
+    assert LAST_IPO_DATE < DELIST_DATE <= SNAPSHOT_AS_OF
+    codes = {row["stock_code"] for row in _scan(client, {"date": "2026-09-21", "limit": 500})["rows"]}
+    assert DELISTED_IN_GAP not in codes, "冻结在快照日时，区间内已退市的股票必须在池外"
+    # 同一只股票在退市日之前仍应在 PIT 池内 —— 证明不是被无条件剔除
+    before = {row["stock_code"] for row in _scan(client, {"date": "2026-09-09", "limit": 500})["rows"]}
+    assert DELISTED_IN_GAP in before
+    after = {row["stock_code"] for row in _scan(client, {"date": "2026-09-11", "limit": 500})["rows"]}
+    assert DELISTED_IN_GAP not in after
+
+
+def test_p0_fail_closed_when_evidence_as_of_is_unresolvable(client, market_seed, monkeypatch) -> None:
+    """解析不出正式证据截止日时必须拒绝执行，不许退化成猜一个日期。"""
+    from src.core.orchestration import ten_god_date_scan as module
+    from src.research.universe.snapshot_metadata import UniverseEvidenceAsOf
+
+    monkeypatch.setattr(
+        module, "resolve_universe_evidence_as_of",
+        lambda db, version: UniverseEvidenceAsOf(
+            universe_version=version, as_of=None, detail="报告缺失（测试注入）",
+        ),
+    )
+    response = client.post(SCAN_PATH, json={"date": "2026-09-21", "limit": 5})
+    assert response.status_code == 422, response.text
+    message = response.json()["error"]["message"]
+    assert "拒绝执行" in message and "猜测" in message
+    assert "报告缺失（测试注入）" in message
+
+
+# ---------------------------------------------------------------------------
+# P1：算不出来 ≠ 未知类别
+# ---------------------------------------------------------------------------
+def test_unavailable_row_carries_null_classification_not_unknown(client, market_seed) -> None:
+    body = _scan(client, {"date": "2026-09-10", "limit": 500})
+    row = next(item for item in body["rows"] if item["stock_code"] == "601999")
+    assert row["availability"] == "unavailable"
+    assert row["ten_god"] is None
+    assert row["ten_god_group"] is None
+    assert row["wuxing_role"] is None
+    assert row["verdict"] is None
+    assert row["is_yong_or_xi"] is None
+    assert row["s_raw"] is None and row["v_raw"] is None and row["u_raw"] is None
+
+
+@pytest.mark.parametrize("field,value", [
+    ("verdict", "未知"),
+    ("wuxing_role", "未知"),
+    ("ten_god", "正财"),
+    ("ten_god_group", "财星"),
+])
+def test_classification_filters_never_match_unavailable_rows(client, market_seed, field, value) -> None:
+    body = _scan(client, {"date": "2026-09-10", "limit": 500, field: value})
+    assert all(row["availability"] == "ok" for row in body["rows"]), (
+        f"{field}={value} 把算不出来的股票混进了分类桶"
+    )
+    assert "601999" not in {row["stock_code"] for row in body["rows"]}
+
+
+def test_unavailable_row_is_visible_in_unfiltered_scan(client, market_seed) -> None:
+    """无分类筛选的全集扫描仍要暴露它，用于数据质量排查。"""
+    body = _scan(client, {"date": "2026-09-10", "limit": 500})
+    assert "601999" in {row["stock_code"] for row in body["rows"]}
+    assert body["valid_scan_count"] == body["stock_total"] - sum(
+        1 for row in body["rows"] if row["availability"] != "ok"
+    )
+    # 分类计数只由可计算行构成，不受不可用行的 null 字段影响
+    assert sum(body["verdict_counts"].values()) == body["valid_scan_count"]
+    assert sum(body["ten_god_counts"].values()) == body["valid_scan_count"]
+    assert None not in body["verdict_counts"] and "" not in body["verdict_counts"]

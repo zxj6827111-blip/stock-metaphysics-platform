@@ -204,11 +204,16 @@ class TenGodStockSummary(SMBaseModel):
 
 
 class TenGodCalendarVersions(SMBaseModel):
+    """股票十神时历的版本字段。
+
+    刻意**不含** ``universe_version``：本端点只算单只股票的时间轴，
+    不查询股票池，放一个空字符串会假装有版本可追溯。
+    """
+
     ten_god_rule_version: str = settings.ten_god_rule_version
     calendar_engine_version: str = ""
     bazi_engine_version: str = ""
     birth_profile_version: str = ""
-    universe_version: str = ""
     trading_calendar_version_token: str = ""
     config_version: str = settings.config_version
 
@@ -280,6 +285,9 @@ class TenGodStockCalendarRequest(SMBaseModel):
     """股票 → 未来十神时历的查询参数。
 
     ``view`` 只做**显示过滤**：计算层始终构造全部自然日（合同 §1.1）。
+    ``trading`` 只保留 ``is_trading_day is True`` 的行；
+    ``null``（日历未覆盖）不进该视图，但也不是被判定为休市 ——
+    切回 ``all`` 仍能看到完整底表。
     """
 
     start_date: date | None = None
@@ -311,6 +319,8 @@ class TenGodStockCalendarResponse(SMBaseModel):
     displayed_day_count: int = 0
     trading_day_count: int | None = None
     unknown_trading_day_count: int = 0
+    #: 自然日底表覆盖的闭区间。``days=0`` 时两者均为 null ——
+    #: 不伪造"一天窗口"，因为那种情况下根本不存在日级窗口。
     calendar_window_start: date | None = None
     calendar_window_end: date | None = None
     trading_calendar: TenGodTradingCalendarStatus = Field(default_factory=TenGodTradingCalendarStatus)
@@ -352,17 +362,26 @@ class TenGodDateScanRequest(SMBaseModel):
 
 
 class TenGodDateScanRow(SMBaseModel):
+    """单只股票在目标日的十神行。
+
+    两种"没有值"必须区分开（AGENTS.md §2.4）：
+
+    * ``availability="ok"`` 但喜用资料不足 → ``wuxing_role/verdict = 未知``（真实类别）；
+    * ``availability="unavailable"`` 根本算不出来 → 四个分类字段全 ``None``，
+      不属于任何十神/十神组/五行角色/匹配状态桶，也不会被分类筛选命中。
+    """
+
     stock_code: str
     name: str = ""
     exchange: str = ""
     day_master: str = ""
     #: 权威流日十神：ten_god(股票日主, 目标日干)。
     day_stem: str = ""
-    ten_god: str = ""
-    ten_god_group: str = ""
+    ten_god: str | None = None
+    ten_god_group: str | None = None
     day_stem_wuxing: str = ""
-    wuxing_role: str = "未知"
-    verdict: str = "未知"
+    wuxing_role: str | None = None
+    verdict: str | None = None
     is_yong_or_xi: bool | None = None
     reason: str = ""
     #: 复合 relation_type 过滤所需的流日行关系类型（去重稳定序）。
@@ -385,6 +404,10 @@ class TenGodDateScanVersions(SMBaseModel):
     birth_profile_version: str = ""
     universe_version: str = ""
     universe_digest: str = ""
+    #: 证据截止日从哪一类正式来源取得（fail closed 时扫描不会执行）
+    universe_evidence_source: str = ""
+    universe_evidence_detail: str = ""
+    universe_evidence_metadata_version: str = ""
 
 
 class TenGodDateScanResponse(SMBaseModel):
@@ -394,6 +417,8 @@ class TenGodDateScanResponse(SMBaseModel):
     #: 股票池语义（未来日期不得假装知道未来上市/退市）。
     universe_mode: str = UNIVERSE_MODE_PIT
     universe_as_of: date | None = None
+    #: 证据截止日的来源类别：source_snapshot / universe_report_generated_at
+    universe_evidence_source: str = ""
     future_universe_assumption: str = ""
     observation_time: str = OBSERVATION_TIME
     timezone: str = OBSERVATION_TIMEZONE

@@ -22,8 +22,9 @@ AGENTS.md §2.3：``/api/v1/**`` 已公开的请求体字段名与响应结构�
 系统无法知道未来的上市/退市事件，因此目标日超出可证据化范围时使用
 **最新已知 canonical universe**，并把 ``universe_mode`` /
 ``universe_as_of`` / ``future_universe_assumption`` 显式写进响应（合同 §14）。
-可证据化范围用「该 universe_version 中已登记的最晚上市日」界定 ——
-晚于它的日期我们可能漏掉尚未入库的新股，也完全不知道谁会退市。
+可证据化范围来自 :mod:`src.research.universe.snapshot_metadata` 解析出的
+**正式快照证据截止日**（入库报告 / source_snapshot），解析不出即 fail closed；
+**不再**用「已登记的最晚上市日」代替快照日期。
 """
 
 from __future__ import annotations
@@ -65,14 +66,18 @@ from src.core.schemas.ten_god import (
 from src.engines.bazi.bazi_engine import BaziEngine
 from src.engines.calendar.calendar_engine import CalendarEngine
 from src.research.universe.point_in_time import PointInTimeUniverse, UniverseSnapshot
+from src.research.universe.snapshot_metadata import (
+    UniverseEvidenceAsOf,
+    resolve_universe_evidence_as_of,
+)
 
 #: 全量底表缓存：键只含"影响每行结果"的口径，过滤条件不进键（否则翻页即重算）。
 TEN_GOD_SCAN_CACHE = ResultCache(max_entries=16)
 
 _FUTURE_UNIVERSE_ASSUMPTION = (
-    "未来股票池按当前已知成分冻结：取该 universe_version 中已登记的最晚上市日 "
-    "({universe_as_of}) 作为成员基准，不包含未知的未来上市与未来退市事件。"
-    "该集合不是 Point-in-Time 股票池，不得用于历史收益结论。"
+    "未来股票池按正式快照证据截止日 {universe_as_of} 冻结"
+    "（出处：{evidence_source}）。该日期之后的上市与退市事件不可知，"
+    "因此这一集合不是 Point-in-Time 股票池，不得用于历史收益结论。"
 )
 
 _VERDICT_ENUM = {VERDICT_MATCH, VERDICT_MISMATCH, VERDICT_UNKNOWN}
@@ -118,19 +123,31 @@ def _validate_request(request: TenGodDateScanRequest) -> None:
             )
 
 
-def resolve_universe(db: Session, request: TenGodDateScanRequest) -> tuple[UniverseSnapshot, str, date]:
-    """返回（成员快照, universe_mode, universe_as_of）。
+def resolve_universe(
+    db: Session, request: TenGodDateScanRequest
+) -> tuple[UniverseSnapshot, str, date, UniverseEvidenceAsOf]:
+    """返回（成员快照, universe_mode, universe_as_of, 证据出处）。
 
-    历史/当前日期走严格 PIT；超出可证据化范围（已登记的最晚上市日）时
-    冻结为最新已知成分，绝不伪造"未来 PIT"。
+    ``target_date <= 证据截止日`` → 严格 PIT；
+    ``target_date > 证据截止日`` → 冻结在**证据截止日**的最新已知成分。
+
+    证据截止日来自 :mod:`src.research.universe.snapshot_metadata`，
+    解析不出时 **fail closed**。这里刻意不再使用任何 ``max(list_date)``：
+    最后一只 IPO 的上市日期不是数据快照日期，用它会把快照内已知的
+    09-02~09-20 误判成"未来"，并连带抹掉其间真实发生的退市。
     """
-    universe = PointInTimeUniverse.load(db, request.universe, snapshot_at=request.date)
-    cutoff = max((record.list_date for record in universe.list_all_members()), default=None)
-    if cutoff is None:
-        raise TenGodScanError(f"universe_version={request.universe} 下没有任何 membership 记录")
-    if request.date > cutoff:
-        return universe.at(cutoff), UNIVERSE_MODE_LATEST_KNOWN, cutoff
-    return universe.at(request.date), UNIVERSE_MODE_PIT, request.date
+    evidence = resolve_universe_evidence_as_of(db, request.universe)
+    if not evidence.available:
+        raise TenGodScanError(
+            f"无法确定 universe_version={request.universe} 的正式证据截止日，"
+            f"扫描已拒绝执行而非猜测。原因：{evidence.detail}"
+        )
+    universe = PointInTimeUniverse.load(db, request.universe, snapshot_at=evidence.as_of)
+    if request.date > evidence.as_of:
+        return (
+            universe.at(evidence.as_of), UNIVERSE_MODE_LATEST_KNOWN, evidence.as_of, evidence,
+        )
+    return universe.at(request.date), UNIVERSE_MODE_PIT, request.date, evidence
 
 
 def _cache_key(request: TenGodDateScanRequest, membership: UniverseSnapshot) -> tuple[Any, ...]:
@@ -160,11 +177,17 @@ def _row_from_result(result: RelationStockResult) -> TenGodDateScanRow:
     不从 ``ten_gods`` 列表或矩阵事件重新推导。
     """
     verdict = result.day_stem_verdict
-    if verdict is None:
+    if result.availability != "ok" or verdict is None:
+        # 根本无法计算：不得用「未知」冒充"算得出来但资料不足"（语义 B）
         return TenGodDateScanRow(
             stock_code=result.stock_code,
             name=result.name,
             exchange=result.exchange,
+            ten_god=None,
+            ten_god_group=None,
+            wuxing_role=None,
+            verdict=None,
+            is_yong_or_xi=None,
             availability=result.availability,
             unavailable=list(result.unavailable),
             relation_group=result.metrics.group,
@@ -193,7 +216,17 @@ def _row_from_result(result: RelationStockResult) -> TenGodDateScanRow:
 
 
 def _matches(row: TenGodDateScanRow, request: TenGodDateScanRequest) -> bool:
-    """五个条件全部是 AND；过滤发生在分页之前。"""
+    """分类条件全部是 AND；过滤发生在分页之前。
+
+    任何分类筛选存在时，``availability != ok`` 的行一律不命中 ——
+    "算不出来"不属于十神/十神组/五行角色/匹配状态中的任何一个桶。
+    无分类筛选的全集扫描仍保留这些行，用于暴露数据质量问题。
+    """
+    classification_filter = any((
+        request.ten_god, request.ten_god_group, request.wuxing_role, request.verdict,
+    ))
+    if classification_filter and row.availability != "ok":
+        return False
     if request.ten_god and row.ten_god != request.ten_god:
         return False
     if request.ten_god_group and row.ten_god_group != request.ten_god_group:
@@ -238,7 +271,10 @@ def _count_by(rows: list[TenGodDateScanRow], attribute: str) -> dict[str, int]:
 def scan_market_by_ten_god(db: Session, request: TenGodDateScanRequest) -> TenGodDateScanResponse:
     """执行 日期 → 全市场 十神扫描。"""
     _validate_request(request)
-    membership, universe_mode, universe_as_of = resolve_universe(db, request)
+    membership, universe_mode, universe_as_of, evidence = resolve_universe(db, request)
+    assumption = _FUTURE_UNIVERSE_ASSUMPTION.format(
+        universe_as_of=universe_as_of.isoformat(), evidence_source=evidence.detail,
+    )
     key = _cache_key(request, membership)
 
     def compute() -> dict[str, Any]:
@@ -279,15 +315,16 @@ def scan_market_by_ten_god(db: Session, request: TenGodDateScanRequest) -> TenGo
     if universe_mode == UNIVERSE_MODE_LATEST_KNOWN:
         warnings.append(Warning_(
             code="TEN_GOD_FUTURE_UNIVERSE_FROZEN",
-            message=_FUTURE_UNIVERSE_ASSUMPTION.format(universe_as_of=universe_as_of.isoformat()),
+            message=assumption,
             severity="warning",
         ))
     if cached["fallback"]:
         warnings.append(Warning_(
             code="TEN_GOD_SCAN_PROFILE_UNAVAILABLE",
             message=(
-                f"{cached['fallback']} 只股票缺少指定出生档案，ten_god 返回空、"
-                "未用 0 或默认十神冒充。"
+                f"{cached['fallback']} 只股票缺少指定出生档案，其 ten_god / ten_god_group / "
+                "wuxing_role / verdict 一律为 null（算不出来 ≠ 未知类别），"
+                "未用 0 或默认十神冒充，也不会被任何分类筛选命中。"
             ),
             severity="warning",
         ))
@@ -307,13 +344,14 @@ def scan_market_by_ten_god(db: Session, request: TenGodDateScanRequest) -> TenGo
             birth_profile_version=request.birth_profile_version,
             universe_version=request.universe,
             universe_digest=membership.digest,
+            universe_evidence_source=evidence.source,
+            universe_evidence_detail=evidence.detail,
+            universe_evidence_metadata_version=evidence.metadata_version,
         ),
         universe_mode=universe_mode,
         universe_as_of=universe_as_of,
-        future_universe_assumption=(
-            _FUTURE_UNIVERSE_ASSUMPTION.format(universe_as_of=universe_as_of.isoformat())
-            if universe_mode == UNIVERSE_MODE_LATEST_KNOWN else ""
-        ),
+        universe_evidence_source=evidence.source,
+        future_universe_assumption=assumption if universe_mode == UNIVERSE_MODE_LATEST_KNOWN else "",
         stock_total=len(membership.member_codes),
         valid_scan_count=len(valid_rows),
         filtered_count=len(filtered),

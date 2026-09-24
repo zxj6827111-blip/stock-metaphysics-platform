@@ -140,6 +140,16 @@ def _at_noon(day: date) -> datetime:
     return datetime(day.year, day.month, day.day, OBSERVATION_HOUR)
 
 
+def default_window_start(now: datetime | None = None) -> date:
+    """未指定 ``start_date`` 时的窗口起点：**上海**日历的今天。
+
+    刻意不用 ``date.today()`` —— 那取的是服务器本地时区。服务器跑在 UTC 时，
+    上海 00:30 会被算成前一天，用户看到的"未来 365 天"就少算一天。
+    """
+    reference = now if now is not None else datetime.now(SHANGHAI)
+    return reference.astimezone(SHANGHAI).date()
+
+
 def _next_allowed_jieqi(after: datetime, allowed: frozenset[str]) -> tuple[str, datetime]:
     """``after`` 之后第一个属于 ``allowed`` 的节气，返回（节气名, 精确时刻）。"""
     cursor = after
@@ -490,7 +500,7 @@ def build_stock_ten_god_calendar(
     }
     _validate_filters(filters)
 
-    window_start = start_date or date.today()
+    window_start = start_date or default_window_start()
     pillars, day_master, yong = _natal_chart(profile, window_start)
     wish = _wish_map(yong)
 
@@ -514,8 +524,10 @@ def build_stock_ten_god_calendar(
 
     displayed = natural_rows
     if view == "trading":
-        # 未知（None）不得静默当成休市：保留行并由 UI 显式提示覆盖不足。
-        displayed = [row for row in displayed if row.is_trading_day is not False]
+        # 产品口径「默认仅交易日」＝只显示已确认为交易日的行。
+        # null（日历未覆盖）不进此视图，但也不是被判定为休市：
+        # 底层 natural_rows 仍完整保留，切回 view=all 即可看到。
+        displayed = [row for row in displayed if row.is_trading_day is True]
     displayed = _apply_day_filters(displayed, filters)
 
     warnings = [Warning_(
@@ -537,8 +549,9 @@ def build_stock_ten_god_calendar(
         warnings.append(Warning_(
             code="TRADING_CALENDAR_OUT_OF_COVERAGE",
             message=(
-                f"{unknown} 个自然日超出 {exchange} 的实测与已公布日历覆盖，is_trading_day 返回 null；"
-                "「仅交易日」视图保留这些未知行，未当成休市。"
+                f"有 {unknown} 个日期超出 {exchange} 实测与已公布交易日历覆盖，"
+                "is_trading_day 返回 null，未作为休市处理；"
+                "它们不进入「仅交易日」视图，可在「全部日期」视图查看。"
             ),
             severity="warning",
         ))
@@ -555,8 +568,9 @@ def build_stock_ten_god_calendar(
         warnings.append(Warning_(
             code="TEN_GOD_TRADING_VIEW_IS_DISPLAY_ONLY",
             message=(
-                f"view=trading 只过滤显示，底层仍完整计算 {len(natural_rows)} 个自然日"
-                "（natural_day_count），非交易日的十神结果未丢失。"
+                f"view=trading 只显示已确认为交易日的行（本窗口 {len(displayed)} 行），"
+                f"底层仍完整计算 {len(natural_rows)} 个自然日（natural_day_count）；"
+                "非交易日与日历未覆盖日的十神结果均未丢失，切 view=all 可查看。"
             ),
             severity="info",
         ))
@@ -572,7 +586,7 @@ def build_stock_ten_god_calendar(
             timezone=profile.timezone,
             source=profile.source.source,
             data_quality_grade=ex_value(profile.data_quality.grade),
-            assumptions=[item.reason for item in profile.assumptions][:8],
+            assumptions=[item.reason for item in profile.assumptions],
             variant_mode=ex_value(profile.variant_mode),
         ),
         versions=TenGodCalendarVersions(
@@ -596,8 +610,10 @@ def build_stock_ten_god_calendar(
         displayed_day_count=len(displayed),
         trading_day_count=sum(1 for row in natural_rows if row.is_trading_day is True),
         unknown_trading_day_count=unknown,
-        calendar_window_start=window_start,
-        calendar_window_end=window_start + timedelta(days=max(days - 1, 0)),
+        calendar_window_start=window_start if days > 0 else None,
+        calendar_window_end=(
+            window_start + timedelta(days=days - 1) if days > 0 else None
+        ),
         trading_calendar=trading_status,
         view=view,
         filters_applied={key: value for key, value in filters.items() if value},
@@ -614,6 +630,7 @@ __all__ = [
     "TenGodCalendarError",
     "build_natal_profile",
     "build_stock_ten_god_calendar",
+    "default_window_start",
     "load_birth_profile",
     "segment_boundaries",
 ]
