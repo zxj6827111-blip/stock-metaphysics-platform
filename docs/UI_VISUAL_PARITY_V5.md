@@ -6,6 +6,20 @@
 
 > **CI 归属说明（2026-09-23 更新，未改动本页任何实测数据、门禁阈值与结论）**：应显式决策，`visual-regression` 已从 `V5.1 acceptance` workflow 的 job 列表中移除——这是**范围推迟**而非通过。 PR #3 的 CI 验收范围现为 backend core / ziwei / typecheck / build / functional e2e。本页 FAIL 状态**未解决**；本门禁（脚本、阈值、reference、e2e spec 全部原样）将在单独的 `ui-visual-parity` 分支上恢复为独立 CI job，并作为该分支工作的通过前提。
 
+> **2026-09-24（V3-B0）更新**：`ui-visual-parity` 分支上已新增独立 job
+> **`frontend-ui-structure`**（`.github/workflows/v51.yml`），在**生产构建**上跑几何与真实性门：
+> `npm ci` → `npm run build` → `next start -p 3112` → 显式 readiness → 五个结构 spec。
+> 原 `frontend-e2e`（`npm run dev` + seeded date-scan）**未替换、未缩小**。
+>
+> **区分两件事，不许互相顶替**：
+> * **普通 CI green**（5 个原 job）= Python/引擎/构建/功能 e2e 通过，**不含**视觉结构门；
+> * **UI structure CI green**（新增 job）= 首屏层级与不可用语义没退化，
+>   **不等于**像素差异门通过 —— 十页 pixel diff 仍是 FAIL，阈值 3% / 1.5% 一字未动。
+>
+> 为什么必须独立成 job：`frontend-e2e` 跑 `npm run dev`，dev 会注入 `<nextjs-portal>`
+> 与左下角指示器，在它上面宣称 production parity 是假的；且它只跑
+> `v51-regression` + `date-scan-v3`，从来**不覆盖** V3-A/V3-B 的几何门。
+
 ## 固定环境
 
 | 项目 | 值 |
@@ -21,6 +35,8 @@
 | clock | fixture 顶栏固定为 `2024-11-15 15:00:27` |
 | font | `document.fonts.ready` 后截图 |
 | diff command | `cd apps/web && npm run visual:diff` |
+| 取图构建 | **必须 production**（`npm run build` + `next start` 到独立 dist / 端口）；`visual-reference.spec.ts` 断言 `[data-build-mode="production"]` 存在且 `nextjs-portal` 不存在 |
+| 结构门是否依赖后端 | **不依赖**：全部走 fixture，`[data-fixture-mode="fixture"]` 有断言 |
 
 ## 门禁
 
@@ -31,6 +47,8 @@
   `test-results/visual-reference/anchors-<label>.json`，含 7 个关键矩形的
   x/y/width/height、与参考侧冻结值的 delta、以及 `firstFoldVisible`）。
   它**不是**通过/失败门，而是结构证据：像素比例掩盖的"区块掉出首屏"只有它能抓到。
+  三口径分列：`candidateMeasured` / `referenceMeasured` / `alignedComparable`；
+  参考侧为 null 的字段**不算 delta**，不补猜测值凑通过率。
 - `ssim`：仍未接入，不能声称通过
 - 人工视觉确认：**未批准**
 
@@ -43,6 +61,156 @@
 > 属于把开发工具混进像素差异（`docs/UI_INDEPENDENT_REVIEW_2026-09-22.md` §五）。
 > `visual-reference.spec.ts` 现在断言 `[data-build-mode="production"]` 存在且
 > `nextjs-portal` 不存在，并等待 `[data-charts-ready="true"]` 后才取图。
+
+### 2026-09-24（V3-B：07 模型分歧 + 10 时间窗口层级恢复，UI structure CI 上线）
+
+独立审核结论 `UI_V3A_1_INDEPENDENT_REVIEW = PASS_FOR_V3B`，05 正式冻结。
+本轮作用域只有 07 / 10，外加 CI 硬化与 05 的一条下界保护。
+02 / 05 / 08 / 首页 / 八字 / 紫微 / 因子 / 古籍 **一行未改**。
+
+#### V3-B0：`frontend-ui-structure` job
+
+见上面「CI 归属说明（2026-09-24 V3-B0 更新）」。要点：
+新增独立 job 跑**生产构建**上的结构门，原 `frontend-e2e`（dev + seeded date-scan）不动。
+本地先验证过：该 job 覆盖的五个 spec 在 production build 上全绿。
+
+#### 05 filterBar 下界保护（只改测试，UI 一行未动）
+
+V3-A.1 的 05 门只给了上界 `height <= reference + 24`。
+实测 54px 而参考 67px —— 也就是说**把它压成极薄的一条也照样绿**。
+本轮补下界 `height >= reference − 20`（≈47px）：容得下正常措辞波动，拒绝"整带被压扁"。
+`summaryMetrics` 的 72 vs 85 已由独立审核接受，本轮**不**继续补高度。
+
+#### 07 模型分歧中心：从"五段纵向堆叠"恢复成"三条横向带"
+
+参考图（V3-A 已重测冻结）是 `conflictBanner 250..352` / `mainRow 352..779` /
+`bottomRow 779..937` 三条带；改造前页面是
+`场景切换器 → 分歧摘要 → 观点总览 → ③两栏` 一路纵向堆到底。
+
+| 锚点 | reference | before（`9832f62`） | after（V3-B） | before Δ | after Δ | 门 |
+|---|---|---|---|---:|---:|---|
+| conflictBanner y / h | 250 / 102 | 294.5 / 111.4 | **249.3 / 102.8** | +44.5 / +9.4 | **−0.7 / +0.8** | ±16 |
+| mainRow y / h | 352 / 427 | 572.8 / 140.4¹ | **364.0 / 426.9** | +220.8 / −286.6 | **+12.0 / −0.1** | ±20 / ±24 |
+| bottomRow y / h | 779 / 158 | 844.5 / 242.6¹ | **794.9 / 175.6** | +65.5 / +84.6 | **+15.9 / +17.6** | ±24 |
+| 场景切换器足迹 | 非产品内容 | 独立整行 y=249.3 h=37.3 **w=1434** | 卡头内 y=258.3 h=20.5 **w=197** | 占一整行 | **不再占行** | — |
+| pageHero h | 122 | 122 | 122 | 0 | **0** | ±12 |
+
+¹ 改造前没有行级锚点，取旧页对应内容块（③ 两栏首卡 `conflict-matrix`、
+右列末卡 `historical-conflict`）的位置作参照 —— **不是**同一元素，只用于说明"堆了多深"。
+
+做法：
+- `conflict-scenario-switcher` 从独立横条移进 conflictBanner 的卡头右侧；
+  `scenario-no_conflict` / `scenario-conflict` / `scenario-engine_unavailable`
+  三个 testid 与链接全部保留（验收工具不再破坏被验收的东西）；
+- mainRow = 左（观点总览 + 对比矩阵 + 因子级冲突）/ 右（冲突归因 + 时间尺度与假设差异），
+  分栏 6:5 按参考左边界 x=245..1010（765/1411）取；
+- bottomRow = 左（冲突解释与研究限制）/ 右（历史类似冲突）；
+  mainRow 与 bottomRow 之间按参考图（两条带共用 y=779）收成 4px，
+  否则 12px 栏距累加会让 bottomRow 顶边卡在 +23.9（离 ±24 只剩 0.1px）。
+
+**未做（按 §七 冻结）**：参考图右半的多维度能力雷达**不画** —— 后端没有统一能力维度契约；
+历史冲突 `NOT_RUN` 不生成胜率 / 上涨概率 / 最佳模型；不为了贴参考 229 把产品侧栏改掉。
+
+**已登记 trade-off**：统一侧栏 210 vs 参考 229 ⇒ 07 整列 x 偏 −21px、带宽 +23px。
+横向比较一律看**内容宽度与相对分栏**，不看绝对 x。
+
+#### 10 时间窗口：拆成第一屏与第二层
+
+| 锚点 | reference | before（`9832f62`） | after（V3-B） | before Δ | after Δ | 门 |
+|---|---|---|---|---:|---:|---|
+| pageHero h | 106 | 122.0 | **106.0** | +16.0 | **0.0** | ±12 |
+| summaryTiles y / h | 228 / 150 | 247.3 / 269.6 | **231.3 / 138.9** | +19.3 / +119.6 | **+3.3 / −11.1** | ±16 / ±20 |
+| mainRow y / h | 388 / 247 | 528.9 / 354.1 | **382.1 / 263.3** | +140.9 / +107.1 | **−5.9 / +16.3** | ±20 / ±60² |
+| rightSummary y / h | 388 / 247 | 528.9 / 112.6 | **382.1 / 263.3** | +140.9 / −134.4 | **−5.9 / +16.3** | ±20 / ±60² |
+| 分栏比 | 959 : 477 ⇒ 66.8 : 33.2 | 995 : 427 ⇒ 70.0 : 30.0 | **949.9 : 472.1 ⇒ 66.8 : 33.2** | 偏 3.2pp | **0.0pp** | ±3pp |
+| 主图 SVG 宽 | — | 993 | **948**（卡宽 950） | — | 占卡宽 99.8% | ≥95% |
+| 主图序列绘制跨度 | — | 982/993 = 98.9% | **888/948 = 93.7%** | — | — | ≥60% |
+| 1440 横向溢出 | — | 0 | **0** | — | **0** | ≤2px |
+
+² 参考侧 `mainRow` / `rightSummary` 底边只到 frac=0.73（与图内网格线混叠），
+fixture 标 `confidence=medium` ⇒ 高度容差放宽到 ±60，
+并在断言消息里写明"参考值本身不确定"，不是"我们允许差这么多"。
+
+做法：
+- 热力图与周度排名从主行左右栏里**拿出来**，放进新的 `second-layer` 带 ——
+  它们塞在第一屏是把 247px 主行撑到 354px 的直接原因；
+- summaryTiles 首屏只留四张卡 + 一行状态（研究状态紧凑徽标含原始码 + 三模型方向 + 运限假设），
+  聚合口径 / 交易日历三层覆盖 / 来源版本 / 风险解释下移到第二层审计卡，
+  **内容一行未删**（`timeline-source-method` 仍在，只是换承载位置）；
+- Hero 用 `statistics` 档 + `heroMinHeight={88}` ⇒ 88+16+2 = 106 逐像素贴参考。
+  不为此新增第四档变体：十张参考图 Hero 高度是 94/102/106/109/117/121/124/141 的连续谱。
+
+**未做（按 §十三 / §十五 / §十六 冻结）**：月度不插值成日线、缺失不填 0、不发明"流周"
+（判据是**粒度切换器里没有周这一档**，而不是正文不许出现"流周"二字 ——
+页面必须写"传统术数没有「流周」这一层"这条边界声明）；
+「关键触发因子 / 高中权重 / 仓位建议」不生成，改为一条明确的
+`窗口因子归因：不可用`；周度排名只描述规则强度，不升级成投资排名。
+
+#### 门禁不是空门：变异构建
+
+四处故意退化（07 banner 前加 60px 假带、10 主行卡内加 400px、10 分栏改回 50/50、
+逐日序列截断到 5 个点），重新 build + start 跑真实 spec ⇒ **5 failed / 7 passed**：
+
+```
+conflictBanner.top：candidate 321.3 vs reference 250 超出 ±16
+mainRow.height：candidate 663.3 vs reference 247 超出 ±60（参考底边 frac=0.73、confidence=medium）
+左栏占比 50.0% 偏离参考 66.8% 超过 3pp
+主行又被第二层内容撑高了
+x 轴标签里没有逐日覆盖的末日 12-13（序列被截短：摘要带说有 12-13，图上没有）
+```
+
+第 5 条是本轮补的：只测"序列线覆盖绘图区 ≥60%"**抓不到数据被截短** ——
+category 轴会把 5 个点也铺满整个宽度。改成拿摘要带的「逐日覆盖 … ~ 末日」
+与 x 轴标签交叉核对，才是能真正抓住"20 个点只画 5 个"的判据。
+
+#### 十页像素差异（阈值 3% / 1.5% 一字未动，十页仍全 FAIL）
+
+| 页 | V3-A.1 | V3-B | Δpp |
+|---|---:|---:|---:|
+| 01-home | 46.46% | 46.46% | 0 |
+| 02-overview | 49.66% | 49.66% | 0 |
+| 03-bazi | 45.59% | 45.59% | 0 |
+| 04-ziwei | 40.41% | 40.41% | 0 |
+| **05-backtest** | 44.13% | **44.13%** | **0** |
+| 06-factors | 43.57% | 43.57% | 0 |
+| **07-conflicts** | 54.74% | **54.11%** | **−0.63** |
+| 08-huangli | 55.04% | 55.04% | 0 |
+| 09-evidence | 44.51% | 44.51% | 0 |
+| **10-timeline** | 45.05% | **46.89%** | **+1.84** |
+
+只有 07 / 10 变化 ⇒ 共享组件（`TopBar` / `ResearchPage` 新增可选 `heroMinHeight`）
+**没有回归任何冻结页**；05 的全部锚点与 V3-A.1 逐字段一致（脚本比对，非目测）。
+
+10 升高 1.84pp 的原因与 V3-A.1 记录的同类现象一致：
+把热力图与周度排名从第一屏挪走之后，第一屏右栏（窗口解释）从 112px 长到 263px 去贴参考的
+等高带，而该处参考内容是"最佳布局窗口 / 最佳观察窗口 / 风险提示期间"三条**演示结论**，
+本系统未选中窗口时只能给空态。像素比例奖励"内容像不像"，不奖励"结构对不对"。
+
+#### 验证（Level 2 + 生产构建 E2E；UI structure CI 已提交待远端复跑）
+
+- `npm run typecheck` 0 错误；`NEXT_DIST_DIR=.next-e2e npm run build` 通过。
+- 全量本地 E2E：**201 passed / 0 failed / 23 skipped**（V3-A.1 是 188；本轮新增 13 条 V3-B 用例）。
+- `e2e/v3a-backtest.spec.ts` 9 条全过（含新加的 filterBar 下界）；
+  `e2e/v3b-visual.spec.ts` 13 条全过；`viewport-1440-pages.spec.ts:121` 阈值 `<=900` 未动。
+- `visual:anchors`：07 `candidateMeasured=8 / referenceMeasured=8 / alignedComparable=8`；
+  10 同为 8/8/8。参考侧 null 的字段不计 delta。
+- 后端仍是隔离副本（sqlite backup API，源库 `mode=ro`），收尾已杀掉 8000 并删副本。
+
+#### 本轮新经验
+
+1. **验收工具会破坏被验收的东西。** 07 的场景切换器是给截图用的，
+   它自己占了 37px 一整行，直接把摘要带从参考的 250 推到 294.5。
+   以后给"可切换场景"这类验收钩子加位置约束：默认进卡头或 `<details>`，不许新增整行。
+2. **禁词式断言会把披露文字判成违规。** 我写 `not.toMatch(/流周/)`、
+   `not.toMatch(/最佳模型/)`，结果页面**必须**存在的边界声明
+   （"传统术数没有「流周」这一层"、"不会给出最佳模型"）自己触发了失败。
+   真实性门应该断言**数据结构不存在**（没有那一档、没有那张表、没有那个徽标），
+   不是断言**字数不存在**。
+3. **折叠内容不能用 `toBeVisible()`。** `<details>` 关闭时其正文不在渲染树里，
+   `innerText()` 也拿不到。判据分两层：先 `toHaveCount(1)` 证明没被删，
+   再展开断言内容 —— 或直接读 `textContent`。
+4. **"覆盖度"类几何判据有盲区。** 截断数据在 category 轴上照样铺满宽度，
+   必须找一条**独立来源**（这里是摘要带的日期区间）交叉核对。
 
 ### 2026-09-24（V3-A.1：05 历史验证收口，删除两条过大 semantic exception）
 
