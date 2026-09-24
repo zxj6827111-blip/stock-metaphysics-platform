@@ -64,8 +64,26 @@ const BIRTH_BASIS_LABEL: Record<string, string> = {
   custom: "自定义基准",
 };
 
-export function birthBasisLabel(basis: string | null | undefined): string {
-  if (!basis) return "—";
+/**
+ * 研究窗口（horizon）→ 中文表达。
+ *
+ * 之前 `buildContext` / `buildContextFromMulti` 都把这里写死成「20 交易日」，
+ * 于是用户在上下文栏选 60d、请求体带 `horizon=60d`，页面上却仍显示 20 交易日，
+ * 导出的快照里也没有这个字段 —— 同一份分析在三个地方身份不一致。
+ * 现在取后端回传的 `analysis.horizon`；后端没回传时如实显示「未指定」，
+ * 不拿默认值冒充（AGENTS.md §2.4）。
+ */
+const HORIZON_LABEL: Record<string, string> = {
+  "20d": "20 交易日",
+  "60d": "60 交易日",
+};
+
+export function horizonLabel(horizon: string | null | undefined): string {
+  if (!horizon) return "未指定";
+  return HORIZON_LABEL[horizon] ?? horizon;
+}
+
+export function birthBasisLabel(basis: string | null | undefined): string {  if (!basis) return "—";
   return BIRTH_BASIS_LABEL[basis] ?? basis;
 }
 
@@ -109,7 +127,8 @@ export function buildContext(
       assumptions: b.assumptions ?? [],
     },
     asOf: (asOfOverride ?? analysis.factors.as_of).replace("T", " "),
-    horizon: "20 交易日",
+    // 单引擎响应不带 horizon 字段：如实显示「未指定」，不拿默认窗口冒充
+    horizon: horizonLabel((analysis as { horizon?: string }).horizon),
     quality: b.data_quality?.grade ?? "B",
   };
 }
@@ -734,7 +753,7 @@ export function buildContextFromMulti(analysis: ApiMultiAnalysis): StockContext 
       assumptions: b.assumptions ?? [],
     },
     asOf: (analysis.as_of ?? "").replace("T", " "),
-    horizon: "20 交易日",
+    horizon: horizonLabel(analysis.horizon),
     quality: b.data_quality?.grade ?? "B",
   };
 }
@@ -832,7 +851,8 @@ export const CONTROL_RESULT_LABEL: Record<string, { label: string; tone: string 
  */
 export function toEngineCardsFromOpinions(
   analysis: ApiMultiAnalysis,
-  fixtureSuffix = "",
+  /** 分析上下文后缀（fixture + birthBasis + horizon + asOf），见 `lib/analysisContext.ts`。 */
+  contextSuffix = "",
 ): EngineCardView[] {
   const order: { key: "bazi" | "ziwei" | "huangli"; display: string; route: string }[] = [
     { key: "bazi", display: "八字模型", route: "bazi" },
@@ -858,7 +878,7 @@ export function toEngineCardsFromOpinions(
         ? positives[0] ?? negatives[0] ?? "该引擎未给出明细理由"
         : op?.note ?? "该引擎本次不可用（score = null，不计入共识分母）",
       unavailableReason: ok ? "" : (op?.note ?? "本次分析未产出该引擎结果"),
-      detailHref: `/stock/${analysis.stock.stock_code}/${route}${fixtureSuffix}`,
+      detailHref: `/stock/${analysis.stock.stock_code}/${route}${contextSuffix}`,
       accent: key,
     } satisfies EngineCardView;
   });

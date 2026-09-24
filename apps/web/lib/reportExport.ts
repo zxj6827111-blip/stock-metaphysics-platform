@@ -26,7 +26,10 @@ export type ExportFormat = "markdown" | "html" | "json";
 export interface ExportTarget {
   analysisId: string;
   /** 分析上下文快照（导出期间不随页面状态变化）。 */
-  snapshot: Pick<ApiMultiAnalysis, "stock" | "birth_profile" | "as_of" | "variant_mode"> & {
+  snapshot: Pick<
+    ApiMultiAnalysis,
+    "stock" | "birth_profile" | "as_of" | "variant_mode" | "horizon"
+  > & {
     opinions?: ApiMultiAnalysis["opinions"];
     consensus?: ApiMultiAnalysis["consensus"];
     conflict?: ApiMultiAnalysis["conflict"];
@@ -52,6 +55,7 @@ export function buildExportTarget(
       birth_profile: analysis.birth_profile,
       as_of: analysis.as_of,
       variant_mode: analysis.variant_mode,
+      horizon: analysis.horizon,
       opinions: analysis.opinions,
       consensus: analysis.consensus,
       conflict: analysis.conflict,
@@ -139,6 +143,9 @@ function fixturePayload(target: ExportTarget) {
     },
     as_of: s.as_of,
     variant_mode: s.variant_mode,
+    // 导出身份必须与页面显示、请求参数一致：缺了 horizon 就会出现
+    // "页面选 60d、报告里查不到窗口"的三份身份互不相认。
+    horizon: s.horizon ?? null,
     birth_profile: {
       basis: s.birth_profile?.birth_basis ?? "",
       datetime: s.birth_profile?.birth_datetime ?? "",
@@ -208,7 +215,7 @@ function fixtureHtml(target: ExportTarget): string {
 </style></head><body>
 <div class="banner">${esc(DEMO_BANNER)}</div>
 <h1>${esc(p.stock.name)} ${esc(p.stock.code)} · 演示报告</h1>
-<div class="muted">分析 ID：${esc(p.analysis_id)} ｜ 基准日：${esc(String(p.as_of))} ｜ 变体：${esc(String(p.variant_mode))}</div>
+<div class="muted">分析 ID：${esc(p.analysis_id)} ｜ 基准日：${esc(String(p.as_of))} ｜ 变体：${esc(String(p.variant_mode))} ｜ 研究窗口：${esc(String(p.horizon ?? "未指定"))}</div>
 
 <h2>出生档案</h2>
 <table><tr><th>出生模型</th><td>${esc(p.birth_profile.basis)}</td></tr>
@@ -257,6 +264,7 @@ function fixtureMarkdown(target: ExportTarget): string {
   L.push(`- 分析 ID：\`${p.analysis_id}\``);
   L.push(`- 基准日：${p.as_of}`);
   L.push(`- 变体：${p.variant_mode}`);
+  L.push(`- 研究窗口：${p.horizon ?? "未指定"}`);
   L.push(`- 导出时间：${p.exported_at}`, "");
   L.push("## 出生档案", "");
   L.push(`- 出生模型：${p.birth_profile.basis}`);

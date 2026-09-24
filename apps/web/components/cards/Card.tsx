@@ -2,6 +2,7 @@
 
 /** 卡片基元：所有页面统一复用的容器与标题栏。 */
 
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { IconArrowRight } from "../shell/Icons";
@@ -11,16 +12,20 @@ export function Card({
   className = "",
   quiet,
   testId,
+  anchor,
 }: {
   children: ReactNode;
   className?: string;
   quiet?: boolean;
   testId?: string;
+  /** 结构测量锚点（见 scripts/visual-anchors.mjs）。 */
+  anchor?: string;
 }) {
   return (
     <section
       className={`smp-card ${quiet ? "smp-card--quiet" : ""} ${className}`}
       data-testid={testId}
+      data-anchor={anchor}
     >
       {children}
     </section>
@@ -43,6 +48,21 @@ export function CardBody({
   );
 }
 
+/**
+ * 卡片右上角的动作。
+ *
+ * `href` 与 `onClick` 至少要有一个：都没有时**不渲染任何可点样式**。
+ * 之前这里只要传了 `label` 就画出一个带箭头的 `<button>`，于是页面上出现
+ * 一批"查看详情 / 历史验证详情"点下去毫无反应的假按钮（研究终端里这属于
+ * 能力虚报，不只是样式问题）。
+ */
+export interface CardHeaderAction {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  testId?: string;
+}
+
 export function CardHeader({
   icon,
   title,
@@ -53,9 +73,13 @@ export function CardHeader({
   icon?: ReactNode;
   title: string;
   right?: ReactNode;
-  action?: { label: string; onClick?: () => void };
+  action?: CardHeaderAction;
   dense?: boolean;
 }) {
+  const actionable = action && (action.href || action.onClick);
+  const actionStyle = {
+    color: "var(--color-ink-muted)",
+  } as const;
   return (
     <header className={`smp-card-header ${dense ? "py-2" : ""}`}>
       <h2 className="smp-card-title">
@@ -64,12 +88,23 @@ export function CardHeader({
       </h2>
       <div className="ml-auto flex items-center gap-3">
         {right}
-        {action ? (
+        {actionable && action?.href ? (
+          <Link
+            href={action.href}
+            className="flex items-center gap-1 text-[11.5px] transition-opacity hover:opacity-80"
+            style={actionStyle}
+            data-testid={action.testId}
+          >
+            {action.label}
+            <IconArrowRight size={13} />
+          </Link>
+        ) : actionable ? (
           <button
             type="button"
-            onClick={action.onClick}
+            onClick={action?.onClick}
             className="flex items-center gap-1 text-[11.5px] transition-opacity hover:opacity-80"
-            style={{ color: "var(--color-ink-muted)" }}
+            style={actionStyle}
+            data-testid={action?.testId}
           >
             {action.label}
             <IconArrowRight size={13} />

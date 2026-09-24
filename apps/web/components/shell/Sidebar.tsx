@@ -10,6 +10,9 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+
+import { analysisContextSuffix } from "@/lib/analysisContext";
+
 import { SidebarMountain } from "./Decorations";
 import {
   IconBook,
@@ -71,8 +74,15 @@ const NAV: { group: string; items: NavItem[] }[] = [
 export function Sidebar({ activeKey }: { activeKey?: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const fixture = searchParams?.get("fixture");
-  const suffix = fixture ? `?fixture=${fixture}` : "";
+
+  /**
+   * 跨页面导航必须带上**整份分析上下文**，不只是 fixture。
+   *
+   * 之前只有 fixture 被拼进去，于是从"60d + ipo_date + 指定基准日"的综合研判
+   * 点侧栏进八字页，落地页会静默回落到默认上下文 —— 用户在两个页面看到的
+   * 其实是两次不同的分析，却没有任何提示。
+   */
+  const suffix = analysisContextSuffix(searchParams);
 
   // 仅在已经进入个股页面时沿用当前标的；没有标的则进入统一选择入口。
   const match = pathname.match(/\/stock\/([^/]+)/);
@@ -106,6 +116,7 @@ export function Sidebar({ activeKey }: { activeKey?: string }) {
         background:
           "linear-gradient(180deg, rgba(13,26,37,0.92) 0%, rgba(9,20,31,0.96) 100%)",
       }}
+      data-anchor="sidebar"
     >
       <nav className="smp-scroll flex-1 overflow-y-auto py-2">
         {NAV.map((group, gi) => (

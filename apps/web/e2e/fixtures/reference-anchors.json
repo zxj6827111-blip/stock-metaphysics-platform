@@ -1,0 +1,87 @@
+{
+  "_about": "参考图（doc/ui-reference/*.png，1672×941）关键矩形的一次性人工核对结果。",
+  "_method": "对参考 PNG 做边框色长程连续段检测（--color-border #1E3444，容差 |ΔRGB| 之和 < 34，内容列 x=250..1660，强度 > 0.55），得到候选边界行后逐页人工归属。侧栏宽度取 x=200..261 内列平均亮度最大跳变处（y=300..900）。顶栏高度取 y=40..80 内最强边框行。",
+  "_why_frozen": "检测器只在制作本文件时跑一次。验收时**不再重跑**：参考图是噪声较大的渲染图，自动分段在个别页面上会把 Hero 与上下文栏认成同一条边，让门禁数字随检测器实现漂移。这里保留的是人工核对后的值，检测不到的如实写 null，不做估计。",
+  "_provenance": "与 docs/ui-implementation.md §6.5 的 Phase 1 实测（顶栏 67px、侧栏 231px）一致；本页数值是同一口径的逐页复核。",
+  "01-home": {
+    "sidebarWidth": 230,
+    "topbarHeight": null,
+    "pageHeroBottom": null,
+    "stockContextBarBottom": null,
+    "primaryCardTop": null,
+    "note": "首页 Hero 无底边框（装饰带直接接搜索卡），整页只有 y=395 一条强边框，无法唯一定位 Hero/上下文栏；首页不在本阶段整改范围，如实留空。"
+  },
+  "02-overview": {
+    "sidebarWidth": 231,
+    "topbarHeight": 60,
+    "pageHeroBottom": null,
+    "stockContextBarBottom": null,
+    "primaryCardTop": null,
+    "detectedUnattributedEdges": [284],
+    "note": "综合研判页的 Hero 与上下文栏在参考图里都没有可检测的整宽底边（Hero 是山水装饰带，上下文栏边框被右侧金色按钮打断）。y=284 是首行卡片区域内的横向分隔线，归属未确定，因此不拿来当 Hero/卡片边界用。"
+  },
+  "03-bazi": {
+    "sidebarWidth": 231,
+    "topbarHeight": 66,
+    "pageHeroBottom": 183,
+    "stockContextBarBottom": 230,
+    "primaryCardTop": null,
+    "note": "八字页 Hero 与上下文栏都有清晰整宽底边。"
+  },
+  "04-ziwei": {
+    "sidebarWidth": 220,
+    "topbarHeight": 59,
+    "pageHeroBottom": 132,
+    "stockContextBarBottom": 200,
+    "primaryCardTop": null,
+    "note": "紫微页 y=132 与 y=200 两条边的归属由人工判读（132 = Hero 底，200 = 上下文栏底）；侧栏检测值 220 比其他页窄 8-15px，属参考图自身不一致，不强改成统一值。"
+  },
+  "05-backtest": {
+    "sidebarWidth": 224,
+    "topbarHeight": 60,
+    "pageHeroBottom": 155,
+    "stockContextBarBottom": 208,
+    "primaryCardTop": 298,
+    "note": "历史验证页在 208 与 286/298 之间还有查询条自身的边框；primaryCardTop 取 298（指标磁贴行的上边）。"
+  },
+  "06-factors": {
+    "sidebarWidth": 228,
+    "topbarHeight": 61,
+    "pageHeroBottom": 202,
+    "stockContextBarBottom": 238,
+    "primaryCardTop": 267,
+    "note": "因子字典页 202/238 分别是 Hero 与筛选条底边；267 是左右分栏卡片的顶边。"
+  },
+  "07-conflicts": {
+    "sidebarWidth": 229,
+    "topbarHeight": 65,
+    "pageHeroBottom": 186,
+    "stockContextBarBottom": 239,
+    "primaryCardTop": null,
+    "note": "模型分歧中心 186 = Hero 底，239 = 上下文栏底；其下是金色告警横幅而非普通卡片。"
+  },
+  "08-huangli": {
+    "sidebarWidth": 221,
+    "topbarHeight": 62,
+    "pageHeroBottom": 171,
+    "stockContextBarBottom": 220,
+    "primaryCardTop": 230,
+    "note": "黄历页三条边都很清晰（强度 0.96 / 1.00 / 0.88）。Hero 高 = 171-62 = 109px，上下文栏高 = 220-171 = 49px，首个主内容区从 y=230 开始。这是本阶段黄历首屏重构的对齐目标。"
+  },
+  "09-evidence": {
+    "sidebarWidth": 235,
+    "topbarHeight": 61,
+    "pageHeroBottom": 163,
+    "stockContextBarBottom": null,
+    "primaryCardTop": null,
+    "note": "古籍证据页只检测到 Hero 底边；上下文栏与检索条的边框在参考图里被控件打断。"
+  },
+  "10-timeline": {
+    "sidebarWidth": 223,
+    "topbarHeight": 61,
+    "pageHeroBottom": 168,
+    "stockContextBarBottom": 219,
+    "primaryCardTop": null,
+    "note": "时间窗口页 168 = Hero 底，219 = 上下文栏底。"
+  }
+}
