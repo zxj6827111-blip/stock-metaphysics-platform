@@ -20,12 +20,15 @@ from apps.api.deps import db_session
 from apps.api.errors import InvalidRequestError, NotFoundError
 from src.core.config import settings
 from src.core.orchestration.ten_god_calendar import TenGodCalendarError, build_stock_ten_god_calendar
+from src.core.orchestration.ten_god_date_scan import scan_market_by_ten_god
 from src.core.relations.ten_god import catalog_response
 from src.core.schemas.ten_god import (
     DEFAULT_DAYS,
     DEFAULT_MONTHS,
     DEFAULT_YEARS,
     TenGodCatalogResponse,
+    TenGodDateScanRequest,
+    TenGodDateScanResponse,
     TenGodStockCalendarResponse,
 )
 
@@ -82,5 +85,25 @@ def stock_ten_god_calendar(
         if "出生档案" in message:
             raise NotFoundError(message) from exc
         raise InvalidRequestError(message) from exc
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+
+
+@router.post(
+    "/date-scan",
+    response_model=TenGodDateScanResponse,
+    summary="指定日期 × 全市场十神扫描（可按十神/十神组/喜用筛选）",
+)
+def run_ten_god_date_scan(
+    payload: TenGodDateScanRequest, db: Session = Depends(db_session)
+) -> TenGodDateScanResponse:
+    """权威流日十神 = ``ten_god(股票日主, 目标日日干)``。
+
+    与 ``POST /api/v1/research/date-scan`` 的区别只在筛选维度：本端点可按
+    十神 / 十神组 / 五行角色 / 匹配状态过滤，且 ``relation_type`` 是可选的
+    AND 复合条件。两个端点对同一股票同一天给出完全相同的十神结果。
+    """
+    try:
+        return scan_market_by_ten_god(db, payload)
     except ValueError as exc:
         raise InvalidRequestError(str(exc)) from exc
