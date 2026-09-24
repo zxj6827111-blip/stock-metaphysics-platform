@@ -12,17 +12,28 @@
 > （`v3a-backtest` / `v3b-visual` / `viewport-1440-pages` / `r1-refinement`）。
 > 原 `frontend-e2e`（`npm run dev` + seeded date-scan）**未替换、未缩小**。
 >
-> **`ui-parity-r1.spec.ts` 首次上远端就红，已从本 job 移出并登记为独立工作包**
-> （run `36003562575`：58 passed / 7 failed，7 条**全部**在该 spec 内；
-> 任务书原本就把它列为"如成本允许"的可选项）：
+> **`ui-parity-r1.spec.ts` 已从本 job 移出（任务书把它列为"如成本允许"的可选项）**：
+> 远端首跑 run `36003562575` = 58 passed / 7 failed，7 条**全部**在该 spec 内。
+> 两类原因都如实登记，不靠放宽阈值掩盖：
 >
 > | 类 | 用例 | 现象 | 判定 |
 > |---|---|---|---|
 > | A | `:55`、`:110`、`:126`、`:246`、`:272`、`:313` | `SyntaxError: Cannot use import statement outside a module` —— 这些用例在 **Node 侧** `await import("../lib/…")` 动态导入 `testDir` 之外的 TS 模块 | Windows/Node 24 本地全绿（清掉 Playwright 转译缓存后复测仍绿），Ubuntu/Node 20 干净环境红 ⇒ **平台相关**；要进 CI 得先改成静态导入 |
 > | B | `:470`「02 第二行两张卡与第三行卡顶 ±12px」 | `关键证据卡高 304.625 vs 参考 278`（Δ 26.6 > 12），而 Windows 本地同一断言在 ±12 内 | 02 是本轮**未改**的冻结页 ⇒ 绝对像素门对**字体/平台**敏感，不是层级退化 |
 >
-> 两类都**不靠放宽阈值掩盖**：A 要动导入方式，B 要么锁字体度量、要么把判据从绝对像素
-> 改成相对量。已登记在下方「遗留」。
+> **把 ui-parity-r1 移出后仍红一次**（run `36005061127` = 39 passed / 1 failed）：
+> `r1-refinement.spec.ts:101` 报 `/stock/600519/overview @ 1440x900 未渲染上下文栏`，
+> `boundingBox()` 返回 null。根因既不是本轮改动也不是缺后端（该用例走 fixture），
+> 而是**缺 readiness 等待**：生产构建的流式 SSR 先把整页放进 `<div hidden id="S:0">`
+> 再由 `$RC` 搬进 Suspense 边界，这个窗口里 `getByTestId(...).first()` 命中的是
+> **隐藏副本** —— 元素存在但不可见，于是 `boundingBox()` 不超时、直接返回 null，
+> 被读成"未渲染"。本地快路径碰不到，Ubuntu CI 稳定复现。
+> 该文件 `:139` 的注释早就记过这个坑，`:141 / :177 / :190` 都加了等待，唯独 `:101` 漏了。
+> 已按同一做法补上（提交 `103ed21`），**未放宽 82px 阈值、未 skip、未改 viewport**。
+>
+> 这一段的价值正在这里：把结构门放上远端**第一次就抓出两条本地永远看不见的缺陷**
+> （平台相关的动态导入、以及一个只在慢路径上暴露的竞态）。
+> 这也是"本地全绿"不能替代远端结构门的实证。
 >
 > **区分两件事，不许互相顶替**：
 > * **普通 CI green**（5 个原 job）= Python/引擎/构建/功能 e2e 通过，**不含**视觉结构门；
@@ -202,7 +213,7 @@ category 轴会把 5 个点也铺满整个宽度。改成拿摘要带的「逐�
 等高带，而该处参考内容是"最佳布局窗口 / 最佳观察窗口 / 风险提示期间"三条**演示结论**，
 本系统未选中窗口时只能给空态。像素比例奖励"内容像不像"，不奖励"结构对不对"。
 
-#### 验证（Level 2 + 生产构建 E2E；UI structure CI 已提交待远端复跑）
+#### 验证（Level 2 + 生产构建 E2E + **远端 UI structure CI 已复跑通过**）
 
 - `npm run typecheck` 0 错误；`NEXT_DIST_DIR=.next-e2e npm run build` 通过。
 - 全量本地 E2E：**201 passed / 0 failed / 23 skipped**（V3-A.1 是 188；本轮新增 13 条 V3-B 用例）。
@@ -210,7 +221,13 @@ category 轴会把 5 个点也铺满整个宽度。改成拿摘要带的「逐�
   `e2e/v3b-visual.spec.ts` 13 条全过；`viewport-1440-pages.spec.ts:121` 阈值 `<=900` 未动。
 - `visual:anchors`：07 `candidateMeasured=8 / referenceMeasured=8 / alignedComparable=8`；
   10 同为 8/8/8。参考侧 null 的字段不计 delta。
+- **远端 CI run [`36006364436`](https://github.com/zxj6827111-blip/stock-metaphysics-platform/actions/runs/36006364436)：6/6 job conclusion = success**，
+  含新增的 `frontend UI structure (production build)`（该 job 内 40 passed）。
+  前两次尝试各红一轮（`36003562575` 7 条、`36005061127` 1 条），
+  各抓出一条本地跑不出来的缺陷 —— 见上方 CI 归属说明。
 - 后端仍是隔离副本（sqlite backup API，源库 `mode=ro`），收尾已杀掉 8000 并删副本。
+  复现远端条件时**必须把本地后端停掉再跑**：本轮第一次"本地 40 passed"是带着后端跑的，
+  并不等价于 CI 环境，掩盖了 `r1-refinement:101` 的竞态。
 
 #### 本轮新经验
 
@@ -227,6 +244,13 @@ category 轴会把 5 个点也铺满整个宽度。改成拿摘要带的「逐�
    再展开断言内容 —— 或直接读 `textContent`。
 4. **"覆盖度"类几何判据有盲区。** 截断数据在 category 轴上照样铺满宽度，
    必须找一条**独立来源**（这里是摘要带的日期区间）交叉核对。
+5. **"本地全绿"不能替代远端结构门 —— 这次是实证，不是口号。**
+   把结构门放上 Ubuntu CI 的第一轮就抓出两条 Windows 本地永远复现不了的缺陷：
+   平台相关的 Node 侧动态导入，和一个只在慢路径上暴露的流式 SSR 竞态
+   （`boundingBox()` 命中隐藏副本时**不超时、直接返回 null**，
+   所以它长得像"元素没渲染"而不是"等待失败"，极易误诊为产品 bug）。
+   附带一条操作纪律：**本地复现 CI 条件时必须先把本地后端停掉** ——
+   本轮第一次"本地 40 passed"是带着隔离后端跑的，正好把那条竞态掩盖掉了。
 
 #### V3-B 遗留（已登记，未自行绕门）
 
