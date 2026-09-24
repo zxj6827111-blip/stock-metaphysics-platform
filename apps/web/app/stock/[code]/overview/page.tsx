@@ -42,6 +42,7 @@ import { FIXTURE_QUERY_VALUE, multiAnalysisFixture, overviewFixture } from "@/li
 import {
   buildContextFromMulti,
   buildOverview,
+  horizonLabel,
   pickEvidenceSummary,
   toConflictView,
   toConsensusView,
@@ -58,7 +59,16 @@ import {
   type ApiMultiAnalysis,
 } from "@/lib/api";
 import { buildExportTarget } from "@/lib/reportExport";
-import { DEFAULT_BIRTH_BASIS, invalidateAnalysis, loadMultiAnalysis } from "@/lib/analysisStore";
+import {
+  DEFAULT_ANALYSIS_VARIANT,
+  DEFAULT_BIRTH_BASIS,
+  DEFAULT_HORIZON,
+  invalidateAnalysis,
+  loadMultiAnalysis,
+  type AnalysisKey,
+} from "@/lib/analysisStore";
+import { analysisContextSuffix, withAnalysisContext } from "@/lib/analysisContext";
+import { useAsOfParam } from "@/lib/useAsOfParam";
 import { useBirthBasisParam } from "@/lib/useBirthBasisParam";
 import { useHorizonParam } from "@/lib/useHorizonParam";
 import { researchStatusLabel } from "@/components/shell/PageState";
@@ -74,12 +84,25 @@ function OverviewInner() {
   // 出生模型同样属于分析上下文：切换即重新分析
   const birthBasis = useBirthBasisParam();
   const horizon = useHorizonParam();
+  // 基准日也是分析身份的一部分：不带 asOf 就无法复核"当时那个时点的盘"
+  const asOf = useAsOfParam();
+  /**
+   * 这份分析的唯一身份。
+   *
+   * 强制重算与读取**必须用同一个对象**：之前 force 分支只传
+   * `{ code, variant }`，读取却带 `birthBasis` / `horizon`，两个 key 不同，
+   * 于是点「重新计算」清掉的是另一条缓存，页面照样命中旧分析结果。
+   */
+  const analysisKey = useMemo<AnalysisKey>(
+    () => ({ code, variant: DEFAULT_ANALYSIS_VARIANT, asOf, birthBasis, horizon }),
+    [code, asOf, birthBasis, horizon],
+  );
   // 演示样本冻结在默认出生模型上：换成别的假设时**不能用它冒充**，
   // 明确显示为「演示模式不适用」并给出进入真实模式的入口。
-  const isFixtureBasisUnsupported = fixture && birthBasis !== DEFAULT_BIRTH_BASIS;
+  const isFixtureContextUnsupported = fixture && birthBasis !== DEFAULT_BIRTH_BASIS;
 
   const [data, setData] = useState<OverviewPageData | null>(
-    isMoutaiFixture ? overviewFixture : null,
+    isMoutaiFixture ? fixtureOverview(horizon) : null,
   );
   const [loading, setLoading] = useState(!isMoutaiFixture && !isUnsupportedFixture);
   const [error, setError] = useState<string | null>(null);
@@ -99,15 +122,17 @@ function OverviewInner() {
   }>({ supporting: [], counter: [], neutral: [] });
 
   const load = useCallback(async (force = false) => {
-    if (isFixtureBasisUnsupported) {
+    if (isFixtureContextUnsupported) {
       setLoading(false);
       return;
     }
     if (isMoutaiFixture) {
-      setData(overviewFixture);
+      // `horizon` 只是登记标签、不改变盘面，所以演示样本按当前登记的窗口回显，
+      // 保证「页面显示 / 请求上下文 / 导出快照」三处是同一个值。
+      setData(fixtureOverview(horizon));
       // 演示模式同样要有可导出的上下文快照：`multiAnalysisFixture` 是
       // 与真实接口同结构的冻结样本，导出时会逐份标注"演示数据"。
-      setMultiAnalysis(multiAnalysisFixture);
+      setMultiAnalysis({ ...multiAnalysisFixture, horizon });
       setLoading(false);
       return;
     }
@@ -116,7 +141,7 @@ function OverviewInner() {
       return;
     }
     if (force) {
-      invalidateAnalysis({ code, variant: "forward" });
+      invalidateAnalysis(analysisKey);
     }
     setLoading(true);
     setError(null);
@@ -125,12 +150,13 @@ function OverviewInner() {
       // BaziOpinion / ZiweiOpinion / HuangliOpinion / Consensus / Conflict，
       // 全部来自正式 ConsensusEngine 与 ConflictDetector，
       // **不再是展示层 fixture aggregation**。
-      const multi = await loadMultiAnalysis({ code, variant: "forward", birthBasis, horizon });
+      const multi = await loadMultiAnalysis(analysisKey);
       const aid = multi.analysis_id;
 
       // 三模型观点：直接消费后端 opinion，前端**不重算分数**
       const base = buildContextFromMulti(multi);
-      const suffix = fixture ? `?fixture=${FIXTURE_QUERY_VALUE}` : "";
+      // 引擎卡跳转必须带上整份分析上下文，否则落地页会静默换假设
+      const suffix = analysisContextSuffix(search);
       const engines = toEngineCardsFromOpinions(multi, suffix);
 
       const [consensusRes, conflictRes, backtestRes, evidenceRes] = await Promise.allSettled([
@@ -205,11 +231,11 @@ function OverviewInner() {
     } finally {
       setLoading(false);
     }
-  }, [code, fixture, isMoutaiFixture, isUnsupportedFixture, birthBasis, horizon]);
+  }, [code, fixture, isMoutaiFixture, isUnsupportedFixture, analysisKey, horizon]);
 
   useEffect(() => {
     if (!isMoutaiFixture && !isUnsupportedFixture) void load();
-  }, [isMoutaiFixture, isUnsupportedFixture, isFixtureBasisUnsupported, load]);
+  }, [isMoutaiFixture, isUnsupportedFixture, isFixtureContextUnsupported, load]);
 
   /**
    * 演示模式下也要准备导出快照。
@@ -219,8 +245,14 @@ function OverviewInner() {
    * 这里补上：把同结构的冻结样本放进 `multiAnalysis`，导出时逐份标注「演示数据」。
    */
   useEffect(() => {
-    if (isMoutaiFixture) setMultiAnalysis(multiAnalysisFixture);
-  }, [isMoutaiFixture]);
+    if (isMoutaiFixture) setMultiAnalysis({ ...multiAnalysisFixture, horizon });
+  }, [isMoutaiFixture, horizon]);
+
+  // 演示面板由 useEffect 之外的初始 state 提供，
+  // 切换登记窗口时这里补一次同步（load() 在演示模式下不会被调用）。
+  useEffect(() => {
+    if (isMoutaiFixture) setData(fixtureOverview(horizon));
+  }, [isMoutaiFixture, horizon]);
 
   // fixture 模式下同样准备抽屉数据（用演示条目）
   useEffect(() => {
@@ -247,7 +279,19 @@ function OverviewInner() {
 
   const metrics = useMemo(() => data?.backtestMetrics ?? [], [data]);
 
-  if (isFixtureBasisUnsupported) {
+  /**
+   * 页内跳转统一带分析上下文（见 lib/analysisContext.ts）。
+   *
+   * 演示夹具里的 `detailHref` 是冻结时拼好的，不含当前 URL 的选择，
+   * 所以这里按参数名补齐 —— 否则"选了 60d 点进详情却回到默认窗口"。
+   */
+  const contextSuffix = analysisContextSuffix(search);
+  const engines = useMemo(
+    () => (data?.engines ?? []).map((e) => ({ ...e, detailHref: withAnalysisContext(e.detailHref, search) })),
+    [data, search],
+  );
+
+  if (isFixtureContextUnsupported) {
     return (
       <AppShell activeNav="overview" dataStatus="bad" statusText="演示模式受限">
         <PageHero
@@ -260,20 +304,21 @@ function OverviewInner() {
             <span className="text-[24px]">⚠️</span>
             <div className="space-y-2">
               <h3 className="text-[16px] font-semibold" style={{ color: "var(--color-warn)" }}>
-                演示模式不提供该出生模型下的结果
+                演示模式不提供该上下文下的结果
               </h3>
               <p className="text-[13px] leading-relaxed" style={{ color: "var(--color-ink-sub)" }}>
-                演示样本冻结在默认出生模型<strong>「上市首日正式开盘」</strong>上。用其他假设
-                （当前 URL 指定的是 <code className="smp-num">{birthBasis}</code>）返回这份样本，
-                等于把「假设 A 的盘」标成「假设 B 的盘」—— 系统不会这样做。
+                演示样本冻结在默认上下文<strong>「上市首日正式开盘 + 20d 研究窗口」</strong>上。
+                当前 URL 指定的是出生模型 <code className="smp-num">{birthBasis}</code> /
+                研究窗口 <code className="smp-num">{horizon}</code>；拿别的上下文的请求返回这份
+                样本，等于把「假设 A 的盘」标成「假设 B 的盘」—— 系统不会这样做。
               </p>
               <div className="flex items-center gap-3 pt-2">
                 <Link
-                  href={`/stock/${code}/overview?fixture=${FIXTURE_QUERY_VALUE}&birthBasis=${DEFAULT_BIRTH_BASIS}`}
-                  className="smp-btn smp-btn-primary"
+                  href={`/stock/${code}/overview?fixture=${FIXTURE_QUERY_VALUE}&birthBasis=${DEFAULT_BIRTH_BASIS}&horizon=${DEFAULT_HORIZON}`}
+                  className="smp-btn smp-btn--primary"
                   data-testid="reset-birth-basis-btn"
                 >
-                  回到默认出生模型（演示样本）
+                  回到默认上下文（演示样本）
                 </Link>
                 <Link href={`/stock/${code}/overview`} className="smp-btn">
                   移除 fixture 参数并进入真实分析模式
@@ -331,6 +376,7 @@ function OverviewInner() {
   return (
     <AppShell activeNav="overview" dataStatus={error ? "bad" : "ok"} statusText={error ? "后端未连接" : "数据正常"}>
       <PageHero
+        variant="research"
         title="综合研判"
         subtitle="多模型交叉验证 · 识别趋势共识 · 提示关键风险"
         seal="正"
@@ -402,7 +448,7 @@ function OverviewInner() {
         <>
           {/* A + B + C (约 50:29:21 比例) */}
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1.16fr)_minmax(0,0.84fr)]">
-            <Card testId="engine-scores">
+            <Card testId="engine-scores" anchor="primary-card">
               <CardHeader
                 icon={<IconGrid size={14} />}
                 title="模型评分与判断"
@@ -414,7 +460,7 @@ function OverviewInner() {
                 }
               />
               <div className="grid grid-cols-1 gap-2 p-2.5 md:grid-cols-3">
-                {data.engines.map((e) => (
+                {engines.map((e) => (
                   <EngineScoreCard key={e.engine} engine={e} />
                 ))}
               </div>
@@ -450,12 +496,16 @@ function OverviewInner() {
                       ))}
                     </div>
                   }
-                  action={{ label: "查看详情" }}
+                  action={{
+                    label: "打开时间窗口页",
+                    href: `/stock/${code}/timeline${contextSuffix}`,
+                    testId: "time-window-open-link",
+                  }}
                 />
                 <div className="px-3 py-1.5">
                   {data.timeWindow.series.length > 0 ? (
                     <>
-                      <div className="mb-1 flex items-center gap-3 px-1 text-[11px]">
+                      <div className="mb-1 flex items-center gap-3 px-1 text-[11.5px]">
                         {data.timeWindow.series.map((s2) => (
                           <span key={s2.key} className="flex items-center gap-1">
                             <span
@@ -480,18 +530,32 @@ function OverviewInner() {
                           <span style={{ color: "var(--color-ink-sub)" }}>高冲突区</span>
                         </span>
                       </div>
-                      <TimeWindowChart data={data.timeWindow} height={140} />
-                      <p className="px-1 pb-1 pt-0.5 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
-                        纵轴为术数研究指数（0-100 规则强度），非收益率预测。正式时间窗口预测属 Phase 2。
+                      <TimeWindowChart data={data.timeWindow} height={122} />
+                      <p className="px-1 pb-1 pt-1 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
+                        纵轴为术数研究指数（0-100 规则强度），不是收益率或上涨概率。逐窗口的完整解读在
+                        <Link
+                          href={`/stock/${code}/timeline${contextSuffix}`}
+                          style={{ color: "var(--color-gold)" }}
+                        >
+                          时间窗口
+                        </Link>
+                        页。
                       </p>
                     </>
                   ) : (
-                    <div className="flex h-[140px] flex-col items-center justify-center text-center">
-                      <p className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+                    <div className="flex h-[122px] flex-col items-center justify-center text-center">
+                      <p className="text-[12.5px]" style={{ color: "var(--color-ink-muted)" }}>
                         未来时间窗口外推尚未运行（系统不提供伪造预测曲线）
                       </p>
-                      <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
-                        正式时间序列外推与共振窗口分析将在 Phase 2 完整上线
+                      <p className="mt-1 text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                        时间窗口页已上线，可查看基于实测交易日历的窗口与排名：
+                        <Link
+                          href={`/stock/${code}/timeline${contextSuffix}`}
+                          style={{ color: "var(--color-gold)" }}
+                          data-testid="time-window-empty-link"
+                        >
+                          前往时间窗口页
+                        </Link>
                       </p>
                     </div>
                   )}
@@ -502,28 +566,32 @@ function OverviewInner() {
                 <CardHeader
                   icon={<IconTrend size={14} />}
                   title="历史验证摘要"
-                  action={{ label: "历史验证详情" }}
+                  action={{
+                    label: "历史验证详情",
+                    href: `/stock/${code}/backtest${contextSuffix}`,
+                    testId: "backtest-detail-link",
+                  }}
                   dense
                 />
-                <div className="grid grid-cols-2 gap-2.5 p-3.5 md:grid-cols-5">
+                <div className="grid grid-cols-2 gap-2.5 p-3 md:grid-cols-5">
                   {metrics.map((m) => (
                     <BacktestMetricCard key={m.key} metric={m} />
                   ))}
                 </div>
-                <div className="grid grid-cols-1 gap-4 px-3.5 pb-3.5 md:grid-cols-[minmax(0,1fr)_300px]">
+                <div className="grid grid-cols-1 gap-4 px-3 pb-3 md:grid-cols-[minmax(0,1fr)_280px]">
                   <div>
                     <div className="smp-metric-label mb-1">收益分布（示意）</div>
                     {data.distribution.length ? (
-                      <DistributionChart bins={data.distribution} height={110} />
+                      <DistributionChart bins={data.distribution} height={96} />
                     ) : (
-                      <div className="py-6 text-center text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
+                      <div className="py-5 text-center text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
                         尚无历史验证样本分布数据（不采用正态假设伪造分箱）
                       </div>
                     )}
                   </div>
                   <div>
                     <div className="smp-metric-label mb-1">历史验证结论</div>
-                    <p className="text-[11.5px] leading-[18px]" style={{ color: "var(--color-ink-sub)" }}>
+                    <p className="text-[11.5px] leading-[17px]" style={{ color: "var(--color-ink-sub)" }}>
                       {data.backtestConclusion}
                     </p>
                   </div>
@@ -533,11 +601,11 @@ function OverviewInner() {
 
             {/* 右列 (42%)：关键证据 + 数据质量与风险 */}
             <div className="flex flex-col gap-3">
-              <Card testId="key-evidence">
+              <Card testId="key-evidence" anchor="right-summary">
                 <CardHeader
                   icon={<IconBook size={14} />}
                   title={`关键证据${data.evidence.length > 3 ? `（摘要 3 / 共 ${data.evidence.length}）` : ""}`}
-                  action={{ label: "查看更多", onClick: () => setDrawer(true) }}
+                  action={{ label: "查看更多", onClick: () => setDrawer(true), testId: "evidence-more-btn" }}
                 />
                 <div className="space-y-2 p-3">
                   {data.evidence.length === 0 ? (
@@ -576,7 +644,7 @@ function OverviewInner() {
 
           <div className="mt-3 flex items-center justify-center gap-2 text-[11.5px]" style={{ color: "var(--color-ink-faint)" }}>
             <IconTarget size={13} />
-            本页不显示"综合总分"，共识与历史有效性分列展示；任一模型失败不影响其他模型。
+            本页不显示"综合总分"：共识与历史有效性分列展示，任一模型失败不影响其他模型。
           </div>
         </>
       ) : null}
@@ -592,6 +660,20 @@ function OverviewInner() {
       />
     </AppShell>
   );
+}
+
+/**
+ * 演示面板按当前登记的窗口出一份。
+ *
+ * `horizon` 只是登记标签、不参与计算（见 `lib/useHorizonParam` 的语义边界），
+ * 所以同一份冻结盘面在不同窗口下就是同一份盘面 —— 但页面显示与导出快照
+ * 必须跟着登记值走，不能永远写死「20 交易日」。
+ */
+function fixtureOverview(horizon: string): OverviewPageData {
+  return {
+    ...overviewFixture,
+    context: { ...overviewFixture.context, horizon: horizonLabel(horizon) },
+  };
 }
 
 function SkeletonOverview() {
