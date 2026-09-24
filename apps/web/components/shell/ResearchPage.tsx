@@ -35,6 +35,8 @@ export interface ResearchPageProps {
   couplet?: string[];
   /** 竖排题词（每行四字，参考图右侧）。 */
   motto?: string[];
+  /** Hero 变体；研究主页用 `research`（更高头部、更强装饰）。 */
+  heroVariant?: "default" | "research";
   code: string;
   analysis: ApiMultiAnalysis | null;
   loading: boolean;
@@ -52,6 +54,7 @@ export function ResearchPage({
   seal,
   couplet,
   motto,
+  heroVariant = "default",
   code,
   analysis,
   loading,
@@ -115,7 +118,14 @@ export function ResearchPage({
       // 演示来源与真实来源必须在顶部状态就区分开，不能只靠角标
       statusText={error ? "后端未连接" : fixture ? "演示数据（固定样本）" : "数据正常"}
     >
-      <PageHero title={title} subtitle={subtitle} seal={seal} couplet={couplet} motto={motto} />
+      <PageHero
+        title={title}
+        subtitle={subtitle}
+        seal={seal}
+        couplet={couplet}
+        motto={motto}
+        variant={heroVariant}
+      />
       {ctx ? (
         <StockContextBar
           context={ctx}

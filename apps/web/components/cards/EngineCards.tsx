@@ -62,7 +62,10 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
         >
           <Icon size={13} />
         </span>
-        <span className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
+        <span
+          className="text-[14.5px] font-semibold"
+          style={{ color: "var(--color-ink)", fontFamily: "var(--font-serif-cn)" }}
+        >
           {engine.displayName}
         </span>
         {engine.available && engine.score !== null ? (
@@ -78,7 +81,7 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
         <>
           <div className="mt-1.5 flex items-end gap-1">
             <span
-              className="smp-num text-[26px] font-semibold leading-none"
+              className="smp-num smp-key-number leading-none"
               style={{ color: engine.direction > 0 ? "var(--color-up)" : engine.direction < 0 ? "var(--color-down)" : "var(--color-ink)" }}
               data-testid={`engine-score-${engine.engine}`}
             >
@@ -91,7 +94,7 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
 
           <div className="mt-1">
             <div className="flex items-center gap-1.5">
-              <span className="smp-metric-label text-[10px]">信心</span>
+              <span className="smp-metric-label">信心</span>
               <div className="h-[3px] flex-1 rounded-full" style={{ background: "var(--color-surface-4)" }}>
                 <div
                   className="h-full rounded-full"
@@ -101,17 +104,17 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
                   }}
                 />
               </div>
-              <span className="smp-num text-[10.5px]" style={{ color: "var(--color-ink-sub)" }}>
+              <span className="smp-num text-[11.5px]" style={{ color: "var(--color-ink-sub)" }}>
                 {Math.round((engine.confidence ?? 0) * 100)}%
               </span>
             </div>
           </div>
 
-          <p className="mt-1 text-[11px] leading-[15px] line-clamp-1" style={{ color: "var(--color-ink-muted)" }}>
+          <p className="mt-1 text-[11.5px] leading-[16px] line-clamp-1" style={{ color: "var(--color-ink-muted)" }}>
             {engine.summary}
           </p>
 
-          <div className="mt-auto flex items-center gap-2 whitespace-nowrap pt-1 text-[10.5px]">
+          <div className="mt-auto flex items-center gap-2 whitespace-nowrap pt-1 text-[11.5px]">
             <span className="flex items-center gap-0.5">
               <span style={{ color: "var(--color-ink-muted)" }}>正向</span>
               <span className="smp-num" style={{ color: "var(--color-up)" }}>
@@ -128,6 +131,7 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
               href={engine.detailHref}
               className="ml-auto"
               style={{ color: "var(--color-ink-muted)" }}
+              data-testid={`engine-detail-${engine.engine}`}
             >
               详情→
             </Link>
@@ -370,7 +374,10 @@ export function DataQualityBadge({ quality }: { quality: DataQualityView }) {
 
   return (
     <Card testId="data-quality-card">
-      <CardHeader icon={<IconCheck size={14} />} title="数据质量与风险" action={{ label: "查看详情" }} />
+      {/* 这里此前挂着一个「查看详情」按钮，但它既没有 onClick 也没有跳转目标，
+          点下去没有任何反应 —— 研究终端里的假按钮等于虚报能力，故直接不渲染。
+          本卡的可核对信息（评级依据 / 引擎版本 / 风险提示）已全部在卡内展示。 */}
+      <CardHeader icon={<IconCheck size={14} />} title="数据质量与风险" />
       {/* 风险摘要前置：风险必须比"质量指标"更早被读到（复核任务书 §P2） */}
       <div
         className="mx-3.5 mb-2 flex items-start gap-2 rounded-[6px] border px-3 py-2 text-[11px]"
@@ -465,7 +472,7 @@ export function BacktestMetricCard({ metric }: { metric: BacktestMetric }) {
       <div className="flex items-center gap-1.5">
         <span className="smp-metric-label">{metric.label}</span>
       </div>
-      <div className="smp-num mt-1 text-[20px] font-semibold leading-none" style={{ color }}>
+      <div className="smp-num smp-key-number--sm mt-1 leading-none" style={{ color }}>
         {metric.value}
       </div>
     </div>
