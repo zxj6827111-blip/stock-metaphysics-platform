@@ -494,7 +494,14 @@ function birthDerivationView(bp: ApiBirthProfile | null | undefined): {
   return GRADE_MEANING[bp.data_quality?.grade ?? ""] ?? { value: "未验证", state: "warn" };
 }
 
-/** 古籍来源完整性：只统计检索结果里真实带回的 `license_status`。 */
+/**
+ * 古籍来源完整性：只统计检索结果里真实带回的 `license_status`。
+ *
+ * 许可状态之间不可互相指代（后端 `LicenseStatus` 四值）：
+ * `public_domain` 是公版刊本原文，`verified` 是**已核实授权**——
+ * 两者都允许展示，但把混合结果写成「公版原文」就是虚报版权状态。
+ * `unknown` / `restricted` 一律计入未核实。
+ */
 function knowledgeLicenseView(items: ApiEvidenceItem[] | null | undefined): {
   value: string;
   state: "ok" | "warn" | "bad";
@@ -502,9 +509,14 @@ function knowledgeLicenseView(items: ApiEvidenceItem[] | null | undefined): {
   if (items === null || items === undefined) return { value: "未验证", state: "warn" };
   if (items.length === 0) return { value: "无检索结果", state: "warn" };
   const unclear = items.filter((i) => !CLEAR_LICENSE.has(i.license_status)).length;
-  return unclear
-    ? { value: `含 ${unclear} 条未核实`, state: "warn" }
-    : { value: `公版原文 · ${items.length} 条`, state: "ok" };
+  if (unclear) return { value: `含 ${unclear} 条未核实`, state: "warn" };
+  const kinds = new Set(items.map((i) => i.license_status));
+  if (kinds.size === 1) {
+    return kinds.has("public_domain")
+      ? { value: `公版原文 · ${items.length} 条`, state: "ok" }
+      : { value: `已核实授权 · ${items.length} 条`, state: "ok" };
+  }
+  return { value: `公版/已核实授权 · ${items.length} 条`, state: "ok" };
 }
 
 export function toDataQualityView(input: DataQualityInputs): DataQualityView {

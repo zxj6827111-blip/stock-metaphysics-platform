@@ -284,13 +284,26 @@ test.describe("数据质量事实性", () => {
     expect(b.state).toBe("warn");
 
     const lic = (license_status: string) => ({ license_status }) as never;
-    const allClear = toDataQualityView({ evidenceItems: [lic("public_domain"), lic("verified")] });
-    expect(item(allClear, "古籍来源完整性").value).toBe("公版原文 · 2 条");
-    expect(item(allClear, "古籍来源完整性").state).toBe("ok");
-    // 混进一条未核实 ⇒ 整项不能再说"公版原文"
-    const mixed = toDataQualityView({ evidenceItems: [lic("public_domain"), lic("unknown")] });
-    expect(item(mixed, "古籍来源完整性").value).toBe("含 1 条未核实");
-    expect(item(mixed, "古籍来源完整性").state).toBe("warn");
+    // 三种"都允许展示"的许可状态必须各说各的话：verified ≠ public_domain
+    const allPd = toDataQualityView({ evidenceItems: [lic("public_domain"), lic("public_domain")] });
+    expect(item(allPd, "古籍来源完整性").value).toBe("公版原文 · 2 条");
+    expect(item(allPd, "古籍来源完整性").state).toBe("ok");
+    expect(item(toDataQualityView({ evidenceItems: [lic("verified")] }), "古籍来源完整性").value).toBe(
+      "已核实授权 · 1 条",
+    );
+    const mixedLicense = toDataQualityView({ evidenceItems: [lic("public_domain"), lic("verified")] });
+    expect(item(mixedLicense, "古籍来源完整性").value).toBe("公版/已核实授权 · 2 条");
+    expect(
+      item(mixedLicense, "古籍来源完整性").value,
+      "混入已核实授权时不得继续声称全是公版",
+    ).not.toMatch(/^公版原文/);
+    expect(item(mixedLicense, "古籍来源完整性").state).toBe("ok");
+    // 含未核实/受限 → 整项降级
+    const unclear = toDataQualityView({
+      evidenceItems: [lic("public_domain"), lic("unknown"), lic("restricted")],
+    });
+    expect(item(unclear, "古籍来源完整性").value).toBe("含 2 条未核实");
+    expect(item(unclear, "古籍来源完整性").state).toBe("warn");
     // "检索成功但零条"与"接口没成功"语义不同
     expect(item(toDataQualityView({ evidenceItems: [] }), "古籍来源完整性").value).toBe("无检索结果");
   });
