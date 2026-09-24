@@ -24,12 +24,12 @@
 import { useParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
-import { Card, CardBody, CardHeader, Chip } from "@/components/cards/Card";
+import { Card, CardBody, CardHeader, Chip, SectionTag } from "@/components/cards/Card";
 import { HorizonComparisonChart } from "@/components/charts/Charts";
 import { ResearchPage, SectionNote } from "@/components/shell/ResearchPage";
 import { PageLoading, ResearchStatusBadge, UnavailableBlock, researchStatusLabel } from "@/components/shell/PageState";
 import { RawField, SourceMethod } from "@/components/shell/SourceMethod";
-import { IconBook, IconChart, IconTarget } from "@/components/shell/Icons";
+import { IconBook, IconChart, IconLayers, IconTarget } from "@/components/shell/Icons";
 import {
   api,
   endpoints,
@@ -143,28 +143,21 @@ function BacktestInner() {
       onReload={reload}
       loadingLabel="正在读取历史验证结果…"
     >
-      {/* ============ ① 术数规则强度（确定性结果） ============ */}
-      <div
-        className="rounded border-l-4 px-4 py-2"
-        style={{ borderColor: "var(--color-gold)", background: "rgba(212,160,74,0.06)" }}
-        data-testid="section-deterministic"
-      >
-        <div className="text-[13px] font-semibold" style={{ color: "var(--color-gold)" }}>
-          ① 术数规则强度（确定性结果）
-        </div>
-        <div className="mt-0.5 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
-          以下数字由确定性代码产生，含义是「传统规则怎么看」，<strong>与收益无关</strong>；
-          它们与 ② 的统计有效性必须分开读。
-        </div>
-      </div>
-
       {/* 规则强度一行读完：与 ② 的统计严格分开，但不占用首屏高度 ——
           首屏要让位给真实持有期对比图（参考图 05 的构图重点）。 */}
+      {/* ① 的分区语义保留，但不再占一整行横幅：参考图 05 首屏从上下文栏直接进研究条件，
+          没有两条说明横幅。标签内联在本条开头，data-testid 随标签保留。 */}
       <div
-        className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded border px-3 py-1.5 text-[11.5px]"
+        className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded border px-3 py-1.5 text-[11.5px]"
         style={{ borderColor: "var(--color-border)" }}
         data-testid="rule-strength"
       >
+        <SectionTag
+          index="①"
+          label="术数规则强度 · 确定性结果"
+          tone="gold"
+          testId="section-deterministic"
+        />
         {(["bazi", "ziwei", "huangli"] as const).map((k) => {
           const op = analysis?.opinions?.[k];
           const ok = op && op.availability === "ok" && op.score !== null;
@@ -190,35 +183,35 @@ function BacktestInner() {
         </span>
       </div>
 
-      {/* ============ ② 研究状态与条件 ============ */}
-      <div
-        className="mt-3 rounded border-l-4 px-4 py-2"
-        style={{ borderColor: "var(--color-flat)", background: "rgba(124,143,163,0.06)" }}
-        data-testid="section-empirical"
-      >
-        <div className="text-[13px] font-semibold">② 统计有效性（历史数据）</div>
-        <div className="mt-0.5 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
-          以下数字来自事件研究 + 负对照，含义是「这些规则在历史上有没有信息量」。
-        </div>
-      </div>
-
-      <Card className="mt-2" testId="research-status-card">
+      {/* 参考图 05 的「研究条件/筛选条」在本系统由这张卡承载：条件、数据源标记与研究状态都在这里读。 */}
+      <Card className="mt-2" testId="research-status-card" anchor="filter-bar">
         <CardHeader
           icon={<IconTarget size={15} />}
           title="研究状态与条件"
+          tag={
+            <SectionTag
+              index="②"
+              label="统计有效性 · 历史数据"
+              tone="muted"
+              testId="section-empirical"
+            />
+          }
           dense
           right={
             <div className="flex items-center gap-1">
-              <Chip tone={isRealData ? "flat" : "gold"} data-testid="data-source-chip">
+              <Chip tone={isRealData ? "flat" : "gold"} testId="data-source-chip">
                 数据源 {isRealData ? "真实" : "非真实（合成/降级）"}
               </Chip>
               {es?.data_source?.benchmark_degraded ? <Chip tone="gold">基准降级</Chip> : null}
             </div>
           }
         />
+        {/* 状态与条件读成一排：参考图 05 这一带只有 67px（一行筛选/条件条）。
+            本系统这里必须同时放下研究状态、数据源标记与四项条件，压不到 67px，
+            但也不该纵向堆成三段 —— 改成一行 flex-wrap，一行读完。 */}
         <CardBody className="!py-1.5">
-          <ResearchStatusBadge status={status} reasons={es?.research_status_reasons ?? []} />
-          <div className="mt-1.5 grid grid-cols-2 gap-x-6 gap-y-0.5 text-[11px] md:grid-cols-4">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px]">
+            <ResearchStatusBadge status={status} reasons={es?.research_status_reasons ?? []} />
             <Stat label="实验标识" value={es?.experiment_id || "（尚未运行）"} />
             <Stat label="事件数" value={es ? String(es.event_count) : "—"} />
             <Stat label="股票池" value={es ? String(es.universe_size) : "—"} />
@@ -227,11 +220,17 @@ function BacktestInner() {
               value={es?.factor_ids?.length ? es.factor_ids.join("、") : "（无）"}
             />
           </div>
-          <div className="mt-1.5 text-[11px] leading-[16px]" style={{ color: "var(--color-ink-muted)" }}>
-            <code>NO_SIGNAL</code> 表示<strong>真实因子未优于随机对照</strong>，是如实输出而非故障；
-            某个持有期平均收益为正<strong>不构成</strong>"验证有效"。本页<strong>只读</strong>已有结果，
-            打开页面不触发任何全市场重算。
-          </div>
+          {/* 口径解释保留但不再占首屏高度：状态、数据源标记与条件仍然常驻可见。 */}
+          <details className="mt-1">
+            <summary className="cursor-pointer text-[11px]" style={{ color: "var(--color-ink-muted)" }}>
+              NO_SIGNAL 是什么意思、本页会不会重算
+            </summary>
+            <div className="mt-1 text-[11px] leading-[16px]" style={{ color: "var(--color-ink-muted)" }}>
+              <code>NO_SIGNAL</code> 表示<strong>真实因子未优于随机对照</strong>，是如实输出而非故障；
+              某个持有期平均收益为正<strong>不构成</strong>"验证有效"。本页<strong>只读</strong>已有结果，
+              打开页面不触发任何全市场重算。
+            </div>
+          </details>
         </CardBody>
       </Card>
 
@@ -254,7 +253,7 @@ function BacktestInner() {
             </div>
           ) : primary ? (
             <>
-              <div className="grid grid-cols-3 gap-2 md:grid-cols-5 xl:grid-cols-9" data-testid="stats-metrics">
+              <div className="grid grid-cols-3 gap-2 md:grid-cols-5 xl:grid-cols-9" data-testid="stats-metrics" data-anchor="summary-metrics">
                 <Metric label={`样本数（${primary.horizon}D）`} value={String(primary.sample_count)} />
                 <Metric label="上涨率" value={pct(primary.up_rate)} />
                 <Metric label="平均收益" value={pct(primary.mean_return)} tone="num" />
@@ -295,28 +294,35 @@ function BacktestInner() {
         </CardBody>
       </Card>
 
-      <div className="grid gap-2 md:grid-cols-2" data-testid="backtest-reference-panels">
-        {[
-          ["收益分布", "暂无逐样本收益序列"],
-          ["持有期收益", "暂无可比策略序列"],
-          ["年度稳定性", "未计算"],
-          ["牛 / 熊 / 震荡分组", "未计算"],
-          ["随机对照", "等待实验结果"],
-          ["出生日期平移对照", "等待实验结果"],
-        ].map(([title, note]) => (
-          <Card key={title} testId={`backtest-panel-${title}`}>
-            <CardHeader title={title} dense right={<span className="text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>研究卡位</span>} />
-            <CardBody className="!py-0">
-              <div className="flex h-[112px] items-center justify-center text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
-                {note}
-              </div>
-            </CardBody>
-          </Card>
-        ))}
-      </div>
+      {/* ============ ③ 首屏图表行：收益分布 | 持有期对比（参考图 05 的两栏构图） ============ */}
+      {/* 参考图这一行是 收益分布(224..932) + 持有期收益(942..1657)，约 49.7:50.3。
+          之前这里排着 6 张「研究卡位」空占位卡（每张 ~160px，共 ~960px），
+          把唯一有真实数据的持有期对比推到 y=1255 —— 空卡位假装能力，
+          既撑高页面又虚报能力，一并删除。没有真实数据的槽位改为如实标不可用。 */}
+      <div
+        className="mt-2 grid grid-cols-1 items-start gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.01fr)]"
+        data-anchor="chart-row"
+      >
+        <Card testId="distribution-panel" anchor="primary-chart">
+          <CardHeader
+            icon={<IconChart size={15} />}
+            title="收益分布"
+            dense
+            right={
+              <span className="text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
+                需要逐样本序列
+              </span>
+            }
+          />
+          <CardBody className="!py-2">
+            <UnavailableBlock
+              what="收益分布"
+              reason="事件研究接口只回传逐持有期汇总（horizons），没有逐样本收益序列，因此给不出真实分箱。参考图里的收益分布直方图在本系统没有对应数据 —— 不用高斯密度生成「看起来像真实历史样本」的示意分箱冒充（AGENTS.md §13 不得把合成数据伪装成真实数据）。"
+            />
+          </CardBody>
+        </Card>
 
-      {/* ============ ③ 持有期对比与负对照 ============ */}
-      <Card className="mt-2" testId="horizon-comparison">
+        <Card testId="horizon-comparison" anchor="holding-period-card">
         <CardHeader
           icon={<IconChart size={15} />}
           title="持有期对比（真实入库结果，只读）"
@@ -374,42 +380,6 @@ function BacktestInner() {
                     <UnavailableBlock what="持有期对比图" reason="该实验没有可用的持有期结果。" />
                   )}
 
-                  <div className="mt-2 overflow-x-auto">
-                    <table className="w-full text-[11.5px]" data-testid="horizon-table">
-                      <thead>
-                        <tr style={{ color: "var(--color-ink-muted)" }}>
-                          <th className="px-2 text-left font-medium">组</th>
-                          <th className="px-2 text-left font-medium">持有期</th>
-                          <th className="px-2 text-right font-medium">样本数</th>
-                          <th className="px-2 text-right font-medium">上涨率</th>
-                          <th className="px-2 text-right font-medium">平均收益</th>
-                          <th className="px-2 text-right font-medium">平均超额</th>
-                          <th className="px-2 text-left font-medium">对照判决 / 备注</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {grid.rows.map((r) => (
-                          <tr key={`${r.variant}-${r.horizon}`} style={{ borderTop: "1px solid var(--color-border)" }}>
-                            <td className="px-2 py-[3px]">{variantLabel(r.variant)}</td>
-                            <td className="px-2">{r.horizon}D</td>
-                            <td className="smp-num px-2 text-right">{r.sample_count}</td>
-                            <td className="smp-num px-2 text-right">{pct(r.up_rate)}</td>
-                            <td className="smp-num px-2 text-right">{pct(r.mean_return)}</td>
-                            <td className="smp-num px-2 text-right">{pct(r.mean_excess_return)}</td>
-                            <td className="max-w-[320px] px-2" style={{ color: "var(--color-ink-muted)" }}>
-                              {r.verdict ? (
-                                <b style={{ color: r.verdict === "tie" ? "var(--color-ink-sub)" : "var(--color-warn)" }}>
-                                  {r.verdict}
-                                </b>
-                              ) : null}
-                              {r.jaccard !== null ? ` · Jaccard ${r.jaccard.toFixed(3)}` : ""}
-                              {r.note ? ` · ${r.note.slice(0, 60)}` : ""}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
 
                   {grid.invalidControls.length ? (
                     <div
@@ -451,8 +421,17 @@ function BacktestInner() {
           )}
         </CardBody>
       </Card>
+      </div>
 
-      <Card className="mt-2" testId="negative-control">
+      {/* ============ ④ 对照行：负对照 | 分组与年度稳定性 ============ */}
+      {/* 参考图这一行是四张对照卡（年度稳定性 / 牛熊震荡分组 / 随机对照 / 出生日期平移对照）。
+          本系统的真实对照数据在「负对照」卡与下方明细表的「对照判决」列里，
+          年度稳定性与牛熊分组没有对应产出 ⇒ 如实标不可用，不补空卡。 */}
+      <div
+        className="mt-2 grid grid-cols-1 items-start gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+        data-anchor="control-row"
+      >
+      <Card testId="negative-control" anchor="control-row">
         <CardHeader icon={<IconTarget size={15} />} title="负对照" dense />
         <CardBody className="!py-2 space-y-1.5">
           <SectionNote>
@@ -481,9 +460,74 @@ function BacktestInner() {
       </Card>
 
       {/* ============ ④ 明细 ============ */}
-      <Card className="mt-3" testId="backtest-detail">
+        <Card testId="grouping-panel" anchor="grouping">
+          <CardHeader
+            icon={<IconLayers size={15} />}
+            title="年度稳定性 / 牛熊震荡分组"
+            dense
+            right={
+              <span className="text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
+                未计算
+              </span>
+            }
+          />
+          <CardBody className="!py-2">
+            <UnavailableBlock
+              what="年度稳定性与牛熊/震荡分组"
+              reason="本页读取的是已入库的逐持有期事件研究与负对照结果；按年度、按市场状态分组的统计没有对应产出，因此不显示，也不用汇总数字拼一张看起来像分组结论的图。"
+            />
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* ============ ⑤ 明细与方法限制（第二屏） ============ */}
+      <Card className="mt-3" testId="backtest-detail" anchor="result-table">
         <CardHeader icon={<IconBook size={15} />} title="明细与方法限制" dense />
-        <CardBody className="!py-2 space-y-1.5">
+          <CardBody className="!py-2 space-y-1.5">
+          {/* 持有期逐 variant × 持有期的明细表从首屏卡片移到这里：
+              参考图 05 的持有期卡只有图（194px），逐行判决属于「实验结果明细」那一屏。
+              内容一行未删，只换承载位置。 */}
+          <div data-testid="horizon-detail-block" data-anchor="holding-detail-table">
+            <div className="mb-1 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
+              持有期逐组明细（对照判决 / Jaccard 逐行，不做一句话汇总）
+            </div>
+          <div className="overflow-x-auto">
+                    <table className="w-full text-[11.5px]" data-testid="horizon-table">
+                      <thead>
+                        <tr style={{ color: "var(--color-ink-muted)" }}>
+                          <th className="px-2 text-left font-medium">组</th>
+                          <th className="px-2 text-left font-medium">持有期</th>
+                          <th className="px-2 text-right font-medium">样本数</th>
+                          <th className="px-2 text-right font-medium">上涨率</th>
+                          <th className="px-2 text-right font-medium">平均收益</th>
+                          <th className="px-2 text-right font-medium">平均超额</th>
+                          <th className="px-2 text-left font-medium">对照判决 / 备注</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {grid.rows.map((r) => (
+                          <tr key={`${r.variant}-${r.horizon}`} style={{ borderTop: "1px solid var(--color-border)" }}>
+                            <td className="px-2 py-[3px]">{variantLabel(r.variant)}</td>
+                            <td className="px-2">{r.horizon}D</td>
+                            <td className="smp-num px-2 text-right">{r.sample_count}</td>
+                            <td className="smp-num px-2 text-right">{pct(r.up_rate)}</td>
+                            <td className="smp-num px-2 text-right">{pct(r.mean_return)}</td>
+                            <td className="smp-num px-2 text-right">{pct(r.mean_excess_return)}</td>
+                            <td className="max-w-[320px] px-2" style={{ color: "var(--color-ink-muted)" }}>
+                              {r.verdict ? (
+                                <b style={{ color: r.verdict === "tie" ? "var(--color-ink-sub)" : "var(--color-warn)" }}>
+                                  {r.verdict}
+                                </b>
+                              ) : null}
+                              {r.jaccard !== null ? ` · Jaccard ${r.jaccard.toFixed(3)}` : ""}
+                              {r.note ? ` · ${r.note.slice(0, 60)}` : ""}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+          </div>
           {horizons.length ? (
             <div className="overflow-x-auto">
               <table className="w-full text-[11.5px]" data-testid="event-study-table">
