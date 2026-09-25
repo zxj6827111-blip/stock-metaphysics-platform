@@ -68,12 +68,14 @@
 
 ## ADR 处理
 
-- 新增 ADR-0015：出生基准与时间精度（Draft）。
-- 新增 ADR-0016：历法边界与市场时段分层（Draft）。
+- 新增并接受 ADR-0015：出生基准与时间精度（内部推定规则；真实 first trade 数据源仍未接入）。
+- 新增并接受 ADR-0016：历法边界与市场时段分层。
 - 新增 ADR-0017：极性、大运方向与兼容性别参数（Draft）。
 - Fortune Score Semantics 由已接受 ADR-0013 覆盖；不复制创建第二个同义 ADR。
-- Draft 不代表规则已经冻结；须待目标测试实跑、方向规则决策完成后再接受。
+- ADR-0017 的实际大运方向映射仍为 Draft；当前唯一正式默认继续遵循 ADR-0003：`not_applicable` / unavailable。
 
 ## 验收限制
 
-本轮实现尚未执行 pytest：本机没有项目 `.venv`，可用 Codex Python 缺少 `pytest`、`pydantic_settings` 与 `lunar_python`。已新增的 Python 测试需在依赖齐全的环境运行；未运行的 Golden / 十神 / 关系 / backend 回归不得标记 PASS。F1 的契约和文档可以评审，但完整规则尚未冻结，因此 `READY_FOR_STOCK_FORTUNE_F2 = NO`。
+本机没有项目 `.venv`，可用 Codex Python 缺少 `pytest`、`pydantic_settings` 与 `lunar_python`，因此本机 pytest 未运行。PR #7 的 GitHub Actions run `36122797395`（head `413ec00`）验证了当前分支：backend core **2119 passed / 20 skipped / 28 deselected**；ziwei engine + golden、frontend typecheck、frontend build、frontend seeded date-scan E2E 均 PASS。最初 run `36121932797` 有一个周末 fixture 错误，已在 `413ec00` 修正；最终 run 所有五个 job 通过。
+
+F1 的契约、当前可复用规则和边界测试已完成，`STOCK_FORTUNE_F1 = PASS`。`READY_FOR_STOCK_FORTUNE_F2 = NO`：ADR-0017 的实际大运方向/极性映射未决；真实首笔成交数据源未接入；仅有日期时，23:00 exact 换日带来的日柱歧义仍需由后续结果契约明确表达。

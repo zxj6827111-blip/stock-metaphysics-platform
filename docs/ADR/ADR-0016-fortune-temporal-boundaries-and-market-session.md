@@ -1,6 +1,6 @@
 # ADR-0016：Fortune 历法边界与市场时段分层
 
-- **状态**：Draft
+- **状态**：已接受（F1 Golden Cases + backend CI）
 - **日期**：2026-09-25
 - **影响**：Fortune 时间上下文、CalendarEngine Adapter、交易择时数据
 - **关联**：[ADR-0001](ADR-0001-adapter-isolation.md)、[ADR-0004](ADR-0004-as-of-time-isolation.md)、[ADR-0013](ADR-0013-research-validity-boundary.md)
@@ -25,4 +25,4 @@
 
 ## 接受门槛
 
-在锁定依赖环境中运行立春、节气、23:00 子时、A 股时段及交易日 Golden Cases；确认交节时刻归属及 exact 日柱结果后接受。
+接受证据：`tests/golden/test_fortune_temporal_boundaries.py` 的立春、惊蛰 exact-minute、22:59/23:00/23:01/次日 00:00，以及 10 个 A 股传统时辰/市场 session 组合均通过 PR #7 backend core CI；backend core 全套为 2119 passed、20 skipped、28 deselected。CalendarEngine 的当前 exact 日柱选择已锁定；未增加第二套早子/晚子算法。

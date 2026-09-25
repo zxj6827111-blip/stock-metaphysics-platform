@@ -1,6 +1,6 @@
 # ADR-0015：Fortune 出生基准与出生时间精度
 
-- **状态**：Draft
+- **状态**：已接受（F1 CI contract tests）
 - **日期**：2026-09-25
 - **影响**：Fortune 内部出生档案、后续八字上下文
 - **关联**：[ADR-0003](ADR-0003-no-gender-variant-mode.md)、[ADR-0013](ADR-0013-research-validity-boundary.md)
@@ -23,6 +23,8 @@
 - 代价：历史上市日作为首个正式交易日仍是明确研究假设；对早于 session 配置覆盖期的证券，不得宣称开盘时间已被历史规则证明。
 - 不改变旧 `StockBirthProfile`、`birth_profile_version`、数据库或公开 API。
 
+本决策接受的是“缺少实际成交时如何显式推定”的内部契约，不表示交易所开盘时刻等于真实第一笔成交，也不声称现有行情源已覆盖实际 first trade。合同、来源版本、配置版本、精度及 assumption 由 `tests/core/test_fortune_contract.py` 覆盖；现有 birth profile 回归包含在 PR #7 的 backend CI 中。
+
 ## 接受门槛
 
-完成并运行 Fortune contract tests、现有 birth profile tests；证明来源与配置版本被保留、缺失值不被补零，并完成具体行情源覆盖范围审计。接受前保持 Draft。
+接受证据：Fortune contract tests 检查 INFERRED、source/source_version、confidence、birth_profile_version、rule_version、config_version 与显式 assumptions；PR #7 的 backend core job 对 `-m "not ziwei_live"` 全套执行为 2119 passed、20 skipped、28 deselected。真实首笔成交来源仍未接入，结果必须继续标为 INFERRED。

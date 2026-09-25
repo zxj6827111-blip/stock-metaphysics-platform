@@ -54,6 +54,11 @@ def test_inferred_listing_open_is_explicit_and_not_actual_first_trade() -> None:
     assert profile.birth_datetime == datetime.fromisoformat("2001-08-27T09:30:00+08:00")
     assert profile.birth_time_precision == BirthTimePrecision.INFERRED
     assert profile.first_trade_datetime is None
+    assert profile.birth_profile_version == "stock-fortune-birth-v1"
+    assert profile.rule_version == "fortune-listing-open-inference-v1"
+    assert profile.source_version == "listing-registry-v1"
+    assert profile.config_version == "exchange-session-v1"
+    assert profile.confidence == 0.9
     assert profile.source.extra["listing_source"] == "exchange_listing_registry"
     assert len(profile.assumptions) >= 2
     assert natal_pillar_availability(profile.birth_time_precision) == NatalPillarAvailability.FOUR_PILLARS
