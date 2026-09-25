@@ -437,7 +437,7 @@ class StockFortuneEngine:
         if evidence is None:
             return StockFortuneEngine._unavailable_luck_cycle("缺少首日阴阳证据")
         exchange = request.stock_identity.exchange
-        if exchange.value == "unknown":
+        if exchange == Exchange.UNKNOWN:
             exchange = request.birth_profile.exchange
         return resolve_first_day_yinyang_luck_cycle(
             first_day_yinyang=evidence.first_day_yinyang,

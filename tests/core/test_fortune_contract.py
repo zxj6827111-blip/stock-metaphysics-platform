@@ -23,7 +23,10 @@ from src.core.schemas.fortune import (
     FirstTradeObservationStatus,
     FortunePolarity,
     FortuneRelationCategory,
+    FortuneContextKind,
+    FortuneRelationComponent,
     FortuneRelationEvent,
+    FortuneRelationParticipant,
     FortuneRelationScope,
     FortuneResonance,
     FortuneConfidenceComponent,
@@ -200,10 +203,24 @@ def test_resonance_depth_is_rule_layer_count_not_probability() -> None:
 
 
 def test_relation_contract_preserves_raw_type_without_inventing_direction_or_weight() -> None:
+    source = FortuneRelationParticipant(
+        context=FortuneContextKind.MONTH,
+        pillar="month",
+        component=FortuneRelationComponent.BRANCH,
+        value="丑",
+    )
+    target = FortuneRelationParticipant(
+        context=FortuneContextKind.NATAL,
+        pillar="day",
+        component=FortuneRelationComponent.BRANCH,
+        value="子",
+    )
     event = FortuneRelationEvent(
         category=FortuneRelationCategory.COMBINATION,
         relation_type="六合",
-        participants=["natal.day", "flow.month"],
+        source=source,
+        target=target,
+        participants=["month:month:branch:丑", "natal:day:branch:子"],
         scope=FortuneRelationScope.TEMPORAL_TO_NATAL,
         rule_version="bazi-relation-v3",
     )

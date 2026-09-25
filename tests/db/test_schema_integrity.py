@@ -13,9 +13,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
 
 import pytest
-from sqlalchemy import inspect, text
+from sqlalchemy import create_engine, inspect, text
 
 EXPECTED_TABLES = {
     "stock_master", "stock_birth_profile", "exchange_session_calendar",
@@ -80,6 +82,65 @@ class TestSchemaCompleteness:
 
         column = ChartArtifactRow.__table__.c.birth_profile_version
         assert column.type.length >= len("stock-fortune-birth-v2")
+
+    def test_f3_birth_profile_version_migration_preserves_data_and_blocks_lossy_downgrade():
+        migration_path = (
+            Path(__file__).resolve().parents[2]
+            / "migrations"
+            / "versions"
+            / "f3a9c26d71be_stock_fortune_artifact_version_width.py"
+        )
+        spec = spec_from_file_location("f3_birth_version_migration", migration_path)
+        assert spec is not None and spec.loader is not None
+        migration = module_from_spec(spec)
+        spec.loader.exec_module(migration)
+
+        from alembic.migration import MigrationContext
+        from alembic.operations import Operations
+
+        engine = create_engine("sqlite://")
+        with engine.begin() as connection:
+            connection.execute(text(
+                "CREATE TABLE chart_artifact ("
+                "id INTEGER PRIMARY KEY, birth_profile_version VARCHAR(16) NOT NULL)"
+            ))
+            connection.execute(text(
+                "INSERT INTO chart_artifact (id, birth_profile_version) "
+                "VALUES (1, 'stock-fortune-birth-v2')"
+            ))
+            context = MigrationContext.configure(connection)
+            with Operations.context(context):
+                migration.upgrade()
+
+            column = next(
+                item for item in inspect(connection).get_columns("chart_artifact")
+                if item["name"] == "birth_profile_version"
+            )
+            assert column["type"].length == 32
+            assert connection.execute(text(
+                "SELECT birth_profile_version FROM chart_artifact WHERE id=1"
+            )).scalar_one() == "stock-fortune-birth-v2"
+
+            with Operations.context(context), pytest.raises(RuntimeError, match="longer version values exist"):
+                migration.downgrade()
+
+            connection.execute(text("DELETE FROM chart_artifact"))
+            connection.execute(text(
+                "INSERT INTO chart_artifact (id, birth_profile_version) VALUES (2, 'v1')"
+            ))
+            with Operations.context(context):
+                migration.downgrade()
+
+            column = next(
+                item for item in inspect(connection).get_columns("chart_artifact")
+                if item["name"] == "birth_profile_version"
+            )
+            assert column["type"].length == 16
+            assert connection.execute(text(
+                "SELECT birth_profile_version FROM chart_artifact WHERE id=2"
+            )).scalar_one() == "v1"
+
+        engine.dispose()
 
     def test_unique_constraints_present(self, engine):
         insp = inspect(engine)
