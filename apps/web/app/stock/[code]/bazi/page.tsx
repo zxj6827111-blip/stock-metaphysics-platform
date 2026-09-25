@@ -205,6 +205,8 @@ function BaziInner() {
         title="八字详情"
         subtitle="以天地之数，观市场之机"
         seal="命"
+        // 参考图 03 的 Hero 高 117px（99+16+2）；default 变体默认 104→122。
+        heroMinHeight={99}
         right={
           <div className="hidden text-right text-[12px] leading-[24px] tracking-[0.3em] xl:block"
             style={{ color: "rgba(212,184,122,0.4)" }}
@@ -265,7 +267,7 @@ function BaziInner() {
               />
               <div className="p-2.5">
                 <BaziChart pillars={data.pillars} />
-                <div className="mt-1.5 flex items-center gap-1.5 text-[10px]" style={{ color: "var(--color-ink-faint)" }}>
+                <div className="mt-1 flex items-center gap-1.5 text-[10px]" style={{ color: "var(--color-ink-faint)" }}>
                   <IconLayers size={11} />
                   原始盘面已保存至 chart_artifact.raw_chart，含 engine_version / config_version。
                 </div>
@@ -307,7 +309,7 @@ function BaziInner() {
             <TimeStructure items={data.timeline} />
           </Card>
 
-          {/* 第三层：正负因素（首屏各 3 条，其余可展开） */}
+          {/* 第三层：正负因素（参考图 03 同屏各 5 条；超过 5 条仍可展开，不隐藏不删改） */}
           <div className="mt-2 grid grid-cols-1 gap-3 xl:grid-cols-2">
             <Card testId="positive-factors">
               <CardHeader
@@ -319,7 +321,7 @@ function BaziInner() {
                 factors={data.positiveFactors}
                 tone="positive"
                 emptyText="暂无正向因子"
-                initialVisible={3}
+                initialVisible={5}
               />
             </Card>
 
@@ -333,7 +335,7 @@ function BaziInner() {
                 factors={data.negativeFactors}
                 tone="negative"
                 emptyText="暂无负向因子"
-                initialVisible={3}
+                initialVisible={5}
               />
             </Card>
           </div>

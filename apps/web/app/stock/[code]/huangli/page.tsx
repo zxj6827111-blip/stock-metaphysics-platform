@@ -159,6 +159,8 @@ function HuangliInner() {
     <ResearchPage
       activeNav="huangli"
       heroVariant="research"
+      // 参考图 08 的 Hero 高 109px（91+16+2）；research 变体默认 104→122。
+      heroMinHeight={91}
       title="黄历 / 日课详情"
       subtitle="观天时、择时机，以交易日历研判短中期节奏"
       seal="历"
@@ -484,21 +486,41 @@ function MattersTile({
   fallback: string;
   tone: "gold" | "muted";
 }) {
-  const color = tone === "gold" ? "var(--color-gold)" : "var(--color-flat)";
+  // 宜=绿、忌=红。参考图 08 用的是"圆章 + 事项"的结构，
+  // 原来只有一个 11.5px 的文字标签，在 1672px 宽的终端里几乎读不出来。
+  const good = tone === "gold";
+  const color = good ? "#4fd39b" : "#e8585a";
+  const ring = good ? "rgba(79,211,155,0.55)" : "rgba(232,88,90,0.5)";
+  const char = good ? "宜" : "忌";
   return (
     <div
-      className="rounded-[6px] border px-2.5 py-2"
+      className="flex items-start gap-2.5 rounded-[6px] border px-2.5 py-2"
       style={{
-        borderColor: tone === "gold" ? "rgba(79,211,155,0.30)" : "rgba(232,88,90,0.28)",
-        background: tone === "gold" ? "rgba(79,211,155,0.07)" : "rgba(232,88,90,0.07)",
+        borderColor: good ? "rgba(79,211,155,0.30)" : "rgba(232,88,90,0.28)",
+        background: good ? "rgba(79,211,155,0.07)" : "rgba(232,88,90,0.07)",
       }}
-      data-testid={tone === "gold" ? "huangli-today-yi" : "huangli-today-ji"}
+      data-testid={good ? "huangli-today-yi" : "huangli-today-ji"}
     >
-      <div className="text-[11.5px] font-semibold" style={{ color }}>
-        {label}
-      </div>
-      <div className="mt-0.5 text-[12.5px] leading-[18px]" style={{ color: "var(--color-ink-sub)" }}>
-        {items.length ? items.join(" · ") : fallback}
+      <span
+        className="flex h-[34px] w-[34px] shrink-0 select-none items-center justify-center rounded-full text-[15px] font-semibold"
+        style={{
+          color,
+          border: `1.5px solid ${ring}`,
+          background: `radial-gradient(circle at 36% 30%, ${ring}44, rgba(9,19,29,0.9) 80%)`,
+          boxShadow: `inset 0 0 12px ${ring}33`,
+          fontFamily: "var(--font-serif-cn)",
+        }}
+        aria-hidden="true"
+      >
+        {char}
+      </span>
+      <div className="min-w-0">
+        <div className="text-[11.5px] font-semibold" style={{ color }}>
+          {label}
+        </div>
+        <div className="mt-0.5 text-[12.5px] leading-[18px]" style={{ color: "var(--color-ink-sub)" }}>
+          {items.length ? items.join(" · ") : fallback}
+        </div>
       </div>
     </div>
   );

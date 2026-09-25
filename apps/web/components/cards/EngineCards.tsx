@@ -33,6 +33,7 @@ import {
   IconTarget,
   IconWarning,
 } from "../shell/Icons";
+import { Medallion } from "./Medallion";
 
 const ENGINE_ICON: Record<string, React.ComponentType<{ size?: number }>> = {
   bazi: IconTaiji,
@@ -57,14 +58,26 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
   const dirTone = engine.direction > 0 ? "up" : engine.direction < 0 ? "down" : "flat";
 
   return (
-    <Card className="flex min-h-[140px] flex-col p-2.5" testId={`engine-card-${engine.engine}`}>
-      <div className="flex items-center gap-1.5">
-        <span
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-          style={{ color: accent, border: `1px solid ${accent}55`, background: `${accent}18` }}
-        >
-          <Icon size={13} />
-        </span>
+    <Card className="flex min-h-[140px] flex-col p-2" testId={`engine-card-${engine.engine}`}>
+      {/* 引擎徽记用 Medallion（44px 圆章）而不是 24px 小圆点：
+          参考图 02 的三张引擎卡靠这三枚大圆章区分引擎身份，
+          24px 的点在 1672px 宽的终端里既看不清也撑不住卡片的视觉重量。 */}
+      <div className="flex items-center gap-2.5">
+        <Medallion
+          icon={<Icon size={20} />}
+          tone={
+            engine.engine === "ziwei"
+              ? "conflict"
+              : engine.engine === "huangli"
+                ? "down"
+                : engine.engine === "backtest"
+                  ? "info"
+                  : "gold"
+          }
+          size={34}
+          title={`${engine.displayName}引擎`}
+          testId={`engine-medallion-${engine.engine}`}
+        />
         <span
           className="text-[14.5px] font-semibold"
           style={{ color: "var(--color-ink)", fontFamily: "var(--font-serif-cn)" }}
@@ -82,7 +95,7 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
 
       {engine.available && engine.score !== null ? (
         <>
-          <div className="mt-1.5 flex items-end gap-1">
+          <div className="mt-1 flex items-end gap-1">
             <span
               className="smp-num smp-key-number leading-none"
               style={{ color: engine.direction > 0 ? "var(--color-up)" : engine.direction < 0 ? "var(--color-down)" : "var(--color-ink)" }}
@@ -95,7 +108,7 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
             </span>
           </div>
 
-          <div className="mt-1">
+          <div className="mt-0.5">
             <div className="flex items-center gap-1.5">
               <span className="smp-metric-label">信心</span>
               <div className="h-[3px] flex-1 rounded-full" style={{ background: "var(--color-surface-4)" }}>
@@ -113,7 +126,7 @@ export function EngineScoreCard({ engine }: { engine: EngineCardView }) {
             </div>
           </div>
 
-          <p className="mt-1 text-[11.5px] leading-[16px] line-clamp-1" style={{ color: "var(--color-ink-muted)" }}>
+          <p className="mt-0.5 text-[11.5px] leading-[16px] line-clamp-1" style={{ color: "var(--color-ink-muted)" }}>
             {engine.summary}
           </p>
 
@@ -514,7 +527,7 @@ export function EvidenceRow({ item }: { item: EvidenceCardView }) {
   const tone = STANCE_TONE[item.stance] ?? "flat";
   return (
     <div
-      className="rounded-[7px] border px-2.5 py-1.5"
+      className="rounded-[7px] border px-2.5 py-1"
       style={{ borderColor: "var(--color-border)", background: "rgba(0,0,0,0.14)" }}
       data-testid={`evidence-${item.id}`}
     >
@@ -524,15 +537,21 @@ export function EvidenceRow({ item }: { item: EvidenceCardView }) {
           <div className="text-[12px] leading-[16px]" style={{ color: "var(--color-ink)" }}>
             {item.title}
           </div>
-          <p className="mt-0.5 text-[11px] leading-[15px]" style={{ color: "var(--color-ink-muted)" }}>
+          <p className="mt-0 text-[11px] leading-[15px]" style={{ color: "var(--color-ink-muted)" }}>
             {item.detail}
           </p>
         </div>
-        <div className="w-[88px] shrink-0 text-right">
-          <div className="text-[10px]" style={{ color: "var(--color-ink-faint)" }}>
+        {/* 来源列必须**两行放完**：版本+日期一旦折行，行高就被右列顶到 45px，
+            五条证据会把右卡撑到 365px（参考 278px），整列第三行整体下移。
+            所以这里用 9px + nowrap 把 "v1.2.0 2024-11-14" 压回一行。 */}
+        <div className="w-[92px] shrink-0 text-right">
+          <div className="text-[10px] leading-[15px]" style={{ color: "var(--color-ink-faint)" }}>
             {item.source}
           </div>
-          <div className="smp-num text-[10px]" style={{ color: "var(--color-ink-faint)" }}>
+          <div
+            className="smp-num whitespace-nowrap text-[9px] leading-[13px]"
+            style={{ color: "var(--color-ink-faint)" }}
+          >
             {item.version} {item.date}
           </div>
         </div>
@@ -555,12 +574,61 @@ export function FlameRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+/**
+ * 古籍书影缩略图（纯 SVG，无外部图片资源）。
+ *
+ * 为什么画而不是放图：AGENTS.md §9.13 禁止把参考图当图片贴上去，
+ * 而 book_artifact 里也没有封面文件位。颜色由书名做确定性散列得出
+ * （同一本书每次渲染同色，不同书不同色），只承担"这是哪一本"的视觉区分，
+ * **不承载任何吉凶/强弱语义**。
+ */
+export function BookCover({ title, size = 44 }: { title: string; size?: number }) {
+  let h = 0;
+  for (let i = 0; i < title.length; i += 1) h = (h * 31 + title.charCodeAt(i)) % 360;
+  const hue = h;
+  const h2 = (hue + 26) % 360;
+  const w = Math.round(size * 0.72);
+  return (
+    <svg
+      width={w}
+      height={size}
+      viewBox="0 0 30 42"
+      aria-hidden="true"
+      style={{ flexShrink: 0, borderRadius: 2 }}
+      data-testid="book-cover"
+    >
+      <defs>
+        <linearGradient id={`bc-${hue}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={`hsl(${hue} 34% 26%)`} />
+          <stop offset="100%" stopColor={`hsl(${h2} 30% 15%)`} />
+        </linearGradient>
+      </defs>
+      <rect x="0.5" y="0.5" width="29" height="41" rx="1.5" fill={`url(#bc-${hue})`} stroke={`hsl(${hue} 40% 52%)`} strokeWidth="0.8" />
+      {/* 书脊 */}
+      <rect x="0.5" y="0.5" width="3.4" height="41" fill={`hsl(${hue} 30% 20%)`} opacity="0.85" />
+      {/* 题签框（古籍线描的"竖排书名框"） */}
+      <rect x="9" y="6" width="15" height="30" rx="1" fill="none" stroke={`hsl(${hue} 45% 62%)`} strokeWidth="0.9" opacity="0.9" />
+      {[12, 17.5, 23, 28.5].map((y) => (
+        <line
+          key={y}
+          x1="12.5"
+          y1={y}
+          x2="20.5"
+          y2={y}
+          stroke={`hsl(${hue} 45% 66%)`}
+          strokeWidth="1.1"
+          strokeLinecap="round"
+          opacity="0.85"
+        />
+      ))}
+    </svg>
+  );
+}
+
 export function BookRow({ title, detail, tag }: { title: string; detail: string; tag: string }) {
   return (
-    <div className="flex items-start gap-2">
-      <span style={{ color: "var(--color-gold-dim)" }}>
-        <IconBook size={14} />
-      </span>
+    <div className="flex items-start gap-2.5" data-testid="book-row">
+      <BookCover title={title} />
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-[12.5px]" style={{ color: "var(--color-ink)" }}>

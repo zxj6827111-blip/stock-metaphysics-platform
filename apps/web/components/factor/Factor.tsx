@@ -11,7 +11,7 @@ import { useState } from "react";
 
 import type { FactorRowView } from "@/lib/types";
 import { Chip } from "../cards/Card";
-import { IconArrowDown, IconArrowUp, IconMinus } from "../shell/Icons";
+import { IconArrowDown, IconArrowUp, IconCheck, IconClose, IconMinus } from "../shell/Icons";
 
 export function FactorBadge({ factor }: { factor: FactorRowView }) {
   const pos = factor.direction > 0;
@@ -67,6 +67,7 @@ export function FactorList({
   }
 
   const color = tone === "positive" ? "var(--color-up)" : "var(--color-down)";
+  const bg = tone === "positive" ? "var(--color-up-bg)" : "var(--color-down-bg)";
   const clipped = !!initialVisible && factors.length > initialVisible;
   const shown = clipped && !expanded ? factors.slice(0, initialVisible) : factors;
 
@@ -79,8 +80,16 @@ export function FactorList({
           style={{ borderColor: "rgba(30,52,68,0.55)" }}
           data-testid={`factor-row-${f.factorId}`}
         >
-          <span className="mt-[2px] shrink-0" style={{ color }}>
-            {tone === "positive" ? <IconArrowUp size={12} /> : <IconArrowDown size={12} />}
+          {/* 方向标记用"实心圆 + 勾/叉"而不是细箭头：
+              箭头只有 12px，在 1672px 宽的研究终端里几乎看不见，
+              而这一列是读者判断"利多/利空"的第一眼锚点（参考图 03 就是实心圆勾叉）。
+              颜色 + 符号双重编码，不依赖颜色单独传达方向（uiux_spec §31）。 */}
+          <span
+            className="mt-[1px] flex h-[16px] w-[16px] shrink-0 items-center justify-center rounded-full"
+            style={{ color, background: bg, border: `1px solid ${color}55` }}
+            aria-label={tone === "positive" ? "利多" : "利空"}
+          >
+            {tone === "positive" ? <IconCheck size={10} /> : <IconClose size={9} />}
           </span>
           <span
             className="smp-num mt-[2px] w-[108px] shrink-0 text-[11px]"

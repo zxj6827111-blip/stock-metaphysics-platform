@@ -43,6 +43,18 @@ const TABS: { key: string; label: string; mode: Mode; value: number }[] = [
 ];
 
 /** 传统分类的语义色（与行情涨跌色完全分离，避免读成买卖信号）。 */
+/** 日格底色/边框：只按后端 class_code 分三档（吉 / 凶 / 未给分类）。 */
+function classFill(code: string | null): string {
+  if (code === "auspicious") return "rgba(45,132,100,0.20)";
+  if (code === "inauspicious") return "rgba(140,44,48,0.20)";
+  return "rgba(255,255,255,0.012)";
+}
+function classBorder(code: string | null): string {
+  if (code === "auspicious") return "rgba(79,211,155,0.38)";
+  if (code === "inauspicious") return "rgba(232,88,90,0.34)";
+  return "var(--color-border)";
+}
+
 function classTone(code: string | null): string {
   if (code === "auspicious") return CLASS_TONE.auspicious;
   if (code === "inauspicious") return CLASS_TONE.inauspicious;
@@ -602,8 +614,12 @@ function DayCard({
       onClick={() => onPick(card.date)}
       className="flex flex-col items-stretch rounded-[6px] border px-1.5 py-1.5 text-left transition-colors"
       style={{
-        borderColor: active ? "var(--color-gold)" : "var(--color-border)",
-        background: active ? "rgba(212,184,122,0.10)" : "rgba(255,255,255,0.012)",
+        /* 卡面按吉/凶染色（参考图 08：吉=绿底绿框，凶=暗红底红框）。
+           原来 20 张卡底色完全一致，读者必须逐张读小标签才能分吉凶；
+           底色 + 边框双编码后，整块日历一眼可扫。
+           颜色只表达后端给出的 class_code，不叠加任何"程度"含义。 */
+        borderColor: active ? "var(--color-gold)" : classBorder(card.class_code),
+        background: active ? "rgba(212,184,122,0.10)" : classFill(card.class_code),
         boxShadow: active ? "inset 0 0 0 1px rgba(212,184,122,0.35)" : undefined,
       }}
       data-testid={`huangli-day-${card.date}`}

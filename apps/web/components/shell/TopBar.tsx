@@ -167,6 +167,7 @@ const HERO: Record<
     astrolabeSize: number;
     astrolabeClass: string;
     mountainOpacity: number;
+    mountainHeight: number;
     coupletSize: number;
   }
 > = {
@@ -177,7 +178,8 @@ const HERO: Record<
     subtitle: "text-[14px]",
     astrolabeSize: 214,
     astrolabeClass: "right-[126px]",
-    mountainOpacity: 0.24,
+    mountainOpacity: 0.34,
+    mountainHeight: 112,
     coupletSize: 13,
   },
   research: {
@@ -189,7 +191,8 @@ const HERO: Record<
     subtitle: "text-[14.5px]",
     astrolabeSize: 236,
     astrolabeClass: "-right-6",
-    mountainOpacity: 0.34,
+    mountainOpacity: 0.46,
+    mountainHeight: 124,
     coupletSize: 14,
   },
   statistics: {
@@ -197,15 +200,17 @@ const HERO: Record<
     // 高度构成：py 8+8 + 上下边框 2 + 内容 76 = 94；内容 76 由竖联
     // （3 字 × 16px 行高 + 6 间距 + 印章 20 = 74）取整到 76 撑住，
     // 标题 34px 与副标题 13px 合计 62，不反过来顶高卡片。
-    // 装饰同步收敛：星盘缩到 168 并左移，山脊不透明度降到 0.16，
-    // 因为参考图 05 这一带读起来是"标题带"，不是"主视觉"。
+    // 装饰同步收敛：星盘缩到 168 并左移，山脊不透明度降到 0.22、高度收到 78，
+    // 因为参考图 05 这一带读起来是"标题带"，不是"主视觉"——
+    // 但仍要看得见山脊（参考图 05 标题后面有山），不能退回到只剩底边一线。
     box: "px-4 py-2",
     minH: 76,
     title: "text-[34px]",
     subtitle: "text-[13px]",
     astrolabeSize: 168,
     astrolabeClass: "right-[150px]",
-    mountainOpacity: 0.16,
+    mountainOpacity: 0.22,
+    mountainHeight: 78,
     coupletSize: 12,
   },
 };
@@ -221,6 +226,7 @@ export function PageHero({
   showDecorations = true,
   variant = "default",
   heroMinHeight,
+  subtitleInline = false,
 }: {
   title: string;
   subtitle?: string;
@@ -240,6 +246,15 @@ export function PageHero({
    * 不传时与该变体行为完全一致 ⇒ 已批准的 02 / 05 / 08 不受影响。
    */
   heroMinHeight?: number;
+  /**
+   * 副标题排在标题右侧同一基线上（参考图 04 紫微斗数详情）。
+   *
+   * 为什么单独开这个开关：参考图 04 的 Hero 只有 73px，是"标题带"不是"标题卡"
+   * —— 标题与副标题并排才装得下；叠放会把 73px 顶到 ~87px，
+   * 后面每一张卡的 y 都跟着下移 14px，整页构图就散了。
+   * 默认 false ⇒ 其余页面渲染路径完全不变。
+   */
+  subtitleInline?: boolean;
 }) {
   const hero = HERO[variant];
   const minH = heroMinHeight ?? hero.minH;
@@ -259,7 +274,7 @@ export function PageHero({
           因此必须显式留白，不能靠内容自身撑开（否则会出现文字压在星盘上）。 */}
       {showDecorations && (
         <>
-          <MountainSilhouette opacity={hero.mountainOpacity} />
+          <MountainSilhouette opacity={hero.mountainOpacity} height={hero.mountainHeight} />
           <Astrolabe
             size={hero.astrolabeSize}
             glow={true}
@@ -289,7 +304,7 @@ export function PageHero({
         className="relative z-10 flex items-center justify-between gap-4"
         style={{ minHeight: minH }}
       >
-        <div className="min-w-0">
+        <div className={`min-w-0 ${subtitleInline ? "flex flex-wrap items-baseline gap-x-4" : ""}`}>
           <h1
             className={`smp-serif-title smp-gold-shimmer ${hero.title} font-bold leading-[1.08] tracking-[0.04em]`}
             style={{
@@ -303,7 +318,7 @@ export function PageHero({
           </h1>
           {subtitle ? (
             <p
-              className={`mt-1.5 tracking-[0.1em] ${hero.subtitle}`}
+              className={`${subtitleInline ? "" : "mt-1.5"} tracking-[0.1em] ${hero.subtitle}`}
               style={{ color: "var(--color-ink-sub)", fontFamily: "var(--font-serif-cn)" }}
             >
               {subtitle}

@@ -40,6 +40,8 @@ export interface ResearchPageProps {
   heroVariant?: HeroVariant;
   /** 单页 Hero 内容高度微调（见 `PageHero.heroMinHeight` 的说明）。 */
   heroMinHeight?: number;
+  /** 副标题与标题并排（参考图 04 的 73px 标题带，见 `PageHero.subtitleInline`）。 */
+  subtitleInline?: boolean;
   code: string;
   analysis: ApiMultiAnalysis | null;
   loading: boolean;
@@ -59,6 +61,7 @@ export function ResearchPage({
   motto,
   heroVariant = "default",
   heroMinHeight,
+  subtitleInline,
   code,
   analysis,
   loading,
@@ -130,6 +133,7 @@ export function ResearchPage({
         motto={motto}
         variant={heroVariant}
         heroMinHeight={heroMinHeight}
+        subtitleInline={subtitleInline}
       />
       {ctx ? (
         <StockContextBar

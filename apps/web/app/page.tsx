@@ -13,6 +13,7 @@ import { Suspense, useEffect, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHero } from "@/components/shell/TopBar";
 import { Card, CardHeader, Chip } from "@/components/cards/Card";
+import { Medallion, type MedallionTone } from "@/components/cards/Medallion";
 import { MiniTrend } from "@/components/charts/Charts";
 import { StockSearch } from "@/components/stock/StockSearch";
 import { Astrolabe, MountainSilhouette, SealStamp } from "@/components/shell/Decorations";
@@ -62,6 +63,19 @@ const SYSTEM_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   knowledge: IconBook,
 };
 
+/**
+ * 状态行图标色：参考图里五个引擎的图标各带本色（太极金、紫微紫、黄历青、
+ * 行情蓝、古籍金），而不是全部同一种金。颜色与相邻文字共同表达引擎身份，
+ * 不单独承载状态信息（状态由"运行正常/未启用"文字承担）。
+ */
+const SYSTEM_ICON_TONE: Record<string, string> = {
+  bazi: "var(--color-gold)",
+  ziwei: "var(--color-conflict)",
+  huangli: "var(--color-down)",
+  market: "var(--color-info)",
+  knowledge: "var(--color-gold)",
+};
+
 function RecentCard({ item }: { item: RecentAnalysisItem }) {
   const tone =
     item.statusTone === "up"
@@ -72,10 +86,25 @@ function RecentCard({ item }: { item: RecentAnalysisItem }) {
           ? "conflict"
           : "flat";
   const priceColor = item.trend === "up" ? "var(--color-up)" : "var(--color-down)";
-  const seed = item.code.charCodeAt(0) + item.code.charCodeAt(2);
-  const spark = Array.from({ length: 28 }, (_, i) =>
-    50 + Math.sin((i + seed) / 3.1) * 12 + Math.cos((i + seed) / 7.4) * 6 + i * (item.trend === "up" ? 0.5 : -0.4),
-  );
+  /**
+   * 迷你走势：确定性的伪随机游走（种子取自股票代码）。
+   *
+   * 为什么不是平滑正弦：参考图里最近分析卡的走势是**分时级别的抖动折线**，
+   * 纯正弦画出来是一条"人工曲线"，与真实行情的观感完全不同，一眼就能看出
+   * 不是行情。这里不引入任何真实数据 —— 只是让演示形状像分时，而不是像函数。
+   */
+  const seed = item.code.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 7);
+  const spark = (() => {
+    let s = seed;
+    let v = 50;
+    const drift = item.trend === "up" ? 0.55 : -0.45;
+    return Array.from({ length: 30 }, (_, i) => {
+      s = (s * 1103515245 + 12345) % 2147483648;
+      const noise = (s / 2147483648 - 0.5) * 7;
+      v = Math.max(18, Math.min(82, v + noise + drift * (i % 5 === 0 ? 0.6 : 0)));
+      return v;
+    });
+  })();
 
   return (
     <Card className="p-3.5" testId={`recent-${item.code}`}>
@@ -221,14 +250,14 @@ function HomeInner() {
     <AppShell activeNav="home" dataStatus={dataStatus} statusText={statusText}>
       {/* Hero */}
       <section
-        className="relative mb-3 overflow-hidden rounded-[10px] border px-6 py-6"
+        className="relative mb-3 overflow-hidden rounded-[10px] border px-6 pb-6 pt-9"
         style={{
           borderColor: "var(--color-border)",
           background:
             "radial-gradient(ellipse 550px 380px at calc(100% - 150px) 45%, rgba(212,184,122,0.18) 0%, rgba(212,184,122,0.05) 50%, transparent 75%), linear-gradient(180deg, rgba(14,28,40,0.95) 0%, rgba(9,19,28,0.98) 100%)",
         }}
       >
-        <MountainSilhouette opacity={0.32} />
+        <MountainSilhouette opacity={0.4} height={184} />
 
         {/* 右侧天体星盘与寄语 */}
         <Astrolabe
@@ -299,8 +328,10 @@ function HomeInner() {
             </div>
           </div>
 
+          {/* 搜索卡：参考图里它与标题之间有一段明显留白，卡内也更高
+              （标签 / 输入行 / 示例行三段各占一行带呼吸），因此这里用 mt-5 + py-[18px]。 */}
           <div
-            className="mt-4 rounded-[8px] border px-4 py-4"
+            className="mt-5 rounded-[8px] border px-4 py-[18px]"
             style={{ borderColor: "var(--color-border-strong)", background: "rgba(6,14,21,0.65)" }}
           >
             <div className="mb-2.5 flex items-center gap-1.5 text-[13px]" style={{ color: "var(--color-ink-sub)" }}>
@@ -378,8 +409,16 @@ function HomeInner() {
                   style={{ borderColor: "rgba(30,52,68,0.55)" }}
                   data-testid={`system-${s.key}`}
                 >
-                  <span style={{ color: ok ? "var(--color-gold-dim)" : "var(--color-ink-faint)" }}>
-                    <Icon size={15} />
+                  <span
+                    className="flex h-[22px] w-[22px] items-center justify-center rounded-full"
+                    style={{
+                      color: ok ? (SYSTEM_ICON_TONE[s.key] ?? "var(--color-gold)") : "var(--color-ink-faint)",
+                      background: ok
+                        ? `color-mix(in srgb, ${SYSTEM_ICON_TONE[s.key] ?? "var(--color-gold)"} 12%, transparent)`
+                        : "transparent",
+                    }}
+                  >
+                    <Icon size={13} />
                   </span>
                   <span className="text-[12.5px]" style={{ color: ok ? "var(--color-ink-sub)" : "var(--color-ink-faint)" }}>
                     {s.label}
@@ -421,15 +460,16 @@ function HomeInner() {
             return (
               <div
                 key={c.key}
-                className="flex items-center gap-3.5 rounded-[8px] border px-4 py-[18px]"
+                className="flex items-center gap-4 rounded-[8px] border px-4 py-5"
                 style={{ borderColor: "var(--color-border)", background: t.bg }}
               >
-                <span
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
-                  style={{ color: t.color, border: `1px solid ${t.color}55`, background: `${t.color}14` }}
-                >
-                  <Icon size={22} />
-                </span>
+                <Medallion
+                  icon={<Icon size={26} />}
+                  tone={c.tone as MedallionTone}
+                  size={58}
+                  title={c.title}
+                  testId={`capability-medallion-${c.key}`}
+                />
                 <div className="min-w-0">
                   <div className="text-[15px] font-medium" style={{ color: "var(--color-ink)" }}>
                     {c.title}

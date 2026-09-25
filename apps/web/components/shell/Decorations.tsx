@@ -368,14 +368,25 @@ export function SealStamp({
 export function MountainSilhouette({
   className = "",
   opacity = 0.28,
+  height = 160,
 }: {
   className?: string;
   opacity?: number;
+  /**
+   * 装饰层高度。
+   *
+   * 为什么它必须是参数而不是常量：Hero 卡片只有 94–124px 高，而 160px 的
+   * 装饰层底对齐后，viewBox 顶部（也就是**山峰所在**的那 40px）会被卡片裁掉 ——
+   * 于是参考图里"横穿标题区的清晰山脊"在实现里只剩贴着卡片底边的一线灰影。
+   * 让调用方按 Hero 实际高度给值（preserveAspectRatio=none 会整体压缩），
+   * 山峰才落回它该在的位置。
+   */
+  height?: number;
 }) {
   return (
     <div
       className={`absolute inset-x-0 bottom-0 pointer-events-none overflow-hidden select-none ${className}`}
-      style={{ height: 160, opacity }}
+      style={{ height, opacity }}
       aria-hidden="true"
     >
       <svg

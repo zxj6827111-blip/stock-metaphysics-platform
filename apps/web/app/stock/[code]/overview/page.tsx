@@ -390,6 +390,8 @@ function OverviewInner() {
     <AppShell activeNav="overview" dataStatus={error ? "bad" : "ok"} statusText={error ? "后端未连接" : "数据正常"}>
       <PageHero
         variant="research"
+        // 参考图 02 的 Hero 高 124px（106+16+2）。
+        heroMinHeight={106}
         title="综合研判"
         subtitle="多模型交叉验证 · 识别趋势共识 · 提示关键风险"
         seal="正"
@@ -625,12 +627,13 @@ function OverviewInner() {
               <Card testId="key-evidence" anchor="right-summary">
                 <CardHeader
                   icon={<IconBook size={14} />}
-                  title={`关键证据${data.evidence.length > 3 ? `（摘要 3 / 共 ${data.evidence.length}）` : ""}`}
+                  title={`关键证据${data.evidence.length > 5 ? `（摘要 5 / 共 ${data.evidence.length}）` : ""}`}
                   action={{ label: "查看更多", onClick: () => setDrawer(true), testId: "evidence-more-btn" }}
                 />
-                {/* 行距/内边距按参考图恢复视觉重量：参考右卡与左卡等高（278px），
-                    本轮左卡补高后若证据区仍用旧的紧凑行距会矮约 20px。 */}
-                <div className="space-y-2.5 p-3.5">
+                {/* 行距/内边距按参考图恢复视觉重量：参考右卡与左卡等高（278px）且是
+                    多条紧凑行。本轮从 3 条提到 5 条补密度，但行内边距与行距必须同步收紧，
+                    否则「风险摘要」会被挤出 941px 首屏（r1-refinement 可用性门）。 */}
+                <div className="space-y-1 px-3 py-1">
                   {data.evidence.length === 0 ? (
                     <div className="py-6 text-center text-[12px]" style={{ color: "var(--color-ink-faint)" }}>
                       暂无证据条目
@@ -639,11 +642,11 @@ function OverviewInner() {
                     <>
                       {(evidenceExpanded
                         ? data.evidence
-                        : pickEvidenceSummary(data.evidence, 3)
+                        : pickEvidenceSummary(data.evidence, 5)
                       ).map((ev) => (
                         <EvidenceRow key={ev.id} item={ev} />
                       ))}
-                      {data.evidence.length > 3 ? (
+                      {data.evidence.length > 5 ? (
                         <button
                           type="button"
                           className="w-full rounded-[6px] border py-1 text-[11.5px] transition-opacity hover:opacity-80"
@@ -653,7 +656,7 @@ function OverviewInner() {
                         >
                           {evidenceExpanded
                             ? "收起证据摘要"
-                            : `展开其余 ${data.evidence.length - 3} 条证据`}
+                            : `展开其余 ${data.evidence.length - 5} 条证据`}
                         </button>
                       ) : null}
                     </>

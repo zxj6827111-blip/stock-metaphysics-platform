@@ -143,6 +143,8 @@ function EvidenceInner() {
       title="古籍证据检索"
       subtitle="连通经典古籍与现代研究，把结论落到原典证据与历史样本"
       seal="典"
+      // 参考图 09 的 Hero 高 102px（104-20+16+2）。
+      heroMinHeight={84}
       code={code}
       analysis={analysis}
       loading={loading}

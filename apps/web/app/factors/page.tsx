@@ -137,6 +137,8 @@ function FactorsInner() {
         title="因子字典"
         subtitle="统一管理八字、紫微、黄历与量化辅助因子，沉淀可复用研究资产"
         seal="典"
+        // 参考图 06 的 Hero 高 141px（123+16+2），是十页里最高的一条头部带。
+        heroMinHeight={123}
       />
 
       {loading ? <PageLoading label="正在读取因子字典…" /> : null}

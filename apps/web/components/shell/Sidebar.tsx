@@ -128,16 +128,22 @@ export function Sidebar({ activeKey }: { activeKey?: string }) {
       }}
       data-anchor="sidebar"
     >
-      <nav className="smp-scroll flex-1 overflow-y-auto py-2">
+      {/* 导航节奏按参考图实测对齐：首项中心 y≈90、末项中心 y≈650、项距 ≈50px。
+          分组标题原来占两行共 ~34px，把后 6 项整体下推了近 50px；
+          改为 1px 分隔线（~13px）后分组语义仍在（断点可见），
+          而 12 项落回 93..656，与参考图逐项对齐。分组名保留在 title 上供审计。 */}
+      <nav className="smp-scroll flex-1 overflow-y-auto pt-1.5">
         {NAV.map((group, gi) => (
-          <div key={group.group || `g${gi}`} className={gi > 0 ? "mt-1" : ""}>
+          <div key={group.group || `g${gi}`}>
             {group.group ? (
               <div
-                className="px-4 pb-1 pt-3 text-[10.5px] tracking-[0.16em]"
-                style={{ color: "var(--color-ink-faint)" }}
-              >
-                {group.group}
-              </div>
+                className="mx-4 my-[7px] h-px"
+                style={{ background: "var(--color-border)" }}
+                title={group.group}
+                data-testid={`nav-group-${gi}`}
+                data-group={group.group}
+                aria-hidden="true"
+              />
             ) : null}
             {group.items.map((item) => {
               const active = isActive(item);

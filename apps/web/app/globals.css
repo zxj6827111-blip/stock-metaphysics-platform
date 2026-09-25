@@ -71,7 +71,7 @@
      残余差异在交付报告中如实列出。 */
   --font-sans: "SMP Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans SC",
     "Hiragino Sans GB", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Courier New", monospace;
+  --font-mono: "SMP Mono", "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Courier New", monospace;
   --font-serif-cn: "SMP Serif SC", "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
 
   /* --- 尺寸 --- */
@@ -273,7 +273,11 @@ body::before {
   }
 
   .smp-nav-item {
-    @apply relative flex items-center gap-2.5 px-4 py-[10px] text-[14.5px] transition-colors;
+    /* 行距按参考图实测取 50px（py 14 + 14.5px 文字行高 ~22）。
+       原 py-10 只有 ~42px 间距（字号 14.5px 也偏小，参考图约 15.5px），12 个导航项在 941px 首屏里挤成一团，
+       与参考图纵向节奏（首项 y≈90、末项 y≈650）明显偏密。
+       只改纵向节奏；侧栏宽度仍是已批准的 210px token，不动。 */
+    @apply relative flex items-center gap-2.5 px-4 py-[13.5px] text-[15.5px] transition-colors;
     color: var(--color-ink-sub);
     border-left: 2px solid transparent;
   }
@@ -281,10 +285,14 @@ body::before {
     color: var(--color-ink);
     background: rgba(255, 255, 255, 0.022);
   }
+  /* 选中态按参考图改成"内缩圆角高亮块"（x≈8..222、圆角 6px），
+     原来是一条贴边的 2px 金线 + 通栏渐变，在深色侧栏里既不醒目也不像参考图。
+     保留 border-left 的占位是为了让选中/未选中项的文字左边界完全对齐（不跳动）。 */
   .smp-nav-item--active {
     color: var(--color-ink);
-    background: linear-gradient(90deg, rgba(212, 184, 122, 0.14), transparent 82%);
-    border-left-color: var(--color-gold);
+    background: linear-gradient(90deg, rgba(212, 184, 122, 0.16), rgba(212, 184, 122, 0.05) 78%);
+    border-left-color: transparent;
+    box-shadow: inset 0 0 0 1px rgba(212, 184, 122, 0.34);
   }
   .smp-nav-item--active .smp-nav-icon {
     color: var(--color-gold);

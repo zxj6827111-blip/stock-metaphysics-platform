@@ -64,6 +64,15 @@ function ZiweiInner() {
       title="紫微斗数详情"
       subtitle="以紫微之理，观市场之机 · 星曜映照，洞察结构流转"
       seal="微"
+      // 参考图 04 的 Hero 是 73px 的"标题带"（不是 12x 行的标题卡）：
+      // 副标题并排 + 内容高 55（55+16 padding+2 border = 73）才装得下。
+      // 之前沿用 default 变体的 122px，把命盘整块往下推了 49px。
+      heroMinHeight={55}
+      subtitleInline
+      // 参考图 04 的 Hero 右侧只有星盘 + 一行横排题注，没有竖排联句；
+      // 保留联句会把 73px 的标题带顶到 92px（联句本身就有 ~90px 高）。
+      couplet={[]}
+      motto={["东方智慧 · 现代方法 · 觉醒入市的新轴线"]}
       code={code}
       analysis={analysis}
       loading={loading}
