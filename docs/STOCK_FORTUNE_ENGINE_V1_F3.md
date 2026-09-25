@@ -3,8 +3,8 @@
 - **日期**：2026-09-26
 - **分支**：`feat/stock-fortune-engine-v1`
 - **范围**：内部 Snapshot schema、统一 orchestration、既有 Calendar/Bazi/Ten-God/Relation 复用、Golden/契约测试、ADR-0019
-- **当前结论**：实现已落地，最终验收等待测试与 CI 证据；不得据此文档的存在推断 F3 PASS。
-- **F4 readiness**：NO，直到本文件的阻塞门禁有当前提交的 PASS 证据。
+- **当前结论**：`STOCK_FORTUNE_F3 = PASS`。实现提交 `353893ca94fb554d4613462d861c1d6331ac252e` 的完整 V5.1 acceptance CI 五个 job 全部通过。
+- **F4 readiness**：`READY_FOR_STOCK_FORTUNE_F4 = YES`。
 
 ## 结果结构
 
@@ -63,14 +63,17 @@ Snapshot 为内部契约，本轮没有新增临时 API 或修改 `/api/v1/**`�
 
 | 检查 | 结果 | 证据 |
 |---|---|---|
-| F3 核心契约测试 | 待执行/待记录 | `tests/core/test_stock_fortune_engine.py` |
-| F3 Golden | 待执行/待记录 | `tests/golden/test_stock_fortune_snapshot_golden.py` |
-| Alembic upgrade/downgrade | 待执行/待记录 | 新增 `chart_artifact.birth_profile_version` 16→32 migration；downgrade 有长值时中止 |
-| F1/F2、Bazi、Calendar、Date Scan、Ten-God、Relation、Ziwei 回归 | 待执行/待记录 | 当前提交测试 run |
-| 前端 typecheck/build、seeded E2E | 待执行/待记录 | 当前提交 workflow run |
-| CI | 待触发/待记录 | PR #7 当前提交的 run/job conclusion |
+| F3 核心契约测试 | PASS | `tests/core/test_stock_fortune_engine.py`，包含在 backend 全量 suite |
+| F3 Golden | PASS | `tests/golden/test_stock_fortune_snapshot_golden.py`，包含在 backend 全量 suite |
+| Alembic upgrade/downgrade | PASS | `tests/db/test_schema_integrity.py::TestSchemaCompleteness::test_f3_birth_profile_version_migration_preserves_data_and_blocks_lossy_downgrade`；验证扩列、保留长版本值、有损 downgrade 中止和短值安全 downgrade |
+| F1/F2、Bazi、Calendar、Date Scan、Ten-God、Relation 回归 | PASS（限定范围） | backend：`2167 passed, 20 skipped, 28 deselected`；命令 `python -m pytest -q -m "not ziwei_live"` |
+| Ziwei engine + Golden | PASS | `331 passed`，Node transport 可用性有显式断言 |
+| 前端 typecheck | PASS | `frontend-typecheck` job |
+| 前端 build | PASS | `frontend-build` job |
+| seeded E2E | PASS | `7 passed` |
+| 完整 CI | PASS | [run 36169550614](https://github.com/zxj6827111-blip/stock-metaphysics-platform/actions/runs/36169550614)，实现 SHA `353893ca94fb554d4613462d861c1d6331ac252e` 的五个 jobs 全部 success |
 
-本机 `.venv` 不存在，启动器 `py -3.12` 未发现已安装 Python；Codex bundled Python 3.12.14 缺少 `pytest`、SQLAlchemy 和 `pydantic-settings`，目标 pytest 因 `No module named pytest` 未能启动。11 个修改后的 Python 文件通过了 AST syntax parse。前端 `apps/web/node_modules` 不存在，本机 Node 为 v24.14.0（CI 锁定 Node 20），因此 typecheck/build/E2E 未在本机运行。不得把未执行写为通过。最终更新本表时需记录准确命令、计数、run ID/链接和 job conclusion。
+本机 `.venv` 不存在，启动器 `py -3.12` 未发现已安装 Python；Codex bundled Python 3.12.14 缺少 `pytest`、SQLAlchemy 和 `pydantic-settings`，本机目标 pytest 未能启动。修改后的 Python 文件通过 AST syntax parse 和 `git diff --check`。前端 `apps/web/node_modules` 不存在，本机 Node 为 v24.14.0（CI 锁定 Node 20），因此 typecheck/build/E2E 由上述 CI run 验证，未在本机运行。
 
 ## 尚存限制
 
@@ -80,4 +83,4 @@ Snapshot 为内部契约，本轮没有新增临时 API 或修改 `/api/v1/**`�
 
 ## 结论
 
-在 backend/Golden 与既有回归、前端 build/typecheck/E2E 及 CI 全部取得当前提交的通过证据前，`STOCK_FORTUNE_F3` 保持 FAIL，`READY_FOR_STOCK_FORTUNE_F4` 保持 NO。验证完成后以实际测试输出替换上述待记录项，并按 ADR-0019 的接受门槛更新状态。
+`STOCK_FORTUNE_F3 = PASS`；`READY_FOR_STOCK_FORTUNE_F4 = YES`。通过依据为上表列出的实现提交 CI、F3 contract/Golden、migration 与既有回归结果。20 项 skipped、28 项 deselected 已如实披露，不计为通过；本机 pytest 与前端依赖未安装，但不影响 CI 已执行的对应门禁。

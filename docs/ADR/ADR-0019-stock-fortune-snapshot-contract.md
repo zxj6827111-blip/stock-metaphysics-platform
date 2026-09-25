@@ -1,6 +1,6 @@
 # ADR-0019：Stock Fortune Snapshot 聚合契约与语义边界
 
-- **状态**：Draft
+- **状态**：已接受(Accepted)
 - **日期**：2026-09-26
 - **影响**：Stock Fortune Snapshot、Bazi/Calendar 编排、十神上下文、关系事件与 chart_artifact
 - **关联**：[ADR-0013](ADR-0013-research-validity-boundary.md)、[ADR-0015](ADR-0015-stock-fortune-birth-basis-and-precision.md)、[ADR-0016](ADR-0016-fortune-temporal-boundaries-and-market-session.md)、[ADR-0017](ADR-0017-fortune-polarity-and-dayun-direction.md)、[ADR-0018](ADR-0018-fortune-first-trade-and-temporal-resolution.md)
@@ -30,4 +30,6 @@ F1/F2 已经定义股票出生档案、首日阴阳大运约定和三种 evaluat
 
 ## 接受依据
 
-本 ADR 仍为 Draft。只有当 migration upgrade/downgrade 安全检查、后端契约/Golden 回归、前端既有门禁和对应 CI run 均有当前提交的证据后，才可改为 `已接受(Accepted)`。在此之前，F3 不得报告 PASS 或 F4 readiness。
+实现提交 `353893ca94fb554d4613462d861c1d6331ac252e` 的 [V5.1 acceptance run 36169550614](https://github.com/zxj6827111-blip/stock-metaphysics-platform/actions/runs/36169550614) 五个 job 全部成功：backend `2167 passed, 20 skipped, 28 deselected`；Ziwei engine + Golden `331 passed`；frontend typecheck/build 成功；seeded E2E `7 passed`。后端套件中的 `test_f3_birth_profile_version_migration_preserves_data_and_blocks_lossy_downgrade` 验证 migration 扩列、保留长版本值、拒绝有损 downgrade，并验证短值可安全 downgrade。目标 F3 contract 与 Snapshot Golden tests 均包含在 backend 全量套件中且通过。
+
+据此接受本契约。CI 明确跳过 20 项、排除 28 项（命令为 `python -m pytest -q -m "not ziwei_live"`）；这些项不计为通过。该 ADR 不表示本项目术数规则具有历史预测效力，也不放宽 ADR-0013 的金融表述边界。
