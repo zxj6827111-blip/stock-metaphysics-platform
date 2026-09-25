@@ -76,6 +76,6 @@
 
 ## 验收限制
 
-本机没有项目 `.venv`，可用 Codex Python 缺少 `pytest`、`pydantic_settings` 与 `lunar_python`，因此本机 pytest 未运行。PR #7 的 GitHub Actions run `36122797395`（head `413ec00`）验证了当前分支：backend core **2119 passed / 20 skipped / 28 deselected**；ziwei engine + golden、frontend typecheck、frontend build、frontend seeded date-scan E2E 均 PASS。最初 run `36121932797` 有一个周末 fixture 错误，已在 `413ec00` 修正；最终 run 所有五个 job 通过。
+本机没有项目 `.venv`，可用 Codex Python 缺少 `pytest`、`pydantic_settings` 与 `lunar_python`，因此本机 pytest 未运行。PR #7 的 GitHub Actions run `36124108854`（head `5e13ffa`）验证了 F1 契约测试：backend core **2119 passed / 20 skipped / 28 deselected**；ziwei engine + golden、frontend typecheck、frontend build、frontend seeded date-scan E2E 均 PASS。最初 run `36121932797` 有一个周末 fixture 错误，已在 `413ec00` 修正；随后全量回归及本轮五个 job 均通过。
 
 F1 的契约、当前可复用规则和边界测试已完成，`STOCK_FORTUNE_F1 = PASS`。`READY_FOR_STOCK_FORTUNE_F2 = NO`：ADR-0017 的实际大运方向/极性映射未决；真实首笔成交数据源未接入；仅有日期时，23:00 exact 换日带来的日柱歧义仍需由后续结果契约明确表达。
