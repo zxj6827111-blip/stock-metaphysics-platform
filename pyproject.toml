@@ -41,6 +41,9 @@ dev = [
     "pytest-asyncio==1.4.0",
     "pytest-cov==7.1.0",
     "ruff==0.14.13",
+    # UI 视觉审计（apps/web/scripts/visual-diff.mjs）用 Pillow 做逐像素比对。
+    # 它只在验收工具链里被用到，不是 runtime 依赖，因此放 dev 而不是主依赖。
+    "pillow==12.1.1",
 ]
 
 [project.scripts]
