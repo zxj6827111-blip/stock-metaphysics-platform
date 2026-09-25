@@ -2,6 +2,9 @@ import { readFile } from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
 
+import { withAnalysisContext } from "../lib/analysisContextCore";
+import { invalidateAnalysis, loadMultiAnalysis } from "../lib/analysisStore";
+import { toDataQualityView } from "../lib/dataSource";
 import { referenceAnchor, referenceTop } from "./support/referenceAnchors";
 
 /**
@@ -10,6 +13,14 @@ import { referenceAnchor, referenceTop } from "./support/referenceAnchors";
  * 这一份 spec 的每条用例都对应 `docs/UI_INDEPENDENT_REVIEW_2026-09-22.md` §六
  * 里的一条既有缺陷，或本轮 V0 引入的新契约。**它们必须能在缺陷回来时失败** ——
  * 既有测试全绿不代表这些点被覆盖过。
+ *
+ * 模块级静态导入说明（Ubuntu/Node 20 可移植性，V3-B0 教训）：
+ * `../lib/…` 位于 Playwright `testDir` 之外，`await import("../lib/x")` 的动态导入
+ * 不会经过 Playwright 的 TS 转译 —— Node 24（本机）恰好有 type-stripping 能跑，
+ * Node 20（GitHub Actions Ubuntu）直接 `SyntaxError: Cannot use import statement
+ * outside a module`。静态 import 由 Playwright esbuild 统一转译，跨平台确定。
+ * `analysisContextCore` 是从 `lib/analysisContext` 抽出的**零依赖纯逻辑核心**
+ * （原文件经再导出保持 API 不变），此处测的仍是生产实现本体，不是测试副本。
  */
 
 const FIX = "?fixture=ui-reference";
@@ -63,7 +74,6 @@ test.describe("分析缓存身份", () => {
       });
     };
 
-    const store = await import("../lib/analysisStore");
     const key = {
       code: "600519",
       // 与各研究页 `useAnalysis(code, "forward", …)` 一致
@@ -72,17 +82,17 @@ test.describe("分析缓存身份", () => {
       horizon: "60d",
     };
 
-    await store.loadMultiAnalysis(key);
+    await loadMultiAnalysis(key);
     expect(posts.length, "首次读取必须发一次请求").toBe(1);
 
     // 反例守卫：清掉**别的**键，不能影响这一条
-    store.invalidateAnalysis({ ...key, horizon: "20d" });
-    await store.loadMultiAnalysis(key);
+    invalidateAnalysis({ ...key, horizon: "20d" });
+    await loadMultiAnalysis(key);
     expect(posts.length, "失效别的窗口不应触发重算（否则缓存形同虚设）").toBe(1);
 
     // 正例：用同一个键失效，必须真的重算
-    store.invalidateAnalysis(key);
-    await store.loadMultiAnalysis(key);
+    invalidateAnalysis(key);
+    await loadMultiAnalysis(key);
     expect(posts.length, "用完整键失效后必须重新发请求").toBe(2);
 
     // 请求体必须带上完整上下文，而不是只带 variant
@@ -108,30 +118,27 @@ test.describe("上下文贯穿", () => {
   });
 
   test("withAnalysisContext：当前 URL 上下文覆盖链接里冻结的旧值", async () => {
-    const mod = await import("../lib/analysisContext");
-
     // 决定性的那条：链接冻结了 20d，用户此刻在 URL 上选了 60d ⇒ 必须是 60d。
     // 反过来（链接优先）会让用户在 URL 上改的假设在跳转那一刻被静默撤销。
     expect(
-      mod.withAnalysisContext("/stock/600519/bazi?horizon=20d", new URLSearchParams({ horizon: "60d" })),
+      withAnalysisContext("/stock/600519/bazi?horizon=20d", new URLSearchParams({ horizon: "60d" })),
     ).toBe("/stock/600519/bazi?horizon=60d");
 
     // 缺失的上下文照样补齐
     const params = new URLSearchParams({ fixture: "ui-reference", horizon: "60d" });
-    expect(mod.withAnalysisContext("/stock/600519/bazi?fixture=ui-reference", params)).toBe(
+    expect(withAnalysisContext("/stock/600519/bazi?fixture=ui-reference", params)).toBe(
       "/stock/600519/bazi?fixture=ui-reference&horizon=60d",
     );
   });
 
   test("withAnalysisContext：四项逐个覆盖，无关参数既不删也不改", async () => {
-    const mod = await import("../lib/analysisContext");
     const current = new URLSearchParams({
       fixture: "ui-reference",
       birthBasis: "ipo_date",
       horizon: "60d",
       asOf: "2024-11-15T14:32:00",
     });
-    const out = mod.withAnalysisContext(
+    const out = withAnalysisContext(
       "/stock/600519/bazi?fixture=ui-reference&horizon=20d&birthBasis=listing_open&foo=bar",
       current,
     );
