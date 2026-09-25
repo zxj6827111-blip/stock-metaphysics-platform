@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Mapping, Protocol, Sequence
 
 from src.core.schemas.calendar import CalendarSnapshot
 from src.core.schemas.common import Exchange
-from src.core.schemas.fortune import MarketSessionAssessment
+from src.core.schemas.fortune import FirstTradeObservation, MarketSessionAssessment
+from src.core.schemas.stock import ExchangeSession
+
+
+class FirstTradeProvider(Protocol):
+    """只提供首次成交的观测证据，不负责推定出生时刻。"""
+
+    def observe_first_trade(self, symbol: str) -> FirstTradeObservation: ...
 
 
 class CalendarSnapshotProvider(Protocol):
@@ -17,7 +24,13 @@ class CalendarSnapshotProvider(Protocol):
 
 
 class MarketSessionAdapter(Protocol):
-    """把交易所与交易日状态映射为独立的 market-session 事实。"""
+    """解析版本化 session 锚点，并把时刻分类为独立的市场状态。"""
+
+    def resolve_open_session(
+        self,
+        exchange: Exchange,
+        on_date: date,
+    ) -> tuple[ExchangeSession, str]: ...
 
     def classify(
         self,

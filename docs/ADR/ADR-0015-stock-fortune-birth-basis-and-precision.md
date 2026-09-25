@@ -1,11 +1,14 @@
 # ADR-0015：Fortune 出生基准与出生时间精度
 
-- **状态**：已接受（F1 CI contract tests）
+- **状态**：Superseded
+- **Superseded-by**：[ADR-0018](ADR-0018-fortune-first-trade-and-temporal-resolution.md)
 - **日期**：2026-09-25
 - **影响**：Fortune 内部出生档案、后续八字上下文
 - **关联**：[ADR-0003](ADR-0003-no-gender-variant-mode.md)、[ADR-0013](ADR-0013-research-validity-boundary.md)
 
 ## 背景
+
+> 历史决策说明：F1 接受的出生精度与双字段区分继续作为背景契约；其中允许用上市首个公开交易日推定的来源选择已被 ADR-0018 取代。F2 不会从 listing/IPO 元数据回填 first-trade 观察。
 
 现有 `StockBirthProfile` 使用 `LISTING_OPEN`，先按交易日历定位首个正式交易日，再按交易时段开盘时间形成排盘时间。它没有单独表达“上市日期”和“首笔实际成交时刻”；现有 `FIRST_TRADE` 需要未接入的逐笔数据源。新 Fortune 领域不能把推定开盘写成真实成交事实，也不能改变既有 `/api/v1` 与旧档案语义。
 

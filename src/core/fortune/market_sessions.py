@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import date, datetime, time
 from zoneinfo import ZoneInfo
 
 from src.core.schemas.common import Exchange
 from src.core.schemas.fortune import MarketSessionAssessment, MarketSessionStatus
+from src.core.schemas.stock import ExchangeSession
+from src.core.stock.exchange_sessions import resolve_session
 
 
 class AShareMarketSessionAdapter:
@@ -93,6 +95,17 @@ class AShareMarketSessionAdapter:
         return self._assessment(
             local_at, exchange, MarketSessionStatus.CONTINUOUS_TRADING, True, "交易日且处于连续交易区间"
         )
+
+    def resolve_open_session(
+        self,
+        exchange: Exchange,
+        on_date: date,
+    ) -> tuple[ExchangeSession, str]:
+        """按冻结配置解析指定交易所与日期的开盘锚点。"""
+
+        if exchange not in self.supported_exchanges:
+            raise ValueError("A 股时段 Adapter 需要明确 SSE/SZSE/BSE 交易所")
+        return resolve_session(exchange, on_date=on_date)
 
     def _assessment(
         self,

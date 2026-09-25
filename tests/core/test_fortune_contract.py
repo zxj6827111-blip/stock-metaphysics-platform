@@ -7,8 +7,8 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.fortune.birth import (
-    infer_a_share_listing_open_profile,
     natal_pillar_availability,
+    resolve_market_first_trade_profile,
 )
 from src.core.fortune.market_sessions import AShareMarketSessionAdapter
 from src.core.fortune.temporal_context import build_temporal_context
@@ -18,6 +18,9 @@ from src.core.schemas.fortune import (
     BirthTimePrecision,
     CompatibilityGender,
     FortuneAvailability,
+    FirstTradeObservation,
+    FirstTradeObservationResolution,
+    FirstTradeObservationStatus,
     FortunePolarity,
     FortuneRelationCategory,
     FortuneRelationEvent,
@@ -40,26 +43,41 @@ from src.core.schemas.fortune import (
 )
 
 
-def test_inferred_listing_open_is_explicit_and_not_actual_first_trade() -> None:
-    profile = infer_a_share_listing_open_profile(
+def _inferred_profile():
+    observation = FirstTradeObservation(
+        status=FirstTradeObservationStatus.OBSERVED_TRADING_DATE,
+        first_trade_date=date(2001, 8, 27),
+        resolution=FirstTradeObservationResolution.DAILY_BAR,
+        source=SourceRef(source="historical_daily_bars"),
+        source_version="daily-bars-v1",
+        reason="最早可观测日线日期",
+    )
+    return resolve_market_first_trade_profile(
         symbol="600519",
         exchange=Exchange.SSE,
         listing_date=date(2001, 8, 27),
-        listing_source=SourceRef(source="exchange_listing_registry"),
-        source_version="listing-registry-v1",
-        confidence=0.9,
-        config_version="exchange-session-v1",
+        observation=observation,
+        config_version="v1",
+        market_session_version="a-share-session-v1",
     )
+
+
+def test_inferred_listing_open_is_explicit_and_not_actual_first_trade() -> None:
+    profile = _inferred_profile()
 
     assert profile.birth_datetime == datetime.fromisoformat("2001-08-27T09:30:00+08:00")
     assert profile.birth_time_precision == BirthTimePrecision.INFERRED
     assert profile.first_trade_datetime is None
-    assert profile.birth_profile_version == "stock-fortune-birth-v1"
-    assert profile.rule_version == "fortune-listing-open-inference-v1"
-    assert profile.source_version == "listing-registry-v1"
-    assert profile.config_version == "exchange-session-v1"
-    assert profile.confidence == 0.9
-    assert profile.source.extra["listing_source"] == "exchange_listing_registry"
+    assert profile.birth_datetime_status == BirthTimePrecision.INFERRED
+    assert profile.birth_profile_version == "stock-fortune-birth-v2"
+    assert profile.rule_version == "fortune-first-trade-resolution-v1"
+    assert profile.source_version == "daily-bars-v1"
+    assert profile.config_version == "v1"
+    assert profile.source.source == "historical_daily_bars"
+    assert profile.source.extra["birth_datetime_method"] == "market_session_open_inferred"
+    assert profile.market_session_version == (
+        "fortune-market-session-anchor-v1:a-share-session-v1:v1"
+    )
     assert len(profile.assumptions) >= 2
     assert natal_pillar_availability(profile.birth_time_precision) == NatalPillarAvailability.FOUR_PILLARS
 
@@ -79,6 +97,8 @@ def test_exact_first_trade_and_custom_time_are_distinct_bases() -> None:
         exchange=Exchange.SSE,
         listing_date=date(2001, 8, 27),
         first_trade_datetime=actual,
+        first_trade_date=actual.date(),
+        first_trade_resolution=FirstTradeObservationResolution.TRADE,
         birth_basis=FortuneBirthBasis.MARKET_FIRST_TRADE,
         birth_datetime=actual,
         birth_time_precision=BirthTimePrecision.EXACT,
@@ -124,6 +144,14 @@ def test_direction_polarity_and_compatibility_gender_are_separate() -> None:
         compatibility_gender=CompatibilityGender.MALE,
         availability=FortuneAvailability.AVAILABLE,
         direction_basis="explicit-research-variant-v1",
+        polarity_source=SourceRef(source="explicit-research-input"),
+        polarity_source_version="research-input-v1",
+        market_session_version="explicit-session-v1",
+        polarity_observation_date=date(2024, 11, 15),
+        polarity_observed_at=datetime(2024, 11, 15, 15, 0, tzinfo=ZoneInfo("Asia/Shanghai")),
+        assumptions=[Assumption(
+            key="test.variant", value="explicit", reason="显式测试输入", impact="测试",
+        )],
     )
     assert context.polarity == FortunePolarity.YANG
     assert context.direction == LuckCycleDirection.REVERSE
@@ -281,15 +309,7 @@ def test_temporal_context_requests_one_shared_local_calendar_snapshot() -> None:
 
 
 def test_fortune_result_retains_raw_chart_and_persisted_artifact_reference() -> None:
-    profile = infer_a_share_listing_open_profile(
-        symbol="600519",
-        exchange=Exchange.SSE,
-        listing_date=date(2001, 8, 27),
-        listing_source=SourceRef(source="exchange_listing_registry"),
-        source_version="listing-registry-v1",
-        confidence=0.9,
-        config_version="exchange-session-v1",
-    )
+    profile = _inferred_profile()
     provider = _CountingCalendarProvider()
     temporal = build_temporal_context(
         datetime(2024, 11, 15, 6, 32, tzinfo=timezone.utc), provider

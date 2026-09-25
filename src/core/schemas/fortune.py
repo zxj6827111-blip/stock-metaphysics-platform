@@ -9,8 +9,9 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from enum import Enum
 from typing import Literal
+from zoneinfo import ZoneInfo
 
-from pydantic import FiniteFloat, Field, model_validator
+from pydantic import FiniteFloat, Field, computed_field, model_validator
 
 from src.core.schemas.calendar import CalendarSnapshot, GanZhi
 from src.core.schemas.common import (
@@ -25,7 +26,11 @@ from src.core.schemas.ten_god import TenGodHiddenStem, TenGodRef
 
 
 FORTUNE_CONTRACT_VERSION = "stock-fortune-contract-v1"
-FORTUNE_BIRTH_PROFILE_VERSION = "stock-fortune-birth-v1"
+FORTUNE_BIRTH_PROFILE_VERSION = "stock-fortune-birth-v2"
+FORTUNE_BIRTH_RESOLUTION_RULE_VERSION = "fortune-first-trade-resolution-v1"
+FORTUNE_LUCK_CYCLE_RULE_VERSION = "stock-luck-cycle-first-day-yinyang-v1"
+FORTUNE_TEMPORAL_RESOLUTION_RULE_VERSION = "fortune-temporal-resolution-v1"
+FORTUNE_MARKET_SESSION_POLICY_VERSION = "fortune-market-session-anchor-v1"
 
 
 class FortuneBirthBasis(str, Enum):
@@ -39,9 +44,42 @@ class FortuneBirthBasis(str, Enum):
 
 class BirthTimePrecision(str, Enum):
     EXACT = "EXACT"
+    MINUTE = "MINUTE"
     INFERRED = "INFERRED"
     DATE_ONLY = "DATE_ONLY"
     UNKNOWN = "UNKNOWN"
+
+
+class FirstTradeObservationStatus(str, Enum):
+    VERIFIED_DATETIME = "VERIFIED_DATETIME"
+    OBSERVED_TRADING_DATE = "OBSERVED_TRADING_DATE"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
+class FirstTradeObservationResolution(str, Enum):
+    TICK = "TICK"
+    TRADE = "TRADE"
+    MINUTE_BAR = "MINUTE_BAR"
+    DAILY_BAR = "DAILY_BAR"
+    UNKNOWN = "UNKNOWN"
+
+
+class FortuneTemporalInputKind(str, Enum):
+    EXACT_DATETIME = "EXACT_DATETIME"
+    MARKET_SESSION_DATE = "MARKET_SESSION_DATE"
+    CIVIL_DATE_ONLY = "CIVIL_DATE_ONLY"
+
+
+class FortuneTemporalResolutionStatus(str, Enum):
+    RESOLVED = "RESOLVED"
+    TIME_REQUIRED = "TIME_REQUIRED"
+    NON_TRADING_DAY = "NON_TRADING_DAY"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
+class FortuneTemporalResolutionMethod(str, Enum):
+    EXACT_DATETIME = "exact_datetime"
+    MARKET_SESSION_INFERRED = "market_session_inferred"
 
 
 class FortunePolarity(str, Enum):
@@ -124,7 +162,7 @@ class FortuneRelationScope(str, Enum):
 
 
 class StockFortuneBirthProfile(SMBaseModel):
-    """Fortune V1 出生档案；保留上市日期与实际首次交易时间的区别。"""
+    """Fortune V1 出生档案；分离观察日期、推定时刻与实际成交观测。"""
 
     contract_version: Literal["stock-fortune-contract-v1"] = FORTUNE_CONTRACT_VERSION
     symbol: str = Field(min_length=1, description="标准证券代码")
@@ -132,7 +170,14 @@ class StockFortuneBirthProfile(SMBaseModel):
     listing_date: date | None = None
     first_trade_datetime: datetime | None = Field(
         default=None,
-        description="有来源证明的实际首次交易时刻；不得从 listing_date 伪造",
+        description="来源观测到的首次成交时间；分钟 bar 必须同时标明 MINUTE 精度",
+    )
+    first_trade_date: date | None = Field(
+        default=None,
+        description="可靠行情源最早观测到的交易日期；日线日期不等于实际成交时刻",
+    )
+    first_trade_resolution: FirstTradeObservationResolution = (
+        FirstTradeObservationResolution.UNKNOWN
     )
     birth_basis: FortuneBirthBasis = FortuneBirthBasis.MARKET_FIRST_TRADE
     birth_datetime: datetime | None = Field(
@@ -152,13 +197,28 @@ class StockFortuneBirthProfile(SMBaseModel):
     birth_profile_version: str = FORTUNE_BIRTH_PROFILE_VERSION
     rule_version: str = "stock-fortune-birth-rule-v1"
     config_version: str = ""
+    market_session_version: str = ""
     assumptions: list[Assumption] = Field(default_factory=list)
     data_quality: DataQuality | None = None
 
+    @computed_field
+    @property
+    def birth_datetime_status(self) -> BirthTimePrecision:
+        """明确输出 exact/inferred/date-only/unavailable 的时间状态。"""
+
+        return self.birth_time_precision
+
     @model_validator(mode="after")
     def validate_precision_and_source_time(self) -> StockFortuneBirthProfile:
+        if not self.timezone.strip():
+            raise ValueError("birth profile 必须记录 timezone")
+        try:
+            ZoneInfo(self.timezone)
+        except (KeyError, ValueError) as exc:
+            raise ValueError("birth profile 必须使用有效 timezone") from exc
         requires_time = self.birth_time_precision in {
             BirthTimePrecision.EXACT,
+            BirthTimePrecision.MINUTE,
             BirthTimePrecision.INFERRED,
         }
         if requires_time and self.birth_datetime is None:
@@ -178,14 +238,41 @@ class StockFortuneBirthProfile(SMBaseModel):
             BirthTimePrecision.UNKNOWN,
         } and self.first_trade_datetime is not None:
             raise ValueError("DATE_ONLY/UNKNOWN 不得携带精确 first_trade_datetime")
+        if self.birth_time_precision == BirthTimePrecision.DATE_ONLY:
+            if self.first_trade_date is None:
+                raise ValueError("DATE_ONLY 必须保留 first_trade_date")
+            if self.first_trade_resolution != FirstTradeObservationResolution.DAILY_BAR:
+                raise ValueError("DATE_ONLY 必须标记 DAILY_BAR 来源精度")
+        if self.birth_time_precision == BirthTimePrecision.UNKNOWN:
+            if self.first_trade_date is not None:
+                raise ValueError("UNKNOWN 不得携带未确认的 first_trade_date")
+            if self.first_trade_resolution != FirstTradeObservationResolution.UNKNOWN:
+                raise ValueError("UNKNOWN 必须使用 UNKNOWN observation resolution")
         if self.birth_time_precision == BirthTimePrecision.INFERRED and not self.assumptions:
             raise ValueError("INFERRED 必须公开记录 assumptions")
+        if self.birth_time_precision == BirthTimePrecision.INFERRED:
+            if self.first_trade_date is None:
+                raise ValueError("INFERRED 必须基于 first_trade_date")
+            if not self.market_session_version.strip():
+                raise ValueError("INFERRED 必须记录 market_session_version")
+            if self.source_version.strip().lower() in {"", "unknown"}:
+                raise ValueError("INFERRED 必须记录 source_version")
+            if self.first_trade_resolution != FirstTradeObservationResolution.DAILY_BAR:
+                raise ValueError("INFERRED 的首日证据必须是 DAILY_BAR")
+            if not self.config_version.strip():
+                raise ValueError("INFERRED 必须记录 config_version")
         if (
             self.birth_basis == FortuneBirthBasis.MARKET_FIRST_TRADE
             and self.birth_time_precision == BirthTimePrecision.EXACT
             and self.first_trade_datetime is None
         ):
             raise ValueError("EXACT 的 MARKET_FIRST_TRADE 必须保留 first_trade_datetime")
+        if (
+            self.birth_basis == FortuneBirthBasis.MARKET_FIRST_TRADE
+            and self.birth_time_precision == BirthTimePrecision.MINUTE
+            and self.first_trade_datetime is None
+        ):
+            raise ValueError("MINUTE 的 MARKET_FIRST_TRADE 必须保留分钟观测时刻")
         if (
             self.birth_basis == FortuneBirthBasis.MARKET_FIRST_TRADE
             and self.birth_time_precision == BirthTimePrecision.INFERRED
@@ -195,11 +282,95 @@ class StockFortuneBirthProfile(SMBaseModel):
         if self.first_trade_datetime is not None:
             if self.first_trade_datetime.tzinfo is None or self.first_trade_datetime.utcoffset() is None:
                 raise ValueError("first_trade_datetime 必须包含时区")
+            if self.birth_basis != FortuneBirthBasis.MARKET_FIRST_TRADE:
+                raise ValueError("非 MARKET_FIRST_TRADE 档案不得携带 first_trade_datetime")
+            if self.source_version.strip().lower() in {"", "unknown"}:
+                raise ValueError("真实成交观测必须记录 source_version")
+            source_name = self.source.source.strip().lower()
+            if (
+                not source_name
+                or source_name == "unavailable"
+                or source_name.startswith("synthetic")
+            ):
+                raise ValueError("真实成交观测必须记录真实来源")
+            if self.first_trade_resolution == FirstTradeObservationResolution.MINUTE_BAR:
+                expected_precision = BirthTimePrecision.MINUTE
+            elif self.first_trade_resolution in {
+                FirstTradeObservationResolution.TICK,
+                FirstTradeObservationResolution.TRADE,
+            }:
+                expected_precision = BirthTimePrecision.EXACT
+            else:
+                raise ValueError("first_trade_datetime 必须来自 tick/trade/minute bar")
             if self.birth_basis == FortuneBirthBasis.MARKET_FIRST_TRADE:
-                if self.birth_time_precision != BirthTimePrecision.EXACT:
-                    raise ValueError("实际首次交易时间必须标记为 EXACT")
+                if self.birth_time_precision != expected_precision:
+                    raise ValueError("first_trade_datetime 的 precision 必须与来源 resolution 一致")
                 if self.birth_datetime != self.first_trade_datetime:
                     raise ValueError("MARKET_FIRST_TRADE 的 birth_datetime 必须等于实际 first_trade_datetime")
+                if self.first_trade_date != self.first_trade_datetime.astimezone(ZoneInfo(self.timezone)).date():
+                    raise ValueError("first_trade_date 必须与 first_trade_datetime 的本地日期一致")
+        return self
+
+
+class FirstTradeObservation(SMBaseModel):
+    """行情观察结果；日线只证明日期，分钟 bar 不冒充 tick 精度。"""
+
+    status: FirstTradeObservationStatus
+    first_trade_datetime: datetime | None = None
+    first_trade_date: date | None = None
+    resolution: FirstTradeObservationResolution = FirstTradeObservationResolution.UNKNOWN
+    source: SourceRef
+    source_version: str
+    timezone: str = "Asia/Shanghai"
+    reason: str = ""
+
+    @model_validator(mode="after")
+    def validate_observation(self) -> FirstTradeObservation:
+        if self.source_version.strip().lower() in {"", "unknown"}:
+            raise ValueError("FirstTradeObservation 必须记录 source_version")
+        try:
+            ZoneInfo(self.timezone)
+        except (KeyError, ValueError) as exc:
+            raise ValueError("FirstTradeObservation 必须使用有效 timezone") from exc
+        if not self.reason.strip():
+            raise ValueError("FirstTradeObservation 必须说明 observation reason")
+        if self.status == FirstTradeObservationStatus.VERIFIED_DATETIME:
+            if self.resolution not in {
+                FirstTradeObservationResolution.TICK,
+                FirstTradeObservationResolution.TRADE,
+                FirstTradeObservationResolution.MINUTE_BAR,
+            }:
+                raise ValueError("VERIFIED_DATETIME 必须来自 tick/trade/minute bar")
+            if self.first_trade_datetime is None or self.first_trade_date is None:
+                raise ValueError("VERIFIED_DATETIME 必须同时提供观测时刻和交易日期")
+            if self.first_trade_datetime.tzinfo is None or self.first_trade_datetime.utcoffset() is None:
+                raise ValueError("VERIFIED_DATETIME 必须带时区")
+            source_name = self.source.source.strip().lower()
+            if (
+                not source_name
+                or source_name == "unavailable"
+                or source_name.startswith("synthetic")
+            ):
+                raise ValueError("VERIFIED_DATETIME 必须来自可追溯的真实来源")
+            if self.first_trade_datetime.astimezone(ZoneInfo(self.timezone)).date() != self.first_trade_date:
+                raise ValueError("first_trade_date 必须与观测时刻的本地日期一致")
+        elif self.status == FirstTradeObservationStatus.OBSERVED_TRADING_DATE:
+            if self.resolution != FirstTradeObservationResolution.DAILY_BAR:
+                raise ValueError("OBSERVED_TRADING_DATE 必须来自 DAILY_BAR")
+            if self.first_trade_date is None or self.first_trade_datetime is not None:
+                raise ValueError("日线观察必须只有 first_trade_date，不得伪造时刻")
+            source_name = self.source.source.strip().lower()
+            if (
+                not source_name
+                or source_name == "unavailable"
+                or source_name.startswith("synthetic")
+            ):
+                raise ValueError("OBSERVED_TRADING_DATE 必须来自可追溯的真实来源")
+        else:
+            if self.first_trade_datetime is not None or self.first_trade_date is not None:
+                raise ValueError("UNAVAILABLE 不得携带交易日期或时间")
+            if self.resolution != FirstTradeObservationResolution.UNKNOWN:
+                raise ValueError("UNAVAILABLE 必须使用 UNKNOWN observation resolution")
         return self
 
 
@@ -214,7 +385,14 @@ class FortuneLuckCycleContext(SMBaseModel):
     )
     availability: FortuneAvailability = FortuneAvailability.UNAVAILABLE
     direction_basis: str = ""
-    rule_version: str = "fortune-dayun-direction-v1"
+    polarity_source: SourceRef = Field(default_factory=lambda: SourceRef(source="unavailable"))
+    polarity_source_version: str = "unknown"
+    market_session_version: str = ""
+    polarity_observation_date: date | None = None
+    polarity_observed_at: datetime | None = None
+    assumptions: list[Assumption] = Field(default_factory=list)
+    unavailability_reason: str = ""
+    rule_version: str = FORTUNE_LUCK_CYCLE_RULE_VERSION
 
     @model_validator(mode="after")
     def validate_direction_state(self) -> FortuneLuckCycleContext:
@@ -222,6 +400,30 @@ class FortuneLuckCycleContext(SMBaseModel):
             raise ValueError("AVAILABLE 的排运上下文必须有实际 direction")
         if self.availability == FortuneAvailability.UNAVAILABLE and self.direction is not None:
             raise ValueError("UNAVAILABLE 不得携带看似有效的 direction")
+        if self.availability == FortuneAvailability.UNAVAILABLE and (
+            self.polarity is not None or self.compatibility_gender is not None
+        ):
+            raise ValueError("UNAVAILABLE 不得携带 polarity 或 compatibility_gender")
+        if self.availability == FortuneAvailability.AVAILABLE:
+            if self.polarity is None or self.compatibility_gender is None or not self.direction_basis:
+                raise ValueError("AVAILABLE 必须记录 polarity、compatibility_gender 与 direction_basis")
+            if self.polarity_source_version.strip().lower() in {"", "unknown"}:
+                raise ValueError("AVAILABLE 必须记录 polarity_source_version")
+            if not self.market_session_version.strip():
+                raise ValueError("AVAILABLE 必须记录 market_session_version")
+            if (
+                self.polarity_observation_date is None
+                or self.polarity_observed_at is None
+                or not self.assumptions
+            ):
+                raise ValueError("AVAILABLE 必须记录 polarity 观测日期、时间与 assumptions")
+            if not self.rule_version:
+                raise ValueError("AVAILABLE 必须记录 luck-cycle rule_version")
+        if self.polarity_observed_at is not None and (
+            self.polarity_observed_at.tzinfo is None
+            or self.polarity_observed_at.utcoffset() is None
+        ):
+            raise ValueError("polarity_observed_at 必须带时区")
         return self
 
 
@@ -255,12 +457,93 @@ class TemporalFortuneContext(SMBaseModel):
     target_at: datetime
     timezone: str = "Asia/Shanghai"
     calendar_snapshot: CalendarSnapshot
+    temporal_resolution: FortuneTemporalResolutionMethod = (
+        FortuneTemporalResolutionMethod.EXACT_DATETIME
+    )
+    market_session_version: str = ""
+    assumptions: list[Assumption] = Field(default_factory=list)
+    rule_version: str = FORTUNE_TEMPORAL_RESOLUTION_RULE_VERSION
     contract_version: Literal["stock-fortune-contract-v1"] = FORTUNE_CONTRACT_VERSION
 
     @model_validator(mode="after")
     def require_offset_aware_target(self) -> TemporalFortuneContext:
         if self.target_at.tzinfo is None or self.target_at.utcoffset() is None:
             raise ValueError("target_at 必须是带时区的时间戳")
+        if self.temporal_resolution == FortuneTemporalResolutionMethod.MARKET_SESSION_INFERRED:
+            if not self.market_session_version or not self.assumptions:
+                raise ValueError("MARKET_SESSION_INFERRED 必须记录 session version 与 assumptions")
+        return self
+
+
+class FortuneTemporalInput(SMBaseModel):
+    """强制调用方标明 exact、市场时段日期或纯自然日期语义。"""
+
+    kind: FortuneTemporalInputKind
+    target_datetime: datetime | None = None
+    target_date: date | None = None
+    exchange: Exchange | None = None
+    is_trading_day: bool | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_date_cast_to_datetime(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+        raw_datetime = value.get("target_datetime")
+        if isinstance(raw_datetime, date) and not isinstance(raw_datetime, datetime):
+            raise ValueError("date-only 不得传入 target_datetime")
+        if isinstance(raw_datetime, str) and len(raw_datetime.strip()) == 10:
+            raise ValueError("date-only 不得传入 target_datetime")
+        return value
+
+    @model_validator(mode="after")
+    def validate_temporal_input(self) -> FortuneTemporalInput:
+        if self.kind == FortuneTemporalInputKind.EXACT_DATETIME:
+            if self.target_datetime is None or self.target_date is not None:
+                raise ValueError("EXACT_DATETIME 必须只提供 target_datetime")
+            if self.target_datetime.tzinfo is None or self.target_datetime.utcoffset() is None:
+                raise ValueError("EXACT_DATETIME 必须带时区")
+        elif self.kind == FortuneTemporalInputKind.MARKET_SESSION_DATE:
+            if self.target_date is None or self.target_datetime is not None:
+                raise ValueError("MARKET_SESSION_DATE 必须只提供 target_date")
+            if self.exchange in {None, Exchange.UNKNOWN}:
+                raise ValueError("MARKET_SESSION_DATE 必须明确 exchange")
+        else:
+            if self.target_date is None or self.target_datetime is not None:
+                raise ValueError("CIVIL_DATE_ONLY 必须只提供 target_date")
+            if self.exchange is not None or self.is_trading_day is not None:
+                raise ValueError("CIVIL_DATE_ONLY 不得隐含市场交易场景")
+        return self
+
+
+class FortuneTemporalResolution(SMBaseModel):
+    """时间解析结果；未解析时不制造 CalendarSnapshot。"""
+
+    input_kind: FortuneTemporalInputKind
+    status: FortuneTemporalResolutionStatus
+    context: TemporalFortuneContext | None = None
+    requested_date: date | None = None
+    reason: str = ""
+
+    @model_validator(mode="after")
+    def validate_resolution(self) -> FortuneTemporalResolution:
+        if self.status == FortuneTemporalResolutionStatus.RESOLVED and self.context is None:
+            raise ValueError("RESOLVED 必须包含 temporal context")
+        if self.status != FortuneTemporalResolutionStatus.RESOLVED and self.context is not None:
+            raise ValueError("未解析的时间输入不得包含 calendar snapshot")
+        if (
+            self.input_kind == FortuneTemporalInputKind.CIVIL_DATE_ONLY
+            and self.status != FortuneTemporalResolutionStatus.TIME_REQUIRED
+        ):
+            raise ValueError("CIVIL_DATE_ONLY 必须返回 TIME_REQUIRED")
+        if self.status == FortuneTemporalResolutionStatus.RESOLVED and self.context is not None:
+            expected = (
+                FortuneTemporalResolutionMethod.MARKET_SESSION_INFERRED
+                if self.input_kind == FortuneTemporalInputKind.MARKET_SESSION_DATE
+                else FortuneTemporalResolutionMethod.EXACT_DATETIME
+            )
+            if self.context.temporal_resolution != expected:
+                raise ValueError("temporal context resolution 必须与 input_kind 一致")
         return self
 
     @property
