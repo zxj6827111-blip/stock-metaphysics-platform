@@ -103,7 +103,7 @@ def test_market_session_date_is_explicitly_inferred_at_versioned_open() -> None:
     )
 
     assert snapshot.temporal_context is not None
-    assert snapshot.temporal_context.temporal_resolution.value == "market_session_inferred"
+    assert snapshot.temporal_context.temporal_resolution == "market_session_inferred"
     assert snapshot.evaluation_time == datetime(2024, 11, 15, 9, 30, tzinfo=SHANGHAI)
     assert snapshot.temporal_context.assumptions
 

@@ -359,15 +359,15 @@ def test_snapshot_contract_complete_and_replayable_without_runtime_clock() -> No
         "luck_cycle",
         "ten_god",
         "relation",
-    } <= {item.value for item in provenance_components}
+    } <= provenance_components
     assert all(item.source_version and item.rule_version for item in snapshot.provenance)
     bazi_provenance = next(
-        item for item in snapshot.provenance if item.component.value == "bazi"
+        item for item in snapshot.provenance if item.component == "bazi"
     )
     assert any(item.key == "bazi.variant_mode" for item in bazi_provenance.assumptions)
     assert any(item.key == "bazi.variant_mode" for item in snapshot.assumptions)
     calendar_provenance = next(
-        item for item in snapshot.provenance if item.component.value == "calendar"
+        item for item in snapshot.provenance if item.component == "calendar"
     )
     assert calendar_provenance.assumptions[0].value == "测试历法假设"
     assert snapshot.chart_artifact_ids == replay.chart_artifact_ids
