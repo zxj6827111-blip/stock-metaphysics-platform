@@ -148,8 +148,7 @@ def resolve_market_first_trade_profile(
         ),
     ]
     return StockFortuneBirthProfile(
-        **shared,
-        source=source,
+        **{**shared, "source": source},
         first_trade_datetime=None,
         first_trade_date=observation.first_trade_date,
         first_trade_resolution=observation.resolution,

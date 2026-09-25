@@ -474,6 +474,22 @@ class TemporalFortuneContext(SMBaseModel):
                 raise ValueError("MARKET_SESSION_INFERRED 必须记录 session version 与 assumptions")
         return self
 
+    @property
+    def flow_year(self) -> GanZhi:
+        return self.calendar_snapshot.year_ganzhi
+
+    @property
+    def flow_month(self) -> GanZhi:
+        return self.calendar_snapshot.month_ganzhi
+
+    @property
+    def flow_day(self) -> GanZhi:
+        return self.calendar_snapshot.day_ganzhi
+
+    @property
+    def flow_hour(self) -> GanZhi:
+        return self.calendar_snapshot.hour_ganzhi
+
 
 class FortuneTemporalInput(SMBaseModel):
     """强制调用方标明 exact、市场时段日期或纯自然日期语义。"""
@@ -545,23 +561,6 @@ class FortuneTemporalResolution(SMBaseModel):
             if self.context.temporal_resolution != expected:
                 raise ValueError("temporal context resolution 必须与 input_kind 一致")
         return self
-
-    @property
-    def flow_year(self) -> GanZhi:
-        return self.calendar_snapshot.year_ganzhi
-
-    @property
-    def flow_month(self) -> GanZhi:
-        return self.calendar_snapshot.month_ganzhi
-
-    @property
-    def flow_day(self) -> GanZhi:
-        return self.calendar_snapshot.day_ganzhi
-
-    @property
-    def flow_hour(self) -> GanZhi:
-        return self.calendar_snapshot.hour_ganzhi
-
 
 class DaYunPeriod(SMBaseModel):
     """单步大运结果，避免现有 BaziChart 中无类型的 dict 被复制为新契约。"""
