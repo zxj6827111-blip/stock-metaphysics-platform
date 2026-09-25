@@ -19,8 +19,8 @@
 | [0013](ADR-0013-research-validity-boundary.md) | 研究有效性边界：规则强度 ≠ 市场预测，负结果是合法结果 | 已接受（2026-09-23 追加为总纲） |
 | [0015](ADR-0015-stock-fortune-birth-basis-and-precision.md) | Fortune 出生基准与出生时间精度 | Superseded |
 | [0016](ADR-0016-fortune-temporal-boundaries-and-market-session.md) | Fortune 历法边界与市场时段分层 | 已接受（F1） |
-| [0017](ADR-0017-fortune-polarity-and-dayun-direction.md) | Fortune 极性、大运方向与兼容参数分离 | Draft（待 F2 CI） |
-| [0018](ADR-0018-fortune-first-trade-and-temporal-resolution.md) | Fortune 首笔观测、出生时间推定与时间输入精度 | Draft（待 F2 CI） |
+| [0017](ADR-0017-fortune-polarity-and-dayun-direction.md) | Fortune 极性、大运方向与兼容参数分离 | 已接受(Accepted) |
+| [0018](ADR-0018-fortune-first-trade-and-temporal-resolution.md) | Fortune 首笔观测、出生时间推定与时间输入精度 | 已接受(Accepted) |
 
 编号 0014 曾出现在未合入主干的候选分支。该候选的首日阴阳映射已复核，并完整写入 ADR-0017 的研究约定；该候选文档中的 API、UI 默认行为不随映射一起纳入。本表保留 0014 编号，不把候选文档伪装成已接受 ADR。ADR-0018 取代 ADR-0015 的出生数据来源选择，保留精度区分目标。财富分数语义沿用已接受的 ADR-0013，不重复建 ADR。
 

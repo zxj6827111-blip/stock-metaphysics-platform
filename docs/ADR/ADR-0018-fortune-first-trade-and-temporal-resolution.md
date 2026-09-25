@@ -1,6 +1,6 @@
 # ADR-0018：Fortune 首笔观测、出生时间推定与时间输入精度
 
-- **状态**：Draft
+- **状态**：已接受(Accepted)
 - **日期**：2026-09-25
 - **影响**：Fortune First Trade Provider、出生档案解析、Fortune 时间上下文
 - **关联**：[ADR-0004](ADR-0004-as-of-time-isolation.md)、[ADR-0013](ADR-0013-research-validity-boundary.md)、[ADR-0015](ADR-0015-stock-fortune-birth-basis-and-precision.md)、[ADR-0016](ADR-0016-fortune-temporal-boundaries-and-market-session.md)
@@ -37,6 +37,6 @@
 - 无可靠数据和无 session 版本会显式降级为 `UNAVAILABLE` 或 `DATE_ONLY`，不发生精度伪造。
 - 调用方需要带上 source、version、交易日证据和 temporal input kind；研究回放可以识别每个推定边界。
 
-## 接受门槛
+## 接受依据
 
-状态只有在 FirstTrade/Birth provider 契约测试、时间边界及 Session/Civil Date Golden Cases、相关后端回归与 PR #7 当前 commit CI 均通过后改为 `已接受(Accepted)`。本文件当前保留 Draft，等待该证据。
+FirstTrade/Birth provider 契约测试、时间边界及 Session/Civil Date Golden Cases、相关后端回归与 PR #7 的实现 commit `fee90843ba9b1a0826cc9da096802b8f83523c21` 均已通过 CI run [36154464013](https://github.com/zxj6827111-blip/stock-metaphysics-platform/actions/runs/36154464013)。Backend 全量套件为 2144 passed、20 skipped、28 deselected；Ziwei engine/factor/golden/cross-engine 套件为 331 passed；前端 typecheck、build 与 seeded E2E（7 passed）也全部通过。该 run 对应实现代码 commit；后续文档验收 commit 的 workflow 结果仍由 PR #7 追踪。

@@ -1,6 +1,6 @@
 # ADR-0017：Fortune 极性、大运方向与兼容参数分离
 
-- **状态**：Draft
+- **状态**：已接受(Accepted)
 - **日期**：2026-09-25
 - **影响**：Fortune 出生档案、大运方向研究结果、传统排运 Adapter
 - **关联**：[ADR-0003](ADR-0003-no-gender-variant-mode.md)、[ADR-0010](ADR-0010-ziwei-no-gender-variant.md)、[ADR-0013](ADR-0013-research-validity-boundary.md)
@@ -30,6 +30,6 @@
 - 首日阴阳在首日收盘前不可用；缺字段或来源无法验证时不产生大运方向。
 - 多模型共识、传统规则方向、历史统计关系与未来收益仍是不同概念，符合 ADR-0013。
 
-## 接受门槛
+## 接受依据
 
-状态只有在代码、阴阳与年干组合 Golden Cases、缺失/收盘前 fail-closed 测试及 PR #7 当前 commit CI 均通过后改为 `已接受(Accepted)`。本文件当前保留 Draft，等待该证据。
+代码、阴阳与年干组合 Golden Cases、缺失/收盘前 fail-closed 测试及 PR #7 的实现 commit `fee90843ba9b1a0826cc9da096802b8f83523c21` 均已通过 CI run [36154464013](https://github.com/zxj6827111-blip/stock-metaphysics-platform/actions/runs/36154464013)。Backend 全量套件为 2144 passed、20 skipped、28 deselected；Ziwei engine/factor/golden/cross-engine 套件为 331 passed。PR 同 run 的前端 typecheck、build 和 seeded E2E（7 passed）也全部通过。故本 ADR 状态更新为 `已接受(Accepted)`；它冻结的是项目研究约定，不将其表述为传统命理对股票的 canonical doctrine。

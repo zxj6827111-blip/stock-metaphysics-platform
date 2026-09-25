@@ -1,11 +1,11 @@
 # Stock Fortune Engine V1 / F2 交接与验收
 
-- **状态**：PENDING
+- **状态**：PASS（实现 commit CI 全绿；文档提交的当前 head CI 由 PR #7 继续验证）
 - **As-of**：2026-09-25
 - **分支**：`feat/stock-fortune-engine-v1`
 - **PR**：#7（Draft）
 - **起始 HEAD**：`f35d66c3f658bee8a8a0f4f7631d13d5d68491de`
-- **验收 commit / CI run**：待提交与 CI
+- **验收实现 commit / CI run**：`fee90843ba9b1a0826cc9da096802b8f83523c21` / [36154464013](https://github.com/zxj6827111-blip/stock-metaphysics-platform/actions/runs/36154464013)
 
 ## 本工作包
 
@@ -38,19 +38,19 @@ F2 为 Fortune 增加 provenance-aware first-trade observation 与 birth-time re
 
 | Gate | 状态 | 证据 |
 |---|---|---|
-| 1 日线只表达最早可观测交易日期 | 实现待测 | `DailyBarFirstTradeProvider` 与 contract test |
-| 2 09:30 推定值标记 INFERRED | 实现待测 | birth resolver 与 profile status contract test |
-| 3 无 intraday 时 `first_trade_datetime=null` | 实现待测 | provider / resolver tests |
-| 4 推定值保存 provenance/version | 实现待测 | profile assertions |
-| 5 First Trade Provider 可扩展到 VERIFIED 数据源 | 实现待测 | Protocol 与 observation contract |
-| 6 当前没有 VERIFIED provider 可接受 | 已确认输入边界 | 当前适配器只读日线 |
-| 7 polarity 与顺逆规则 deterministic | 实现待测 | 四种 polarity/year-stem Golden Cases |
-| 8 ADR-0017 与实现一致 | Draft | ADR-0017 等 CI 证据后接受 |
-| 9 规则不读未来行情/收益优化 | 实现待测 | close-time `as_of` guard；resolver 无行情/收益参数 |
-| 10 三类 temporal input 分离 | 实现待测 | temporal contract tests |
-| 11 CalendarEngine 23:00 行为未改 | 待回归 | Calendar Golden Cases |
-| 12 Date Scan 12:00 行为未改 | 已保留 | `EVALUATION_TIME = "12:00:00"` contract test |
-| 13 测试与 CI 无回归 | PENDING | PR #7 当前 commit 的 workflow 尚待运行 |
+| 1 日线只表达最早可观测交易日期 | PASS | `DailyBarFirstTradeProvider` 与 provider contract tests；backend CI |
+| 2 session 开盘推定值标记 INFERRED | PASS | birth resolver/profile contract tests；backend CI |
+| 3 无 intraday 时 `first_trade_datetime=null` | PASS | provider / resolver contract tests；backend CI |
+| 4 推定值保存 provenance/version | PASS | source、source version、首个观测日期、timezone、session/config/policy version、reason、assumptions 与 precision assertions |
+| 5 First Trade Provider 可扩展到 VERIFIED 数据源 | PASS | `FirstTradeProvider` 与 `VERIFIED_DATETIME` observation contract |
+| 6 当前没有 VERIFIED provider 可接受 | PASS | 正式日线 adapter 仅报告 observed date；未伪造 verified provider |
+| 7 polarity 与顺逆规则 deterministic | PASS | polarity/year-stem Golden Cases 与 deterministic replay tests |
+| 8 ADR-0017 与实现一致 | PASS | ADR-0017 `已接受(Accepted)`；代码及 CI run 36154464013 |
+| 9 规则不读未来行情/收益优化 | PASS | 收盘时点 `as_of` guard 与 fail-closed tests；方向 resolver 不接收价格或收益序列 |
+| 10 三类 temporal input 分离 | PASS | exact/session-date/civil-date contract tests，含 22:59、23:00、23:01、09:30、15:00 与 timezone-aware cases |
+| 11 CalendarEngine 23:00 行为未改 | PASS | Calendar Golden / backend suite；改动未触及 CalendarEngine |
+| 12 Date Scan 12:00 行为未改 | PASS | `EVALUATION_TIME = "12:00:00"` contract 与 seeded Date Scan E2E |
+| 13 测试与 CI 无回归 | PASS（实现 commit） | PR #7 run 36154464013 的五个 required jobs 全部 success；文档提交后的 workflow 另由 PR 实时追踪 |
 
 ## 验证记录
 
@@ -58,10 +58,12 @@ F2 为 Fortune 增加 provenance-aware first-trade observation 与 birth-time re
 |---|---|---|
 | 修改 Python 文件 AST parse | PASS | Codex bundled Python 对 11 个源文件/测试文件完成语法解析 |
 | `git diff --check` | PASS | 无 whitespace error |
-| Python target/backend tests | NOT RUN | 当前工作树无 `.venv`，系统未安装 Python；bundled Python 不含 pytest，按任务要求交由 PR CI 验证 |
-| Calendar/Bazi/Ziwei/Date Scan 回归 | PENDING CI | 需要当前 PR workflow |
-| Frontend typecheck/build | NOT RUN locally | `apps/web/node_modules` 不存在，交由 PR CI |
-| Seeded E2E | NOT RUN locally | 交由 PR CI |
-| CI run 与各 job conclusion | PENDING | 需记录 run id、链接及每个 job 结论 |
+| Python backend suite | PASS in CI | `python -m pytest -q -m "not ziwei_live"`: 2144 passed, 20 skipped, 28 deselected；run 36154464013 |
+| Ziwei + Golden regression | PASS in CI | Node transport availability asserted; engine/factor/golden/cross-engine tests: 331 passed；run 36154464013 |
+| Calendar/Bazi/Date Scan regression | PASS in CI | Included in backend suite; Date Scan seeded E2E also passed |
+| Frontend typecheck | PASS in CI | `frontend-typecheck` job; run 36154464013 |
+| Frontend build | PASS in CI | `frontend-build` job; run 36154464013 |
+| Seeded E2E | PASS in CI | `frontend e2e (seeded date-scan)`: 7 passed; run 36154464013 |
+| CI run 与各 job conclusion | PASS | `backend core (python)`, `frontend e2e (seeded date-scan)`, `frontend-build`, `frontend-typecheck`, `ziwei engine + golden (node services)` 全部 success；run [36154464013](https://github.com/zxj6827111-blip/stock-metaphysics-platform/actions/runs/36154464013) |
 
-> 本文是进行中的验收记录。只有更新为当前 commit 的 CI job 证据后，才能把 F2 写成 PASS 或 ADR-0017/0018 改成 Accepted。
+> 上述 run 验收的是实现代码 commit `fee90843ba9b1a0826cc9da096802b8f83523c21`。本 handoff 与 ADR 的后续文档提交不改动代码；其 PR #7 CI 必须保持全绿，才视为最终分支交付无回归。PR 维持 Draft，未 merge、未标记 Ready。
