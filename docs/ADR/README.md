@@ -15,5 +15,7 @@
 | [0009](ADR-0009-ziwei-engine-iztro.md) | 紫微斗数采用 iztro（Node 服务 + Python Adapter） | 已接受（Phase 2A） |
 | [0010](ADR-0010-ziwei-no-gender-variant.md) | 紫微「无性别」处理：方向 variant 而非性别默认 | 已接受（Phase 2A） |
 | [0011](ADR-0011-consensus-not-averaging.md) | Consensus 禁止简单平均，冲突必须显式保留 | 已接受（Phase 2C） |
+| [0012](ADR-0012-phase3a-astockdata-canonical.md) | Phase 3A 主数据源切换（含退市股，根治 survivorship bias） | 已接受（Phase 3A） |
+| [0013](ADR-0013-research-validity-boundary.md) | 研究有效性边界：规则强度 ≠ 市场预测，负结果是合法结果 | 已接受（2026-09-23 追加为总纲） |
 
 新增 ADR 时：复制模板 → 编号递增 → 在本表登记 → 在 `docs/HANDOFF_PHASE1.md` 的「关键 ADR」中引用。
