@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     relation_matrix_schema_version: str = "relation-matrix-v2"
     # 日期指纹本质是「日期 → 候选模板」，与股票矩阵口径无关，保持 v1 不变。
     relation_fingerprint_version: str = "date-relation-fingerprint-v1"
+    # 十神系统 V1：以「股票日干 = 固定日主」为中心的五类十神口径
+    # （原局天干 / 原局藏干 / 流年 / 流月 / 流日）。刻意独立于 relation_rule_version，
+    # 因为 3×3 日期×股票关系矩阵与十神时间轴是两条独立轴（合同 §5）。
+    ten_god_rule_version: str = "ten-god-v1"
     calendar_engine_version: str = "lunar-python-1.4.8"
     huangli_engine_version: str = "huangli-engine-1.0.0"
     bazi_engine_version: str = "smx-bazi-native-1.0.0"
