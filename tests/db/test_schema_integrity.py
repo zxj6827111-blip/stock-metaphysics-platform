@@ -83,7 +83,7 @@ class TestSchemaCompleteness:
         column = ChartArtifactRow.__table__.c.birth_profile_version
         assert column.type.length >= len("stock-fortune-birth-v2")
 
-    def test_f3_birth_profile_version_migration_preserves_data_and_blocks_lossy_downgrade():
+    def test_f3_birth_profile_version_migration_preserves_data_and_blocks_lossy_downgrade(self):
         migration_path = (
             Path(__file__).resolve().parents[2]
             / "migrations"

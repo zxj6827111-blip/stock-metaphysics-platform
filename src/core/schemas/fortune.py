@@ -870,12 +870,12 @@ class FortuneRelationEvent(SMBaseModel):
     @model_validator(mode="after")
     def validate_participant_attribution(self) -> FortuneRelationEvent:
         source_id = (
-            f"{self.source.context.value}:{self.source.pillar}:"
-            f"{self.source.component.value}:{self.source.value}"
+            f"{getattr(self.source.context, 'value', self.source.context)}:{self.source.pillar}:"
+            f"{getattr(self.source.component, 'value', self.source.component)}:{self.source.value}"
         )
         target_id = (
-            f"{self.target.context.value}:{self.target.pillar}:"
-            f"{self.target.component.value}:{self.target.value}"
+            f"{getattr(self.target.context, 'value', self.target.context)}:{self.target.pillar}:"
+            f"{getattr(self.target.component, 'value', self.target.component)}:{self.target.value}"
         )
         if source_id not in self.participants or target_id not in self.participants:
             raise ValueError("participants 必须包含结构化 source 与 target")

@@ -197,7 +197,10 @@ class StockFortuneEngine:
         if temporal_context is None:
             warnings.append(
                 Warning_(
-                    code=f"FORTUNE_TIME_{resolution.status.value}",
+                    code=(
+                        "FORTUNE_TIME_"
+                        f"{getattr(resolution.status, 'value', resolution.status)}"
+                    ),
                     message=resolution.reason or "Evaluation time 尚未解析",
                 )
             )
@@ -230,7 +233,9 @@ class StockFortuneEngine:
                     Warning_(
                         code="FORTUNE_NATAL_BIRTH_TIME_UNAVAILABLE",
                         message=(
-                            f"出生精度为 {profile.birth_time_precision.value}，没有可安全使用的时刻；"
+                            "出生精度为 "
+                            f"{getattr(profile.birth_time_precision, 'value', profile.birth_time_precision)}，"
+                            "没有可安全使用的时刻；"
                             "不构造原局四柱。"
                         ),
                     )
@@ -437,7 +442,7 @@ class StockFortuneEngine:
         if evidence is None:
             return StockFortuneEngine._unavailable_luck_cycle("缺少首日阴阳证据")
         exchange = request.stock_identity.exchange
-        if exchange == Exchange.UNKNOWN:
+        if getattr(exchange, "value", exchange) == "UNKNOWN":
             exchange = request.birth_profile.exchange
         return resolve_first_day_yinyang_luck_cycle(
             first_day_yinyang=evidence.first_day_yinyang,
@@ -879,8 +884,8 @@ class StockFortuneEngine:
     @staticmethod
     def _participant_id(participant: FortuneRelationParticipant) -> str:
         return (
-            f"{participant.context.value}:{participant.pillar}:"
-            f"{participant.component.value}:{participant.value}"
+            f"{getattr(participant.context, 'value', participant.context)}:{participant.pillar}:"
+            f"{getattr(participant.component, 'value', participant.component)}:{participant.value}"
         )
 
     @staticmethod
