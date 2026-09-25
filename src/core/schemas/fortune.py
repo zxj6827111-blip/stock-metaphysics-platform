@@ -26,11 +26,15 @@ from src.core.schemas.ten_god import TenGodHiddenStem, TenGodRef
 
 
 FORTUNE_CONTRACT_VERSION = "stock-fortune-contract-v1"
+STOCK_FORTUNE_SNAPSHOT_VERSION = "stock-fortune-snapshot-v1"
+STOCK_FORTUNE_ENGINE_VERSION = "stock-fortune-engine-v1"
 FORTUNE_BIRTH_PROFILE_VERSION = "stock-fortune-birth-v2"
 FORTUNE_BIRTH_RESOLUTION_RULE_VERSION = "fortune-first-trade-resolution-v1"
 FORTUNE_LUCK_CYCLE_RULE_VERSION = "stock-luck-cycle-first-day-yinyang-v1"
+FORTUNE_LUCK_CYCLE_PERIOD_RULE_VERSION = "fortune-dayun-period-lunar-python-1.4.8-v1"
 FORTUNE_TEMPORAL_RESOLUTION_RULE_VERSION = "fortune-temporal-resolution-v1"
 FORTUNE_MARKET_SESSION_POLICY_VERSION = "fortune-market-session-anchor-v1"
+FORTUNE_SNAPSHOT_RULE_VERSION = "stock-fortune-snapshot-v1"
 
 
 class FortuneBirthBasis(str, Enum):
@@ -161,11 +165,67 @@ class FortuneRelationScope(str, Enum):
     TEMPORAL_TO_TEMPORAL = "temporal_to_temporal"
 
 
+class FortuneRelationComponent(str, Enum):
+    STEM = "stem"
+    BRANCH = "branch"
+    PILLAR = "pillar"
+
+
+class FortuneContextKind(str, Enum):
+    NATAL = "natal"
+    DAYUN = "dayun"
+    YEAR = "year"
+    MONTH = "month"
+    DAY = "day"
+    HOUR = "hour"
+
+
+class FortuneTenGodLayer(str, Enum):
+    NATAL = "natal"
+    DAYUN = "dayun"
+    ANNUAL = "year"
+    MONTHLY = "month"
+    DAILY = "day"
+    HIDDEN_STEM = "hidden_stem"
+
+
+class FortuneProvenanceComponent(str, Enum):
+    STOCK_IDENTITY = "stock_identity"
+    BIRTH_PROFILE = "birth_profile"
+    EVALUATION_TIME = "evaluation_time"
+    CALENDAR = "calendar"
+    BAZI = "bazi"
+    LUCK_CYCLE = "luck_cycle"
+    TEN_GOD = "ten_god"
+    RELATION = "relation"
+
+
+class StockFortuneIdentity(SMBaseModel):
+    """本次快照使用的证券身份，不承载行情或预测字段。"""
+
+    symbol: str = Field(min_length=1, max_length=16)
+    exchange: Exchange = Exchange.UNKNOWN
+    name: str = ""
+    source: SourceRef = Field(default_factory=lambda: SourceRef(source="caller_input"))
+    source_version: str = Field(default="caller-input-v1", min_length=1)
+
+
+class FortuneLuckCycleEvidence(SMBaseModel):
+    """ADR-0017 所需的首日阴阳证据；缺失时大运方向保持 unavailable。"""
+
+    first_day_yinyang: Literal["阳", "阴"] | None = None
+    observation_date: date | None = None
+    is_trading_day: bool | None = None
+    source: SourceRef | None = None
+    source_version: str = Field(default="unknown", min_length=1)
+    market_session_version: str = ""
+
+
 class StockFortuneBirthProfile(SMBaseModel):
     """Fortune V1 出生档案；分离观察日期、推定时刻与实际成交观测。"""
 
     contract_version: Literal["stock-fortune-contract-v1"] = FORTUNE_CONTRACT_VERSION
-    symbol: str = Field(min_length=1, description="标准证券代码")
+    symbol: str = Field(min_length=1, max_length=16, description="标准证券代码")
     exchange: Exchange = Exchange.UNKNOWN
     listing_date: date | None = None
     first_trade_datetime: datetime | None = Field(
@@ -187,15 +247,15 @@ class StockFortuneBirthProfile(SMBaseModel):
     timezone: str = "Asia/Shanghai"
     birth_time_precision: BirthTimePrecision = BirthTimePrecision.UNKNOWN
     source: SourceRef = Field(default_factory=lambda: SourceRef(source="unavailable"))
-    source_version: str = "unknown"
+    source_version: str = Field(default="unknown", min_length=1)
     confidence: FiniteFloat | None = Field(
         default=None,
         ge=0.0,
         le=1.0,
         description="来源数据可信度；不表示市场预测概率",
     )
-    birth_profile_version: str = FORTUNE_BIRTH_PROFILE_VERSION
-    rule_version: str = "stock-fortune-birth-rule-v1"
+    birth_profile_version: str = Field(default=FORTUNE_BIRTH_PROFILE_VERSION, min_length=1)
+    rule_version: str = Field(default="stock-fortune-birth-rule-v1", min_length=1)
     config_version: str = ""
     market_session_version: str = ""
     assumptions: list[Assumption] = Field(default_factory=list)
@@ -374,6 +434,32 @@ class FirstTradeObservation(SMBaseModel):
         return self
 
 
+class FortuneDayunPeriod(SMBaseModel):
+    """由固定 lunar-python 版本产生的大运周期；区间使用左闭右开。"""
+
+    cycle_index: int = Field(ge=1)
+    start_at: datetime
+    end_at: datetime
+    start_year: int
+    end_year: int
+    start_age: int
+    end_age: int
+    ganzhi: GanZhi
+    rule_version: str = FORTUNE_LUCK_CYCLE_PERIOD_RULE_VERSION
+
+    @model_validator(mode="after")
+    def validate_cycle_period(self) -> FortuneDayunPeriod:
+        if self.start_at.tzinfo is None or self.start_at.utcoffset() is None:
+            raise ValueError("大运周期 start_at 必须带时区")
+        if self.end_at.tzinfo is None or self.end_at.utcoffset() is None:
+            raise ValueError("大运周期 end_at 必须带时区")
+        if self.end_at <= self.start_at:
+            raise ValueError("大运周期必须满足 start_at < end_at")
+        if self.end_year < self.start_year or self.end_age < self.start_age:
+            raise ValueError("大运周期结束年/年龄不得早于开始年/年龄")
+        return self
+
+
 class FortuneLuckCycleContext(SMBaseModel):
     """显式保留极性、方向结论与传统算法兼容参数三个不同概念。"""
 
@@ -393,6 +479,16 @@ class FortuneLuckCycleContext(SMBaseModel):
     assumptions: list[Assumption] = Field(default_factory=list)
     unavailability_reason: str = ""
     rule_version: str = FORTUNE_LUCK_CYCLE_RULE_VERSION
+    period_rule_version: str = FORTUNE_LUCK_CYCLE_PERIOD_RULE_VERSION
+    start_basis: str = ""
+    cycle_availability: FortuneAvailability = FortuneAvailability.UNAVAILABLE
+    cycle_periods: list[FortuneDayunPeriod] = Field(default_factory=list)
+    current_cycle: FortuneDayunPeriod | None = None
+    cycle_index: int | None = Field(default=None, ge=1)
+    cycle_start: datetime | None = None
+    cycle_end: datetime | None = None
+    stem: str | None = None
+    branch: str | None = None
 
     @model_validator(mode="after")
     def validate_direction_state(self) -> FortuneLuckCycleContext:
@@ -424,6 +520,27 @@ class FortuneLuckCycleContext(SMBaseModel):
             or self.polarity_observed_at.utcoffset() is None
         ):
             raise ValueError("polarity_observed_at 必须带时区")
+        if self.current_cycle is None:
+            if any(value is not None for value in (
+                self.cycle_index, self.cycle_start, self.cycle_end, self.stem, self.branch
+            )):
+                raise ValueError("没有 current_cycle 时不得填写其索引、边界、天干或地支")
+        else:
+            if self.cycle_availability != FortuneAvailability.AVAILABLE:
+                raise ValueError("存在 current_cycle 时 cycle_availability 必须为 available")
+            expected = {
+                "cycle_index": self.current_cycle.cycle_index,
+                "cycle_start": self.current_cycle.start_at,
+                "cycle_end": self.current_cycle.end_at,
+                "stem": self.current_cycle.ganzhi.stem,
+                "branch": self.current_cycle.ganzhi.branch,
+            }
+            if any(getattr(self, key) != value for key, value in expected.items()):
+                raise ValueError("current_cycle 的摘要字段必须与周期对象一致")
+        if self.cycle_availability == FortuneAvailability.AVAILABLE and self.current_cycle is None:
+            raise ValueError("cycle_availability=available 必须包含 current_cycle")
+        if self.current_cycle is not None and self.current_cycle not in self.cycle_periods:
+            raise ValueError("current_cycle 必须来自 cycle_periods")
         return self
 
 
@@ -448,6 +565,48 @@ class NatalPillarSet(SMBaseModel):
                 raise ValueError("THREE_PILLARS 必须有年、月、日柱且时柱为空")
         elif any(pillar is not None for pillar in (*required, self.hour)):
             raise ValueError("UNAVAILABLE 不得包含伪造的原局柱位")
+        return self
+
+
+class FortuneNatalHiddenStem(SMBaseModel):
+    """原局某一柱地支藏干的完整既有结构化结果。"""
+
+    position: Literal["year", "month", "day", "hour"]
+    branch: str = Field(min_length=1)
+    stem: TenGodHiddenStem
+
+
+class FortuneNatalContext(SMBaseModel):
+    """原局信息由 BaziEngine 产生；缺少安全时间时明确不可用。"""
+
+    availability: FortuneAvailability
+    pillars: NatalPillarSet
+    day_master: str | None = None
+    day_master_yang: bool | None = None
+    day_master_wuxing: str | None = None
+    hidden_stems: list[FortuneNatalHiddenStem] = Field(default_factory=list)
+    bazi_engine: str = "bazi"
+    bazi_engine_version: str = ""
+    rule_version: str = ""
+
+    @model_validator(mode="after")
+    def validate_natal_availability(self) -> FortuneNatalContext:
+        if self.availability == FortuneAvailability.AVAILABLE:
+            if self.pillars.availability != NatalPillarAvailability.FOUR_PILLARS:
+                raise ValueError("AVAILABLE 的原局必须有完整四柱")
+            if not self.day_master or self.day_master_yang is None or not self.day_master_wuxing:
+                raise ValueError("AVAILABLE 的原局必须说明日主、阴阳与五行")
+            if not self.hidden_stems:
+                raise ValueError("AVAILABLE 的原局必须保留藏干")
+        elif self.availability == FortuneAvailability.UNAVAILABLE:
+            if self.pillars.availability != NatalPillarAvailability.UNAVAILABLE:
+                raise ValueError("UNAVAILABLE 的原局不能带有部分盘柱")
+            if any(value is not None for value in (
+                self.day_master, self.day_master_yang, self.day_master_wuxing
+            )):
+                raise ValueError("UNAVAILABLE 的原局不得伪造日主信息")
+            if self.hidden_stems:
+                raise ValueError("UNAVAILABLE 的原局不得包含藏干")
         return self
 
 
@@ -562,6 +721,65 @@ class FortuneTemporalResolution(SMBaseModel):
                 raise ValueError("temporal context resolution 必须与 input_kind 一致")
         return self
 
+
+class FortuneTemporalPillarContext(SMBaseModel):
+    """流年/月/日字段只取自同一个 CalendarSnapshot。"""
+
+    layer: Literal["annual", "monthly", "daily"]
+    availability: FortuneAvailability
+    pillar: GanZhi | None = None
+    source_engine: str = "calendar"
+    source_engine_version: str = ""
+    rule_version: str = FORTUNE_TEMPORAL_RESOLUTION_RULE_VERSION
+
+    @model_validator(mode="after")
+    def validate_pillar_availability(self) -> FortuneTemporalPillarContext:
+        if self.availability == FortuneAvailability.UNAVAILABLE and self.pillar is not None:
+            raise ValueError("UNAVAILABLE 的时间柱不得携带干支值")
+        if self.availability == FortuneAvailability.AVAILABLE and self.pillar is None:
+            raise ValueError("AVAILABLE 的时间柱必须携带干支值")
+        return self
+
+
+class StockFortuneEvaluationRequest(SMBaseModel):
+    """统一快照入口的 typed 输入。"""
+
+    stock_identity: StockFortuneIdentity
+    birth_profile: StockFortuneBirthProfile
+    evaluation_context: FortuneTemporalInput
+    evaluation_source: SourceRef = Field(
+        default_factory=lambda: SourceRef(source="caller_input")
+    )
+    evaluation_source_version: str = "caller-input-v1"
+    luck_cycle_evidence: FortuneLuckCycleEvidence | None = None
+    market_session_version: str = ""
+    config_version: str = ""
+
+    @model_validator(mode="after")
+    def validate_identity_matches_birth_profile(self) -> StockFortuneEvaluationRequest:
+        if self.stock_identity.symbol != self.birth_profile.symbol:
+            raise ValueError("stock_identity.symbol 必须与 birth_profile.symbol 一致")
+        if (
+            self.stock_identity.exchange != Exchange.UNKNOWN
+            and self.birth_profile.exchange != Exchange.UNKNOWN
+            and self.stock_identity.exchange != self.birth_profile.exchange
+        ):
+            raise ValueError("stock_identity.exchange 与 birth_profile.exchange 不得冲突")
+        if self.evaluation_context.kind == FortuneTemporalInputKind.MARKET_SESSION_DATE:
+            expected_exchange = (
+                self.stock_identity.exchange
+                if self.stock_identity.exchange != Exchange.UNKNOWN
+                else self.birth_profile.exchange
+            )
+            if (
+                expected_exchange != Exchange.UNKNOWN
+                and self.evaluation_context.exchange != expected_exchange
+            ):
+                raise ValueError("MARKET_SESSION_DATE.exchange 必须与证券档案交易所一致")
+        if not self.evaluation_source_version.strip():
+            raise ValueError("evaluation_source_version 必须非空")
+        return self
+
 class DaYunPeriod(SMBaseModel):
     """单步大运结果，避免现有 BaziChart 中无类型的 dict 被复制为新契约。"""
 
@@ -624,30 +842,147 @@ class MarketSessionAssessment(SMBaseModel):
         return self
 
 
+class FortuneRelationParticipant(SMBaseModel):
+    """关系一端的精确归属；context 与 pillar 共同定位对象。"""
+
+    context: FortuneContextKind
+    pillar: str
+    component: FortuneRelationComponent
+    value: str = Field(min_length=1)
+
+
 class FortuneRelationEvent(SMBaseModel):
-    """Fortune 对既有刑冲合害破事件的统一、可追溯外壳。"""
+    """Fortune 对既有关系命中的结构化包装，不赋予吉凶或金融方向。"""
 
     category: FortuneRelationCategory
     relation_type: str = Field(min_length=1, description="保留底层关系引擎原始类型")
+    source: FortuneRelationParticipant
+    target: FortuneRelationParticipant
     participants: list[str] = Field(min_length=2)
     scope: FortuneRelationScope
     direction: FortuneRuleValence = FortuneRuleValence.UNKNOWN
     severity: FiniteFloat | None = Field(default=None, ge=0.0)
     weight: FiniteFloat | None = Field(default=None, ge=0.0)
-    rule_version: str
+    rule_version: str = Field(min_length=1)
     evidence: list[str] = Field(default_factory=list)
     explanation: str = ""
+
+    @model_validator(mode="after")
+    def validate_participant_attribution(self) -> FortuneRelationEvent:
+        source_id = (
+            f"{self.source.context.value}:{self.source.pillar}:"
+            f"{self.source.component.value}:{self.source.value}"
+        )
+        target_id = (
+            f"{self.target.context.value}:{self.target.pillar}:"
+            f"{self.target.component.value}:{self.target.value}"
+        )
+        if source_id not in self.participants or target_id not in self.participants:
+            raise ValueError("participants 必须包含结构化 source 与 target")
+        if self.scope == FortuneRelationScope.NATAL_NATAL and (
+            self.source.context != FortuneContextKind.NATAL
+            or self.target.context != FortuneContextKind.NATAL
+        ):
+            raise ValueError("NATAL_NATAL 关系两端必须都是原局对象")
+        if self.scope == FortuneRelationScope.TEMPORAL_TO_NATAL and (
+            self.source.context == FortuneContextKind.NATAL
+            or self.target.context != FortuneContextKind.NATAL
+        ):
+            raise ValueError("TEMPORAL_TO_NATAL 必须由时间对象指向原局对象")
+        if self.scope == FortuneRelationScope.TEMPORAL_TO_TEMPORAL and (
+            self.source.context == FortuneContextKind.NATAL
+            or self.target.context == FortuneContextKind.NATAL
+        ):
+            raise ValueError("TEMPORAL_TO_TEMPORAL 两端都必须是时间对象")
+        return self
+
+
+class FortuneRelationContext(SMBaseModel):
+    availability: FortuneAvailability
+    events: list[FortuneRelationEvent] = Field(default_factory=list)
+    relation_count: int = Field(default=0, ge=0)
+    relation_type_counts: dict[str, int] = Field(default_factory=dict)
+    rule_version: str
+
+    @model_validator(mode="after")
+    def validate_relation_counts(self) -> FortuneRelationContext:
+        if self.relation_count != len(self.events):
+            raise ValueError("relation_count 必须与 events 数量一致")
+        if any(count < 0 for count in self.relation_type_counts.values()):
+            raise ValueError("relation_type_counts 不得包含负数")
+        if sum(self.relation_type_counts.values()) != self.relation_count:
+            raise ValueError("relation_type_counts 总数必须与 relation_count 一致")
+        if self.availability == FortuneAvailability.UNAVAILABLE and self.events:
+            raise ValueError("UNAVAILABLE 的 relation context 不得携带事件")
+        return self
 
 
 class FortuneTenGodObservation(SMBaseModel):
     """复用现有十神结果，不在 Fortune 层复制映射表。"""
 
-    layer: Literal["natal", "dayun", "year", "month", "day", "hour"]
+    layer: FortuneTenGodLayer
+    position: Literal["year", "month", "day", "hour"]
     pillar: GanZhi
     stem: TenGodRef | None = None
+    display_label: str = Field(min_length=1)
     hidden_stems: list[TenGodHiddenStem] = Field(default_factory=list)
     availability: FortuneAvailability
+    rule_version: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_ten_god_observation(self) -> FortuneTenGodObservation:
+        if self.availability == FortuneAvailability.AVAILABLE and self.stem is None:
+            raise ValueError("AVAILABLE 的十神观察必须包含天干十神")
+        if self.availability == FortuneAvailability.UNAVAILABLE and self.stem is not None:
+            raise ValueError("UNAVAILABLE 的十神观察不得包含计算结果")
+        return self
+
+
+class FortuneHiddenStemTenGodObservation(SMBaseModel):
+    """原局地支藏干十神；值直接来自 Bazi/Ten-God 现有输出。"""
+
+    context: FortuneContextKind = FortuneContextKind.NATAL
+    pillar: Literal["year", "month", "day", "hour"]
+    branch: str = Field(min_length=1)
+    stem: TenGodHiddenStem
+    rule_version: str = Field(min_length=1)
+
+
+class FortuneTenGodContext(SMBaseModel):
+    """五类十神的统一容器：原局、流年、流月、流日、藏干。"""
+
+    availability: FortuneAvailability
+    day_master: str | None = None
+    natal: list[FortuneTenGodObservation] = Field(default_factory=list)
+    annual: FortuneTenGodObservation | None = None
+    monthly: FortuneTenGodObservation | None = None
+    daily: FortuneTenGodObservation | None = None
+    hidden_stems: list[FortuneHiddenStemTenGodObservation] = Field(default_factory=list)
     rule_version: str
+
+    @model_validator(mode="after")
+    def validate_ten_god_context(self) -> FortuneTenGodContext:
+        if self.availability == FortuneAvailability.UNAVAILABLE:
+            if any((self.day_master, self.natal, self.annual, self.monthly, self.daily, self.hidden_stems)):
+                raise ValueError("UNAVAILABLE 的十神上下文不得携带计算结果")
+        if self.availability == FortuneAvailability.AVAILABLE:
+            natal_positions = {item.position for item in self.natal}
+            if not self.day_master or natal_positions != {"year", "month", "day", "hour"}:
+                raise ValueError("AVAILABLE 的十神上下文必须有日主与原局四柱")
+            if self.annual is None or self.monthly is None or self.daily is None:
+                raise ValueError("AVAILABLE 的十神上下文必须有流年、流月、流日")
+            if (
+                self.annual.layer != "year"
+                or self.monthly.layer != "month"
+                or self.daily.layer != "day"
+                or self.annual.position != "year"
+                or self.monthly.position != "month"
+                or self.daily.position != "day"
+            ):
+                raise ValueError("流年、流月、流日十神层标记不匹配")
+            if not self.hidden_stems:
+                raise ValueError("AVAILABLE 的十神上下文必须包含原局藏干十神")
+        return self
 
 
 class FortuneConfidenceComponent(SMBaseModel):
@@ -801,3 +1136,147 @@ class FortuneResultV1(SMBaseModel):
     rule_version: str
     birth_profile_version: str
     config_version: str
+
+
+class FortuneRuleVersions(SMBaseModel):
+    """快照重放所需的算法、数据口径与配置版本。"""
+
+    snapshot_rule_version: str = Field(min_length=1)
+    birth_profile_version: str = Field(min_length=1)
+    birth_rule_version: str = Field(min_length=1)
+    market_session_version: str = Field(min_length=1)
+    temporal_resolution_rule_version: str = Field(min_length=1)
+    calendar_engine_version: str = Field(min_length=1)
+    bazi_engine_version: str = Field(min_length=1)
+    luck_cycle_direction_rule_version: str = Field(min_length=1)
+    luck_cycle_period_rule_version: str = Field(min_length=1)
+    ten_god_rule_version: str = Field(min_length=1)
+    relation_rule_version: str = Field(min_length=1)
+    relation_matrix_schema_version: str = Field(min_length=1)
+    config_version: str = Field(min_length=1)
+
+
+class FortuneProvenanceRecord(SMBaseModel):
+    component: FortuneProvenanceComponent
+    source: SourceRef
+    source_version: str = Field(min_length=1)
+    rule_version: str = Field(min_length=1)
+    assumptions: list[Assumption] = Field(default_factory=list)
+
+
+class StockFortuneSnapshot(SMBaseModel):
+    """可解释、可回放的股票术数时点快照；不包含金融预测或交易建议。"""
+
+    contract_version: Literal["stock-fortune-snapshot-v1"] = STOCK_FORTUNE_SNAPSHOT_VERSION
+    stock_identity: StockFortuneIdentity
+    birth_profile: StockFortuneBirthProfile
+    evaluation_time: datetime | None = None
+    temporal_resolution: FortuneTemporalResolution
+    temporal_context: TemporalFortuneContext | None = None
+    natal_context: FortuneNatalContext
+    luck_cycle_context: FortuneLuckCycleContext
+    annual_context: FortuneTemporalPillarContext
+    monthly_context: FortuneTemporalPillarContext
+    daily_context: FortuneTemporalPillarContext
+    ten_god_context: FortuneTenGodContext
+    relation_context: FortuneRelationContext
+    provenance: list[FortuneProvenanceRecord] = Field(min_length=1)
+    rule_versions: FortuneRuleVersions
+    availability: FortuneAvailability
+    raw_chart: dict[str, object] = Field(default_factory=dict)
+    chart_artifact_ids: list[str] = Field(default_factory=list)
+    warnings: list[Warning_] = Field(default_factory=list)
+    assumptions: list[Assumption] = Field(default_factory=list)
+    engine_version: str = STOCK_FORTUNE_ENGINE_VERSION
+    rule_version: str = FORTUNE_SNAPSHOT_RULE_VERSION
+
+    @model_validator(mode="after")
+    def validate_snapshot_consistency(self) -> StockFortuneSnapshot:
+        if self.stock_identity.symbol != self.birth_profile.symbol:
+            raise ValueError("snapshot 的证券身份必须与 birth_profile 一致")
+        if (
+            self.stock_identity.exchange != Exchange.UNKNOWN
+            and self.birth_profile.exchange != Exchange.UNKNOWN
+            and self.stock_identity.exchange != self.birth_profile.exchange
+        ):
+            raise ValueError("snapshot 的证券交易所必须与 birth_profile 一致")
+        if self.temporal_resolution.status == FortuneTemporalResolutionStatus.RESOLVED:
+            if self.temporal_context is None or self.evaluation_time is None:
+                raise ValueError("resolved snapshot 必须包含 evaluation_time 与 temporal_context")
+            if self.temporal_context.target_at != self.evaluation_time:
+                raise ValueError("evaluation_time 必须与 temporal_context.target_at 一致")
+        elif self.temporal_context is not None or self.evaluation_time is not None:
+            raise ValueError("未解析的 evaluation time 不得伪造 temporal_context")
+        if (
+            self.temporal_resolution.status != FortuneTemporalResolutionStatus.RESOLVED
+            and self.availability != FortuneAvailability.UNAVAILABLE
+        ):
+            raise ValueError("未解析的 evaluation time 必须将 Snapshot 标记为 unavailable")
+        if self.birth_profile.birth_datetime is None and (
+            self.natal_context.availability != FortuneAvailability.UNAVAILABLE
+        ):
+            raise ValueError("出生时刻不可用时不得输出部分或完整原局")
+        if (
+            self.rule_versions.snapshot_rule_version != self.rule_version
+            or self.rule_versions.birth_profile_version
+            != self.birth_profile.birth_profile_version
+            or self.rule_versions.birth_rule_version != self.birth_profile.rule_version
+            or self.rule_versions.luck_cycle_direction_rule_version
+            != self.luck_cycle_context.rule_version
+            or self.rule_versions.luck_cycle_period_rule_version
+            != self.luck_cycle_context.period_rule_version
+            or self.rule_versions.ten_god_rule_version != self.ten_god_context.rule_version
+            or self.rule_versions.relation_rule_version != self.relation_context.rule_version
+        ):
+            raise ValueError("Snapshot rule_versions 必须与实际 profile/context 版本一致")
+        if self.temporal_context and (
+            self.rule_versions.calendar_engine_version
+            != self.temporal_context.calendar_snapshot.engine_version
+        ):
+            raise ValueError("Snapshot calendar_engine_version 必须与 CalendarSnapshot 一致")
+        if self.natal_context.availability == FortuneAvailability.AVAILABLE and (
+            self.rule_versions.bazi_engine_version != self.natal_context.bazi_engine_version
+        ):
+            raise ValueError("Snapshot bazi_engine_version 必须与 BaziChart 一致")
+        provenance_components = {record.component for record in self.provenance}
+        required_provenance = {
+            FortuneProvenanceComponent.STOCK_IDENTITY,
+            FortuneProvenanceComponent.BIRTH_PROFILE,
+            FortuneProvenanceComponent.EVALUATION_TIME,
+            FortuneProvenanceComponent.LUCK_CYCLE,
+            FortuneProvenanceComponent.TEN_GOD,
+            FortuneProvenanceComponent.RELATION,
+        }
+        if not required_provenance <= provenance_components:
+            raise ValueError("Snapshot provenance 缺少一个或多个核心组件")
+        if self.temporal_context and FortuneProvenanceComponent.CALENDAR not in provenance_components:
+            raise ValueError("存在 temporal context 时必须记录 Calendar provenance")
+        if (
+            self.natal_context.availability == FortuneAvailability.AVAILABLE
+            and FortuneProvenanceComponent.BAZI not in provenance_components
+        ):
+            raise ValueError("存在 natal context 时必须记录 Bazi provenance")
+        for expected_layer, context in (
+            ("annual", self.annual_context),
+            ("monthly", self.monthly_context),
+            ("daily", self.daily_context),
+        ):
+            if context.layer != expected_layer:
+                raise ValueError(f"{expected_layer} context 的 layer 不匹配")
+        if self.availability == FortuneAvailability.AVAILABLE:
+            required = (
+                self.temporal_context is not None,
+                self.natal_context.availability == FortuneAvailability.AVAILABLE,
+                self.annual_context.availability == FortuneAvailability.AVAILABLE,
+                self.monthly_context.availability == FortuneAvailability.AVAILABLE,
+                self.daily_context.availability == FortuneAvailability.AVAILABLE,
+                self.luck_cycle_context.availability == FortuneAvailability.AVAILABLE,
+                self.luck_cycle_context.cycle_availability == FortuneAvailability.AVAILABLE,
+                self.ten_god_context.availability == FortuneAvailability.AVAILABLE,
+                self.relation_context.availability == FortuneAvailability.AVAILABLE,
+            )
+            if not all(required):
+                raise ValueError("AVAILABLE snapshot 的核心上下文必须全部可用")
+        if self.raw_chart and not self.chart_artifact_ids:
+            raise ValueError("raw_chart 必须有对应 chart_artifact_ids")
+        return self

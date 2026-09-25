@@ -23,6 +23,25 @@ class CalendarSnapshotProvider(Protocol):
     def snapshot(self, when: datetime) -> CalendarSnapshot: ...
 
 
+class FortuneChartArtifactWriter(Protocol):
+    """持久化 Fortune 调用的引擎原始盘面并返回可追溯 ID。"""
+
+    def persist_chart_artifact(
+        self,
+        *,
+        engine_id: str,
+        engine_version: str,
+        symbol: str,
+        as_of: datetime,
+        input_payload: Mapping[str, object],
+        raw_chart: Mapping[str, object],
+        assumptions: Sequence[Mapping[str, object]],
+        warnings: Sequence[Mapping[str, object]],
+        birth_profile_version: str,
+        config_version: str,
+    ) -> str: ...
+
+
 class MarketSessionAdapter(Protocol):
     """解析版本化 session 锚点，并把时刻分类为独立的市场状态。"""
 

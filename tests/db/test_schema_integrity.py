@@ -75,6 +75,12 @@ class TestSchemaCompleteness:
             missing = required - cols
             assert not missing, f"{table} 缺少时间戳列: {missing}"
 
+    def test_chart_artifact_birth_version_column_fits_frozen_fortune_version(self):
+        from src.db.models import ChartArtifactRow
+
+        column = ChartArtifactRow.__table__.c.birth_profile_version
+        assert column.type.length >= len("stock-fortune-birth-v2")
+
     def test_unique_constraints_present(self, engine):
         insp = inspect(engine)
         expected_uniques = {
@@ -119,6 +125,55 @@ class TestVersioningSemantics:
         db_session.flush()
         count = db_session.query(ChartArtifactRow).filter_by(stock_code="TST001").count()
         assert count == 2, "chart_artifact 必须保留旧 engine_version 的盘面"
+
+    def test_chart_artifact_preserves_frozen_fortune_birth_profile_version(self, db_session):
+        from src.db.models import ChartArtifactRow
+
+        version = "stock-fortune-birth-v2"
+        db_session.add(ChartArtifactRow(
+            chart_id="chart-stock-fortune-birth-v2",
+            stock_code="TST003",
+            engine="bazi",
+            engine_version="bazi-v1",
+            birth_profile_version=version,
+            as_of=datetime(2024, 1, 1),
+            input_json={},
+            raw_chart={"stub": True},
+        ))
+        db_session.flush()
+        stored = db_session.query(ChartArtifactRow).filter_by(
+            chart_id="chart-stock-fortune-birth-v2"
+        ).one()
+        assert stored.birth_profile_version == version
+
+    def test_fortune_artifact_writer_is_idempotent(self, db_session):
+        from zoneinfo import ZoneInfo
+
+        from src.core.orchestration.stock_fortune import DatabaseFortuneChartArtifactWriter
+        from src.db.models import ChartArtifactRow
+
+        writer = DatabaseFortuneChartArtifactWriter(db_session)
+        payload = {
+            "engine_id": "bazi",
+            "engine_version": "bazi-v1",
+            "symbol": "TST004",
+            "as_of": datetime(2025, 1, 2, 9, 30, tzinfo=ZoneInfo("Asia/Shanghai")),
+            "input_payload": {"request": "same"},
+            "raw_chart": {"pillars": ["甲子", "乙丑", "丙寅", "丁卯"]},
+            "assumptions": [{"key": "mode", "value": "forward"}],
+            "warnings": [],
+            "birth_profile_version": "stock-fortune-birth-v2",
+            "config_version": "config-test-v1",
+        }
+        first_id = writer.persist_chart_artifact(**payload)
+        replay_id = writer.persist_chart_artifact(**payload)
+
+        assert replay_id == first_id
+        assert db_session.query(ChartArtifactRow).filter_by(chart_id=first_id).count() == 1
+        row = db_session.get(ChartArtifactRow, first_id)
+        assert row is not None
+        assert row.birth_profile_version == "stock-fortune-birth-v2"
+        assert row.raw_chart == payload["raw_chart"]
 
     def test_factor_observation_distinguishes_rule_versions(self, db_session):
         from src.db.models import FactorObservationRow
