@@ -157,7 +157,7 @@ test.describe("上下文贯穿", () => {
     // 当前 URL 上没有的那一项，链接自带的值必须留着（补齐≠清空）
     const partial = new URLSearchParams({ horizon: "60d" });
     const q2 = new URLSearchParams(
-      mod.withAnalysisContext("/research/date-scan?date=2026-09-22&asOf=2020-01-01", partial).split("?")[1],
+      withAnalysisContext("/research/date-scan?date=2026-09-22&asOf=2020-01-01", partial).split("?")[1],
     );
     expect(q2.get("asOf")).toBe("2020-01-01");
     expect(q2.get("date")).toBe("2026-09-22");
