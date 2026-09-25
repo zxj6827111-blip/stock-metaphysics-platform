@@ -226,7 +226,7 @@ def test_a_share_weekend_conflicting_open_evidence_is_not_silently_overridden() 
         (datetime(2024, 11, 15, 12, 0), None, MarketSessionStatus.UNKNOWN, False),
         (datetime(2024, 11, 15, 10, 0), None, MarketSessionStatus.UNKNOWN, None),
         (datetime(2024, 11, 18, 10, 0), False, MarketSessionStatus.CLOSED, False),
-        (datetime(2024, 11, 16, 10, 0), True, MarketSessionStatus.CLOSED, False),
+        (datetime(2024, 11, 16, 10, 0), None, MarketSessionStatus.CLOSED, False),
     ],
 )
 def test_a_share_session_status(local_at, is_trading_day, status, tradable) -> None:
