@@ -257,7 +257,17 @@ jobs:
             apps/web/test-results/**
             apps/web/playwright-report/**
 
-  # 视觉回归已在 2026-09-23 明确移出 PR #3 的 CI scope（非"通过"，是"推迟"）：
+  # 视觉回归已在 2026-09-23 明确移出 CI scope（非"通过"，是"推迟"）：
   # 门禁工具链原样保留 —— doc/ui-reference/*.png、apps/web/scripts/visual-diff.mjs、
   # apps/web/e2e/visual-reference.spec.ts、docs/UI_VISUAL_PARITY_V5.md（真实 FAIL 数据未动）。
-  # 待专门的 ui-visual-parity 分支推进 parity 后再以独立 job 恢复。
+  #
+  # 2026-09-26（V5-Final）治理口径收敛，结论写在这里以免与文档再次分叉：
+  #   * `DESIGN_REFERENCE_PIXEL_AUDIT`（绝对参考图像素差异）= **审计指标，不阻断合并**。
+  #     理由：参考图含低频水墨/照片级背景，仓库无该背景的合法来源资产，且 AGENTS.md §9.13
+  #     明确禁止用 background-image 造贴图来压低差异 ⇒ 该部分差异在当前资产下不可实现。
+  #     阈值 3% / 1.5% 一字未改、FAIL 一字未改、截图一字未删；只是不再单独否决合并。
+  #   * `MERGE_BLOCKING_VISUAL_GATES` 仍然阻断，且门槛一律不下调：
+  #     UI_STRUCTURE（上面的 frontend-ui-structure job）/ UI_PARITY（ui-parity-r1.spec.ts）/
+  #     DESKTOP_1440（desktop-1440x900 project）/ anchor 几何 / viewport-overflow /
+  #     关键内容存在性 / 真实功能入口 / 真实性 / build / typecheck / 功能 E2E。
+  #   * 详细口径见 docs/UI_VISUAL_PARITY_V5.md「门禁」一节（A / B 两类分开记账）。

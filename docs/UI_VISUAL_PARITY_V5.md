@@ -44,6 +44,91 @@
 > 与左下角指示器，在它上面宣称 production parity 是假的；且它只跑
 > `v51-regression` + `date-scan-v3`，从来**不覆盖** V3-A/V3-B 的几何门。
 
+## 2026-09-26（V5 Final · 合并前审计）
+
+本节只记录**审计结论与治理口径**，不改动任何既有实测数据、阈值与断言。
+
+### 门禁口径（A / B 两类分开记账）
+
+见下方「门禁」一节。摘要：绝对参考图像素差异（`DESIGN_REFERENCE_PIXEL_AUDIT`）降为
+**审计指标、不阻断合并**；几何 / 结构 / 排版 / 真实性 / 功能门（`MERGE_BLOCKING_VISUAL_GATES`）
+**门槛一律不下调**，仍是阻断门。
+
+### FULL_E2E 九条历史失败的定性（本轮查清，结论：环境缺陷，非代码缺陷）
+
+历史现象：本机 `npx playwright test` 有 9 条失败，症状是 `/api/backend/**` 代理 500、
+页面进入真实错误态、`data-testid` 找不到。
+
+本轮实测定位：
+
+| 事实 | 证据 |
+|---|---|
+| `lunar-python==1.4.8` **本来就在正式 manifest 里** | `pyproject.toml:26`，位于 `[project.dependencies]`，非 optional |
+| 本机**根本没有项目 venv** | `.venv/Scripts/python.exe` 不存在；PATH 上的 `python` 是 3.14.3 且 `import lunar_python` → `ModuleNotFoundError` |
+| 按仓库正式方式建环境后一切正常 | `uv venv --python 3.12 .venv` + `uv pip install -e ".[dev]"`（等价 CI 的 `pip install -e ".[dev]"`）→ `import lunar_python` 成功、`uvicorn apps.api.main:app` 启动成功、`/api/v1/system/health` = 200 |
+| 九条失败随之消失 | 全量 E2E：**203 passed / 21 skipped / 0 failed** |
+
+⇒ **这不是 packaging 缺陷，也不是后端能力缺失**。`LUNAR_PYTHON_DECLARATION = DECLARED`，
+未改任何业务代码、未加任何 `try/except` 降级。历史失败完全由「本机从未按仓库约定
+建立运行环境」造成。这也说明：本地 E2E 结论在没有真实后端之前**不可采信**。
+
+顺带修掉的一个**真实**审计工具链缺陷：`npm run visual:diff` 依赖 Pillow，
+而 Pillow 在任何 manifest 里都没声明过，且脚本硬编码调用 PATH 上的 `python`
+（本机即 3.14.3，无 Pillow）⇒ **像素审计此前根本无法执行**。
+已把 `pillow==12.1.1` 声明进 `[project.optional-dependencies].dev`（它是验收工具依赖，
+不是 runtime 依赖），并让脚本优先使用项目 venv、缺依赖时给出可诊断报错。
+
+> 另记一条容易踩的复现坑：`next.config.mjs` 的 `distDir` 与 `rewrites()` 都读环境变量，
+> 而 production 的 rewrite 目标在**构建期**就写死进 `routes-manifest.json`。
+> 因此跑生产构建做带后端的 E2E 时，`SMP_API_BASE` 必须在 **`npm run build` 时**给出，
+> 只在 `next start` 时给是**无效**的（会静默代理到默认 8000）。
+> `NEXT_DIST_DIR` 同理要在 `build` 与 `start` 两侧都给。
+
+### 09 / 10 密度：`ACCEPTED_KNOWN_GAP`（本轮实测，未改动 UI）
+
+先测量、后判断；**测量结果不支持安全改动，因此一行未改**。
+
+BEFORE 实测（1672×941，production build，fixture）：
+
+| 项 | 09-evidence | 10-timeline |
+|---|---|---|
+| 页面总高 | 941 | 941 |
+| 首屏可见 `data-testid` 数 | 60 | 71 |
+| `page-hero` | x224 y62 1434×**102** | x224 y62 1434×**106** |
+| `summary-tiles` | — | x224 y231.3 1434×**137.9** |
+| `main-row` | — | x224 y381.1 949.9×**263.3** |
+| `right-summary` | — | x1185.9 y381.1 472.1×**263.3** |
+| `second-layer` | — | x224 y656.4 1434×**491.9** |
+| 月历热力卡 | — | x224 y656.4 949.9×**364** |
+| 月历格子 | — | **132.0 × 28.5px**（7 列铺满 949.9 卡宽，纵横比 4.6:1），gap 4px |
+| 周度排名 | — | x1185.9 y656.4 472.1×**491.9** |
+
+不改动的原因（两条，各自独立成立）：
+
+1. **09 的参考侧没有可用目标。** `e2e/fixtures/reference-anchors.json` 里
+   09 的 `stockContextBar` / `primaryCard` / `primaryChart` / `rightSummary`
+   **全部为 `null`**，其自带说明是"只检测到 Hero 底边；上下文栏与检索条的边框在
+   参考图里被控件打断"。也就是说 09 在 Hero 以下**没有任何可导出的参考几何**。
+   当前唯一有约束力的门是 `viewport-1440-pages.spec.ts:121`
+   （古籍三类计数必须留在首屏），它现在**通过**。在这种前提下收紧 09 密度属于
+   无依据改动，且会把该门推向风险侧。
+
+2. **10 的月历格子找不到可导出的参考锚点。** 参考图 `10_time_window.png` 的
+   第二层外框实测为 x≈224..1171，与实现（224..1173.9）已在 3px 内一致 ——
+   **外框没有缺口**。但月历格子的内部排布无法确证：参考图带水墨纹理，
+   逐列/逐行探测得到的"7 等宽列"信号全部是 1–4px 的笔画 run（文本），不是日历格；
+   在 x≈696–720 检出一处分栏，提示参考图**可能**把两个月并排（各约 450px ⇒ 格子约 60px），
+   但**无法确证**。按本文件既有的 anchor 口径——"检测不出唯一边界的一律 null
+   （禁止凭空制造精度）"——不能凭这个未证实的假设改布局。
+
+⇒ `09_10_DENSITY_GAP = ACCEPTED_KNOWN_GAP`。
+10 页**第一屏**三层（`summaryTiles` / `mainRow` / `rightSummary`）实测仍在
+`v3b-visual.spec.ts` 的门内（Δy 3.3 / −6.9 / −6.9，Δh −12.1 / 16.3 / 16.3），
+第二层外框与参考一致。**唯一存疑的点是月历格子尺寸（132×28.5px 疑似偏大）**，
+它是**待证假设**而不是已确认缺口。解除它需要先按本文件方法论为月历补一个
+带 `confidence` 与 `note` 的 reference anchor；那是一件独立的取证工作，
+不在本轮"不为了改而改"的范围里，已登记为 follow-up。
+
 ## 固定环境
 
 | 项目 | 值 |
@@ -64,15 +149,46 @@
 
 ## 门禁
 
-- overall `pixel_diff_ratio <= 3%`
-- 关键布局区域 `pixel_diff_ratio <= 1.5%`（**未计算**：需要先有"关键布局区域"的批准定义，
-  目前 anchor 量测给的是几何矩形，不是区域像素比）
-- anchor 几何：2026-09-24 起已实现（`npm run visual:anchors` →
-  `test-results/visual-reference/anchors-<label>.json`，含 7 个关键矩形的
-  x/y/width/height、与参考侧冻结值的 delta、以及 `firstFoldVisible`）。
-  它**不是**通过/失败门，而是结构证据：像素比例掩盖的"区块掉出首屏"只有它能抓到。
-  三口径分列：`candidateMeasured` / `referenceMeasured` / `alignedComparable`；
-  参考侧为 null 的字段**不算 delta**，不补猜测值凑通过率。
+本页把两类信号**分开记账**，两者不得互相顶替，也不得用一个替代另一个。
+
+### A. `DESIGN_REFERENCE_PIXEL_AUDIT` —— 审计指标，**不阻断** PR #4
+
+- 绝对参考图像素差异仍然**照常计算、照常输出、照常保留阈值与 FAIL**：
+  - overall `pixel_diff_ratio` 阈值 `3%`；关键布局区域阈值 `1.5%`（**未计算**：需要先有
+    "关键布局区域"的批准定义，目前 anchor 量测给的是几何矩形，不是区域像素比）。
+  - `npm run visual:diff` 仍然为每页写出 `diff.png` / `overlay.png` / `reference.png` /
+    `metrics.json`，并逐页打印 `PASS` / `FAIL`。
+  - 阈值 `3%` / `1.5%` **一字未动**，`pass` 判定字段**一字未动**，FAIL 结论**如实保留**。
+- 改变的只有一件事：**像素超标不再让流水线非零退出**。
+  `metrics.json` 里新增 `gate_class: "audit-only"` / `merge_blocking: false` 显式标注它不是合并门。
+  取图/构建链路故障（缺图、尺寸不是 1672×941）仍**硬失败** —— 那是工具故障，不是审计结论。
+- **为什么把它降为审计指标**（结论，不含"因为难"这类措辞）：
+  参考图内含**低频水墨 / 照片级背景**，而仓库中**不存在**这些背景的合法来源资产。
+  在 `AGENTS.md §9.13` 明确禁止 `background-image` 造贴图、禁止把整页做成位图的前提下，
+  该背景**无法被合法复现**，因此这部分像素差异在当前资产条件下**不可实现**，
+  不构成 UI 几何错位的证据。
+  实测支撑：03-bazi 在 Gaussian blur radius 0 → 8 的分析中，差异仅从约 48.0% 变为约 48.8%
+  （几乎不降），说明残差是**低频色场**而非局部错位；各页参考底色本身也不一致
+  （03 = (3,13,20)、05 = (11,24,36)、01 = (12,21,28)）。
+- 因此**绝对像素差异仍是 FAIL**，且必须继续被记录、比对、报警 —— 只是不再用它单独否决合并。
+
+### B. `MERGE_BLOCKING_VISUAL_GATES` —— 仍然**阻断**合并，门槛一律不下调
+
+| 门 | 内容 | 载体 |
+|---|---|---|
+| `UI_STRUCTURE` | 首屏层级、几何区间、不可用语义 | `frontend-ui-structure` job（`v3a-backtest` / `v3b-visual` / `viewport-1440-pages` / `r1-refinement`，40 条） |
+| `UI_PARITY` | 共享壳层 / 排版 / 卡片语言 parity | `e2e/ui-parity-r1.spec.ts`（25 条） |
+| `DESKTOP_1440` | 1440×900 逐页适配与无横向溢出 | `desktop-1440x900` project（13 条） |
+| `ANCHOR_GEOMETRY` | 关键矩形 Δy / Δh、是否进入首屏 | `npm run visual:anchors`（`anchors-<label>.json`） |
+| 其余 | viewport / overflow、关键内容存在性、真实功能入口、内容真实性、build、typecheck、功能 E2E | 既有 spec 与 CI job |
+
+anchor 几何的读法保持不变：2026-09-24 起已实现（`npm run visual:anchors` →
+`test-results/visual-reference/anchors-<label>.json`，含 7 个关键矩形的
+x/y/width/height、与参考侧冻结值的 delta、以及 `firstFoldVisible`）。
+它**不是**通过/失败门，而是结构证据：像素比例掩盖的"区块掉出首屏"只有它能抓到。
+三口径分列：`candidateMeasured` / `referenceMeasured` / `alignedComparable`；
+参考侧为 null 的字段**不算 delta**，不补猜测值凑通过率。
+
 - `ssim`：仍未接入，不能声称通过
 - 人工视觉确认：**未批准**
 
