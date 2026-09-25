@@ -19,6 +19,8 @@ import { referenceAnchor, referenceTop } from "./support/referenceAnchors";
  * 不会经过 Playwright 的 TS 转译 —— Node 24（本机）恰好有 type-stripping 能跑，
  * Node 20（GitHub Actions Ubuntu）直接 `SyntaxError: Cannot use import statement
  * outside a module`。静态 import 由 Playwright esbuild 统一转译，跨平台确定。
+ * 本文件全部依赖已在模块顶部静态导入，**新增用例不得再在用例体内写
+ * `await import("../lib/…")`**：本机绿、CI 红是最难查的一类回归。
  * `analysisContextCore` 是从 `lib/analysisContext` 抽出的**零依赖纯逻辑核心**
  * （原文件经再导出保持 API 不变），此处测的仍是生产实现本体，不是测试副本。
  */
@@ -251,8 +253,6 @@ test.describe("数据质量事实性", () => {
   };
 
   test("缺证据的项必须显示未提供/未验证，而不是绿勾已验证", async () => {
-    const { toDataQualityView } = await import("../lib/dataSource");
-
     // 最空的一份输入：后端什么也没回传
     const bare = toDataQualityView({});
     expect(item(bare, "出生档案推导").value).toBe("未提供");
@@ -277,7 +277,6 @@ test.describe("数据质量事实性", () => {
   });
 
   test("有依据时按后端等级与许可状态如实分级", async () => {
-    const { toDataQualityView } = await import("../lib/dataSource");
     const bp = (grade: string) =>
       ({
         evidence: { listing_date: "2001-08-27", first_trading_day: "2001-08-27" },
@@ -318,7 +317,6 @@ test.describe("数据质量事实性", () => {
   });
 
   test("质量说明必须逐条保留：首条前置 + 其余可展开", async ({ page }) => {
-    const { toDataQualityView } = await import("../lib/dataSource");
     const notes = ["行情来源降级", "存在未闭合的时区假设", "样本含退市标的"];
     const dq = toDataQualityView({ grade: "B", notes });
     expect(dq.riskNote).toBe(notes[0]);
