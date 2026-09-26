@@ -778,8 +778,6 @@ class StockFortuneEvaluationRequest(SMBaseModel):
                 raise ValueError("MARKET_SESSION_DATE.exchange 必须与证券档案交易所一致")
         if not self.evaluation_source_version.strip():
             raise ValueError("evaluation_source_version 必须非空")
-        if self.relation_filters and not self.include_relation_events:
-            raise ValueError("存在 relation_filters 时必须包含 relation_events")
         return self
 
 class DaYunPeriod(SMBaseModel):
