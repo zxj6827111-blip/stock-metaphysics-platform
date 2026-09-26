@@ -778,6 +778,8 @@ class StockFortuneEvaluationRequest(SMBaseModel):
                 raise ValueError("MARKET_SESSION_DATE.exchange 必须与证券档案交易所一致")
         if not self.evaluation_source_version.strip():
             raise ValueError("evaluation_source_version 必须非空")
+        if self.relation_filters and not self.include_relation_events:
+            raise ValueError("存在 relation_filters 时必须包含 relation_events")
         return self
 
 class DaYunPeriod(SMBaseModel):
@@ -1279,4 +1281,472 @@ class StockFortuneSnapshot(SMBaseModel):
                 raise ValueError("AVAILABLE snapshot 的核心上下文必须全部可用")
         if self.raw_chart and not self.chart_artifact_ids:
             raise ValueError("raw_chart 必须有对应 chart_artifact_ids")
+        return self
+
+
+# ---------------------------------------------------------------------------
+# F4：历史/未来时间轴与日期横截面扫描契约
+# ---------------------------------------------------------------------------
+
+FORTUNE_TIMELINE_CONTRACT_VERSION = "stock-fortune-timeline-v1"
+FORTUNE_TIMELINE_RULE_VERSION = "stock-fortune-timeline-rule-v1"
+FORTUNE_CROSS_SECTION_CONTRACT_VERSION = "stock-fortune-cross-section-v1"
+FORTUNE_CROSS_SECTION_RULE_VERSION = "stock-fortune-cross-section-rule-v1"
+
+
+class FortuneTimelineDateMode(str, Enum):
+    ALL_CALENDAR_DAYS = "ALL_CALENDAR_DAYS"
+    TRADING_DAYS_ONLY = "TRADING_DAYS_ONLY"
+
+
+class FortuneTimelineAnchorMode(str, Enum):
+    EXACT_LOCAL_TIME = "EXACT_LOCAL_TIME"
+    MARKET_SESSION_DATE = "MARKET_SESSION_DATE"
+
+
+class FortuneScanTemporalMode(str, Enum):
+    EXACT_DATETIME = "EXACT_DATETIME"
+    DATE_SCAN_NOON = "DATE_SCAN_NOON"
+    MARKET_SESSION_DATE = "MARKET_SESSION_DATE"
+
+
+class FortuneScanAvailabilityPolicy(str, Enum):
+    INCLUDE = "INCLUDE"
+    AVAILABLE_ONLY = "AVAILABLE_ONLY"
+
+
+class FortuneScanSort(str, Enum):
+    SYMBOL = "symbol"
+    MATCHED_CONDITION_COUNT = "matched_condition_count"
+    RELATION_EVENT_COUNT = "relation_event_count"
+
+
+class FortuneTenGodFilter(SMBaseModel):
+    """十神筛选必须标明时间层；原局筛选必须再指定柱位。"""
+
+    layer: FortuneTenGodLayer
+    ten_god: str = Field(min_length=2)
+    position: Literal["year", "month", "day", "hour"] | None = None
+    hidden_stem: str | None = Field(default=None, min_length=1, max_length=1)
+
+    @model_validator(mode="after")
+    def validate_dimension(self) -> FortuneTenGodFilter:
+        from src.core.constants import TEN_GODS
+
+        if self.ten_god not in TEN_GODS:
+            raise ValueError(f"未知十神 {self.ten_god!r}；合法值为 {list(TEN_GODS)}")
+        layer = getattr(self.layer, "value", self.layer)
+        if layer == FortuneTenGodLayer.DAYUN.value:
+            raise ValueError("当前 Snapshot 未提供大运十神，不能将其作为筛选维度")
+        if layer in {FortuneTenGodLayer.NATAL.value, FortuneTenGodLayer.HIDDEN_STEM.value}:
+            if self.position is None:
+                raise ValueError("原局/藏干十神筛选必须指定 position")
+        elif self.position is not None or self.hidden_stem is not None:
+            raise ValueError("流年/流月/流日筛选不得指定原局柱位或藏干")
+        if layer != FortuneTenGodLayer.HIDDEN_STEM.value and self.hidden_stem is not None:
+            raise ValueError("只有 HIDDEN_STEM 筛选可以指定 hidden_stem")
+        return self
+
+
+class FortuneRelationFilter(SMBaseModel):
+    """一条关系条件明确限定关系类型、时空来源及原局目标。"""
+
+    relation_type: str = Field(min_length=1)
+    source_context: FortuneContextKind
+    source_pillar: Literal["year", "month", "day", "dayun"]
+    target_context: Literal[FortuneContextKind.NATAL] = FortuneContextKind.NATAL
+    target_pillar: Literal["year", "month", "day"]
+    source_component: FortuneRelationComponent | None = None
+    target_component: FortuneRelationComponent | None = None
+
+    @model_validator(mode="after")
+    def validate_relation_scope(self) -> FortuneRelationFilter:
+        from src.core.schemas.relation import RELATION_TYPES
+
+        if self.relation_type not in RELATION_TYPES:
+            raise ValueError(f"未知关系类型 {self.relation_type!r}")
+        context = getattr(self.source_context, "value", self.source_context)
+        expected_pillar = {
+            FortuneContextKind.YEAR.value: "year",
+            FortuneContextKind.MONTH.value: "month",
+            FortuneContextKind.DAY.value: "day",
+            FortuneContextKind.DAYUN.value: "dayun",
+        }.get(context)
+        if expected_pillar is None or expected_pillar != self.source_pillar:
+            raise ValueError("source_context 与 source_pillar 必须指向同一时间上下文")
+        if self.target_context != FortuneContextKind.NATAL:
+            raise ValueError("当前关系过滤的 target_context 必须是 NATAL")
+        return self
+
+
+class StockFortuneTimelineRequest(SMBaseModel):
+    """单证券时间轴请求；计算时点由明确的日期锚点策略生成。"""
+
+    stock_identity: StockFortuneIdentity
+    birth_profile: StockFortuneBirthProfile
+    start_date: date
+    end_date: date
+    date_mode: FortuneTimelineDateMode = FortuneTimelineDateMode.ALL_CALENDAR_DAYS
+    anchor_mode: FortuneTimelineAnchorMode = FortuneTimelineAnchorMode.EXACT_LOCAL_TIME
+    evaluation_time: time | None = None
+    timezone: str = "Asia/Shanghai"
+    luck_cycle_evidence: FortuneLuckCycleEvidence | None = None
+    evaluation_source: SourceRef = Field(
+        default_factory=lambda: SourceRef(source="stock-fortune-timeline")
+    )
+    evaluation_source_version: str = "stock-fortune-timeline-v1"
+    market_session_version: str = ""
+    config_version: str = ""
+    ten_god_filters: list[FortuneTenGodFilter] = Field(default_factory=list)
+    relation_filters: list[FortuneRelationFilter] = Field(default_factory=list)
+    include_relation_events: bool = True
+    include_month_segments: bool = True
+    include_ten_god_index: bool = True
+
+    @model_validator(mode="after")
+    def validate_timeline_request(self) -> StockFortuneTimelineRequest:
+        if self.stock_identity.symbol != self.birth_profile.symbol:
+            raise ValueError("stock_identity.symbol 必须与 birth_profile.symbol 一致")
+        if self.relation_filters and not self.include_relation_events:
+            raise ValueError("relation_filters 要求 include_relation_events=true")
+        if self.end_date < self.start_date:
+            raise ValueError("end_date 不得早于 start_date")
+        if (self.end_date - self.start_date).days + 1 > 3660:
+            raise ValueError("单次 Fortune Timeline 最多支持 3660 个自然日")
+        try:
+            ZoneInfo(self.timezone)
+        except (KeyError, ValueError) as exc:
+            raise ValueError("timezone 必须是有效 IANA 时区") from exc
+        anchor = getattr(self.anchor_mode, "value", self.anchor_mode)
+        date_mode = getattr(self.date_mode, "value", self.date_mode)
+        if anchor == FortuneTimelineAnchorMode.MARKET_SESSION_DATE.value:
+            if date_mode != FortuneTimelineDateMode.TRADING_DAYS_ONLY.value:
+                raise ValueError("MARKET_SESSION_DATE 只适用于 TRADING_DAYS_ONLY")
+            if self.evaluation_time is not None:
+                raise ValueError("MARKET_SESSION_DATE 使用版本化开盘锚点，不接收 evaluation_time")
+            exchange = (
+                self.stock_identity.exchange
+                if self.stock_identity.exchange != Exchange.UNKNOWN
+                else self.birth_profile.exchange
+            )
+            if exchange == Exchange.UNKNOWN:
+                raise ValueError("MARKET_SESSION_DATE 必须能够确定交易所")
+            if not (
+                self.market_session_version or self.birth_profile.market_session_version
+            ).strip():
+                raise ValueError("MARKET_SESSION_DATE 必须提供版本化交易时段")
+            if not (self.config_version or self.birth_profile.config_version).strip():
+                raise ValueError("MARKET_SESSION_DATE 必须提供 config_version")
+        elif self.evaluation_time is None:
+            self.evaluation_time = time(12, 0)
+        if not self.evaluation_source_version.strip():
+            raise ValueError("evaluation_source_version 必须非空")
+        return self
+
+
+class FortuneTradingCalendarCoverage(SMBaseModel):
+    exchange: str
+    version_token: str = ""
+    observed_start: date | None = None
+    observed_end: date | None = None
+    published_start: date | None = None
+    published_end: date | None = None
+    confirmed_trading_days: int = Field(default=0, ge=0)
+    confirmed_closed_days: int = Field(default=0, ge=0)
+    unknown_days: int = Field(default=0, ge=0)
+    sources: list[str] = Field(default_factory=list)
+
+
+class StockFortuneStableContext(SMBaseModel):
+    """一次计算后供整条时间轴共享的原局和规则上下文。"""
+
+    source_snapshot_at: datetime
+    natal_context: FortuneNatalContext
+    natal_ten_gods: list[FortuneTenGodObservation] = Field(default_factory=list)
+    hidden_stem_ten_gods: list[FortuneHiddenStemTenGodObservation] = Field(default_factory=list)
+    luck_cycle_direction: LuckCycleDirection | None = None
+    luck_cycle_availability: FortuneAvailability = FortuneAvailability.UNAVAILABLE
+    polarity_observed_at: datetime | None = None
+    luck_cycle_periods: list[FortuneDayunPeriod] = Field(default_factory=list)
+    natal_relation_events: list[FortuneRelationEvent] = Field(default_factory=list)
+    rule_versions: FortuneRuleVersions
+    provenance: list[FortuneProvenanceRecord] = Field(default_factory=list)
+    assumptions: list[Assumption] = Field(default_factory=list)
+    warnings: list[Warning_] = Field(default_factory=list)
+    chart_artifact_ids: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_stable_context(self) -> StockFortuneStableContext:
+        if self.source_snapshot_at.tzinfo is None or self.source_snapshot_at.utcoffset() is None:
+            raise ValueError("source_snapshot_at 必须带时区")
+        if self.luck_cycle_availability == FortuneAvailability.UNAVAILABLE:
+            if self.luck_cycle_direction is not None or self.luck_cycle_periods:
+                raise ValueError("UNAVAILABLE 的大运 stable context 不得携带方向或周期")
+        if any(event.scope != FortuneRelationScope.NATAL_NATAL for event in self.natal_relation_events):
+            raise ValueError("stable natal_relation_events 只能包含原局关系")
+        return self
+
+
+class StockFortuneTimelinePoint(SMBaseModel):
+    date: date
+    evaluation_datetime: datetime
+    trading_day: bool | None = None
+    trading_calendar_source: str = "unavailable"
+    luck_cycle_ref: FortuneDayunPeriod | None = None
+    annual_pillar: GanZhi | None = None
+    monthly_pillar: GanZhi | None = None
+    daily_pillar: GanZhi | None = None
+    annual_ten_god: FortuneTenGodObservation | None = None
+    monthly_ten_god: FortuneTenGodObservation | None = None
+    daily_ten_god: FortuneTenGodObservation | None = None
+    relation_events: list[FortuneRelationEvent] = Field(default_factory=list)
+    availability: FortuneAvailability
+
+    @model_validator(mode="after")
+    def validate_point(self) -> StockFortuneTimelinePoint:
+        if self.evaluation_datetime.tzinfo is None or self.evaluation_datetime.utcoffset() is None:
+            raise ValueError("evaluation_datetime 必须带时区")
+        if self.evaluation_datetime.date() != self.date:
+            raise ValueError("evaluation_datetime 的本地日期必须与 point.date 一致")
+        if self.trading_day is not None and self.trading_calendar_source not in {
+            "observed_index_days",
+            "published_exchange_calendar",
+        }:
+            raise ValueError("未验证的交易日历来源不得返回 trading_day=true/false")
+        return self
+
+
+class FortuneSolarMonthSegment(SMBaseModel):
+    """流月按十二节精确切段；gregorian_months 仅用于公历分组展示。"""
+
+    start_at: datetime
+    end_at: datetime
+    boundary_jieqi: str
+    next_boundary_jieqi: str
+    monthly_pillar: GanZhi
+    monthly_ten_god: str | None = None
+    gregorian_months: list[str] = Field(default_factory=list)
+    effective_dates: list[date] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_segment(self) -> FortuneSolarMonthSegment:
+        if self.start_at.tzinfo is None or self.start_at.utcoffset() is None:
+            raise ValueError("solar month segment start_at 必须带时区")
+        if self.end_at.tzinfo is None or self.end_at.utcoffset() is None:
+            raise ValueError("solar month segment end_at 必须带时区")
+        if self.start_at >= self.end_at:
+            raise ValueError("solar month segment 必须是非空半开区间")
+        if self.effective_dates != sorted(set(self.effective_dates)):
+            raise ValueError("effective_dates 必须去重并按日期递增")
+        return self
+
+
+class FortuneTenGodDateIndex(SMBaseModel):
+    layer: Literal["year", "month", "day"]
+    ten_god: str
+    dates: list[date] = Field(default_factory=list)
+
+
+class FortuneTimelineTenGodIndex(SMBaseModel):
+    entries: list[FortuneTenGodDateIndex] = Field(default_factory=list)
+    stable_natal: list[FortuneTenGodObservation] = Field(default_factory=list)
+    stable_hidden_stems: list[FortuneHiddenStemTenGodObservation] = Field(default_factory=list)
+
+
+class StockFortuneTimeline(SMBaseModel):
+    contract_version: Literal["stock-fortune-timeline-v1"] = FORTUNE_TIMELINE_CONTRACT_VERSION
+    stock_identity: StockFortuneIdentity
+    birth_context: StockFortuneBirthProfile
+    stable_context: StockFortuneStableContext
+    start_date: date
+    end_date: date
+    date_mode: FortuneTimelineDateMode
+    anchor_mode: FortuneTimelineAnchorMode
+    timezone: str
+    ten_god_filters: list[FortuneTenGodFilter] = Field(default_factory=list)
+    relation_filters: list[FortuneRelationFilter] = Field(default_factory=list)
+    include_relation_events: bool = True
+    include_month_segments: bool = True
+    include_ten_god_index: bool = True
+    points: list[StockFortuneTimelinePoint] = Field(default_factory=list)
+    month_segments: list[FortuneSolarMonthSegment] = Field(default_factory=list)
+    ten_god_index: FortuneTimelineTenGodIndex | None = None
+    trading_calendar: FortuneTradingCalendarCoverage
+    availability: FortuneAvailability
+    rule_versions: FortuneRuleVersions
+    provenance: list[FortuneProvenanceRecord] = Field(default_factory=list)
+    warnings: list[Warning_] = Field(default_factory=list)
+    assumptions: list[Assumption] = Field(default_factory=list)
+    rule_version: str = FORTUNE_TIMELINE_RULE_VERSION
+
+    @model_validator(mode="after")
+    def validate_timeline(self) -> StockFortuneTimeline:
+        if self.start_date > self.end_date:
+            raise ValueError("timeline range 必须满足 start_date <= end_date")
+        if self.stock_identity.symbol != self.birth_context.symbol:
+            raise ValueError("timeline stock_identity 与 birth_context 不一致")
+        if any(not (self.start_date <= point.date <= self.end_date) for point in self.points):
+            raise ValueError("timeline point 超出请求日期范围")
+        if any(left.date >= right.date for left, right in zip(self.points, self.points[1:])):
+            raise ValueError("timeline points 必须按日期严格递增且不重复")
+        return self
+
+
+class StockFortuneScanTarget(SMBaseModel):
+    stock_identity: StockFortuneIdentity
+    birth_profile: StockFortuneBirthProfile
+    luck_cycle_evidence: FortuneLuckCycleEvidence | None = None
+
+    @model_validator(mode="after")
+    def validate_target(self) -> StockFortuneScanTarget:
+        if self.stock_identity.symbol != self.birth_profile.symbol:
+            raise ValueError("scan target identity.symbol 必须与 birth_profile.symbol 一致")
+        return self
+
+
+class StockFortuneScanUniverse(SMBaseModel):
+    """显式股票列表；更大的 PIT universe 可由上层 provider 映射到该契约。"""
+
+    version: str = Field(min_length=1)
+    source: SourceRef
+    targets: list[StockFortuneScanTarget] = Field(min_length=1, max_length=5000)
+
+    @model_validator(mode="after")
+    def validate_symbols(self) -> StockFortuneScanUniverse:
+        symbols = [item.stock_identity.symbol for item in self.targets]
+        if len(symbols) != len(set(symbols)):
+            raise ValueError("scan universe 不得包含重复 symbol")
+        return self
+
+
+class StockFortuneScanRequest(SMBaseModel):
+    contract_version: Literal["stock-fortune-cross-section-v1"] = FORTUNE_CROSS_SECTION_CONTRACT_VERSION
+    temporal_mode: FortuneScanTemporalMode
+    evaluation_date: date | None = None
+    evaluation_datetime: datetime | None = None
+    exchange: Exchange | None = None
+    is_trading_day: bool | None = None
+    universe: StockFortuneScanUniverse
+    ten_god_filters: list[FortuneTenGodFilter] = Field(default_factory=list)
+    relation_filters: list[FortuneRelationFilter] = Field(default_factory=list)
+    availability_policy: FortuneScanAvailabilityPolicy = FortuneScanAvailabilityPolicy.INCLUDE
+    sort: FortuneScanSort = FortuneScanSort.SYMBOL
+    limit: int = Field(default=100, ge=1, le=500)
+    offset: int = Field(default=0, ge=0)
+    market_session_version: str = ""
+    config_version: str = ""
+
+    @model_validator(mode="after")
+    def validate_scan_time(self) -> StockFortuneScanRequest:
+        mode = getattr(self.temporal_mode, "value", self.temporal_mode)
+        if mode == FortuneScanTemporalMode.EXACT_DATETIME.value:
+            if self.evaluation_datetime is None or self.evaluation_date is not None:
+                raise ValueError("EXACT_DATETIME 必须只提供 evaluation_datetime")
+            if self.evaluation_datetime.tzinfo is None or self.evaluation_datetime.utcoffset() is None:
+                raise ValueError("EXACT_DATETIME 必须带时区")
+            if self.exchange is not None or self.is_trading_day is not None:
+                raise ValueError("EXACT_DATETIME 不接受 market-session 字段")
+        else:
+            if self.evaluation_date is None or self.evaluation_datetime is not None:
+                raise ValueError("DATE_SCAN_NOON / MARKET_SESSION_DATE 必须只提供 evaluation_date")
+        if mode == FortuneScanTemporalMode.DATE_SCAN_NOON.value:
+            if self.exchange is not None or self.is_trading_day is not None:
+                raise ValueError("DATE_SCAN_NOON 不接受 market-session 字段")
+        elif mode == FortuneScanTemporalMode.MARKET_SESSION_DATE.value:
+            if self.exchange in {None, Exchange.UNKNOWN} or self.is_trading_day is not True:
+                raise ValueError("MARKET_SESSION_DATE 必须提供交易所及已确认交易日证据")
+            if not self.market_session_version.strip() or not self.config_version.strip():
+                raise ValueError("MARKET_SESSION_DATE 必须提供 market-session/config 版本")
+            for target in self.universe.targets:
+                target_exchange = (
+                    target.stock_identity.exchange
+                    if target.stock_identity.exchange != Exchange.UNKNOWN
+                    else target.birth_profile.exchange
+                )
+                if target_exchange != self.exchange:
+                    raise ValueError("MARKET_SESSION_DATE 的显式 universe 必须与指定交易所一致")
+        return self
+
+
+class StockFortuneMatchedCondition(SMBaseModel):
+    kind: Literal["ten_god", "relation"]
+    label: str = Field(min_length=1)
+    ten_god_filter: FortuneTenGodFilter | None = None
+    relation_filter: FortuneRelationFilter | None = None
+
+
+class StockFortuneScanItem(SMBaseModel):
+    symbol: str
+    name: str = ""
+    matched_conditions: list[StockFortuneMatchedCondition] = Field(default_factory=list)
+    annual_ten_god: str | None = None
+    monthly_ten_god: str | None = None
+    daily_ten_god: str | None = None
+    relevant_relation_events: list[FortuneRelationEvent] = Field(default_factory=list)
+    availability: FortuneAvailability
+    snapshot_ref: str | None = None
+    rule_versions: FortuneRuleVersions
+
+
+class StockFortuneScanRuleVersions(SMBaseModel):
+    snapshot_rule_versions: list[str] = Field(default_factory=list)
+    birth_profile_versions: list[str] = Field(default_factory=list)
+    birth_rule_versions: list[str] = Field(default_factory=list)
+    calendar_engine_versions: list[str] = Field(default_factory=list)
+    bazi_engine_versions: list[str] = Field(default_factory=list)
+    luck_cycle_rule_versions: list[str] = Field(default_factory=list)
+    ten_god_rule_versions: list[str] = Field(default_factory=list)
+    relation_rule_versions: list[str] = Field(default_factory=list)
+    config_versions: list[str] = Field(default_factory=list)
+
+
+class StockFortuneScanResponse(SMBaseModel):
+    contract_version: Literal["stock-fortune-cross-section-v1"] = FORTUNE_CROSS_SECTION_CONTRACT_VERSION
+    evaluation_context: FortuneTemporalResolution
+    temporal_mode: FortuneScanTemporalMode
+    exchange: Exchange | None = None
+    is_trading_day: bool | None = None
+    ten_god_filters: list[FortuneTenGodFilter] = Field(default_factory=list)
+    relation_filters: list[FortuneRelationFilter] = Field(default_factory=list)
+    availability_policy: FortuneScanAvailabilityPolicy = FortuneScanAvailabilityPolicy.INCLUDE
+    sort: FortuneScanSort = FortuneScanSort.SYMBOL
+    universe_version: str
+    universe_source: SourceRef
+    universe_digest: str
+    request_digest: str = Field(min_length=64, max_length=64)
+    trading_calendar_source: Literal[
+        "observed_index_days", "published_exchange_calendar"
+    ] | None = None
+    trading_calendar_version: str | None = None
+    total_examined: int = Field(ge=0)
+    total_matched: int = Field(ge=0)
+    total: int = Field(ge=0, description="等于 total_matched，供分页客户端使用")
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1)
+    items: list[StockFortuneScanItem] = Field(default_factory=list)
+    warnings: list[Warning_] = Field(default_factory=list)
+    rule_versions: StockFortuneScanRuleVersions
+    availability: FortuneAvailability
+    rule_version: str = FORTUNE_CROSS_SECTION_RULE_VERSION
+
+    @model_validator(mode="after")
+    def validate_pagination(self) -> StockFortuneScanResponse:
+        if self.total != self.total_matched:
+            raise ValueError("total 必须与 total_matched 一致")
+        if self.total_matched > self.total_examined:
+            raise ValueError("total_matched 不得大于 total_examined")
+        if len(self.items) > self.limit:
+            raise ValueError("items 不得超过 limit")
+        if self.temporal_mode == FortuneScanTemporalMode.MARKET_SESSION_DATE:
+            if not self.trading_calendar_source or not self.trading_calendar_version:
+                raise ValueError("MARKET_SESSION_DATE response 必须记录已验证交易日历来源与版本")
+            if self.exchange in {None, Exchange.UNKNOWN} or self.is_trading_day is not True:
+                raise ValueError("MARKET_SESSION_DATE response 必须回显交易所及已验证交易日")
+        elif (
+            self.trading_calendar_source is not None
+            or self.trading_calendar_version is not None
+            or self.exchange is not None
+            or self.is_trading_day is not None
+        ):
+            raise ValueError("非 MARKET_SESSION_DATE response 不应携带交易日历证据")
         return self

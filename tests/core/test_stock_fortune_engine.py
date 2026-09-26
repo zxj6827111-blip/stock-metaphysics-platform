@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
+from time import perf_counter
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from src.core.constants import STEM_YANG
+from src.core.orchestration.stock_fortune import StockFortuneEngine
+from src.core.orchestration.stock_fortune_scan import (
+    RequestScopedCalendarSnapshotCache,
+    StockFortuneCrossSectionScanner,
+)
+from src.core.orchestration.stock_fortune_timeline import StockFortuneTimelineEngine
 from src.core.relations.ten_god import hidden_stems_with_gods, ten_god_ref
 from src.core.schemas.bazi import (
     BaziChart,
@@ -33,15 +42,29 @@ from src.core.schemas.fortune import (
     FortuneBirthBasis,
     FortuneContextKind,
     FortuneLuckCycleEvidence,
+    FortuneRelationCategory,
+    FortuneRelationComponent,
+    FortuneRelationEvent,
+    FortuneRelationFilter,
+    FortuneRelationParticipant,
+    FortuneRelationScope,
+    FortuneScanTemporalMode,
+    FortuneTenGodFilter,
+    FortuneTenGodLayer,
     FortuneTemporalInput,
     FortuneTemporalInputKind,
     FortuneTemporalResolutionStatus,
+    FortuneTimelineDateMode,
     NatalPillarAvailability,
     StockFortuneBirthProfile,
     StockFortuneEvaluationRequest,
     StockFortuneIdentity,
+    StockFortuneScanRequest,
+    StockFortuneScanTarget,
+    StockFortuneScanUniverse,
+    StockFortuneTimelineRequest,
 )
-from src.core.orchestration.stock_fortune import StockFortuneEngine
+from src.core.stock.trading_calendar import TradingCalendar
 
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
@@ -479,3 +502,479 @@ def test_luck_cycle_uses_half_open_cycle_transition_boundaries() -> None:
     assert at_end.current_cycle is None
     assert at_start.start_basis.startswith("lunar-python-1.4.8")
     assert at_start.period_rule_version == "fortune-dayun-period-lunar-python-1.4.8-v1"
+
+
+class StaticTradingCalendarProvider:
+    def __init__(self, calendar: TradingCalendar) -> None:
+        self.calendar = calendar
+
+    def for_exchange(self, exchange: str) -> TradingCalendar:
+        return self.calendar
+
+
+def _timeline_request(
+    start: date,
+    end: date | None = None,
+    *,
+    date_mode: FortuneTimelineDateMode = FortuneTimelineDateMode.ALL_CALENDAR_DAYS,
+    evaluation_time: time = time(12, 0),
+    **overrides,
+) -> StockFortuneTimelineRequest:
+    snapshot_request = _request()
+    return StockFortuneTimelineRequest(
+        stock_identity=snapshot_request.stock_identity,
+        birth_profile=snapshot_request.birth_profile,
+        start_date=start,
+        end_date=end or start,
+        date_mode=date_mode,
+        evaluation_time=evaluation_time,
+        luck_cycle_evidence=snapshot_request.luck_cycle_evidence,
+        include_month_segments=False,
+        **overrides,
+    )
+
+
+def _scan_target(symbol: str, profile: StockFortuneBirthProfile | None = None) -> StockFortuneScanTarget:
+    base = profile or _profile()
+    return StockFortuneScanTarget(
+        stock_identity=StockFortuneIdentity(
+            symbol=symbol,
+            exchange=Exchange.SSE,
+            name=f"测试证券 {symbol}",
+            source=SourceRef(source="test-stock-master"),
+        ),
+        birth_profile=base.model_copy(update={"symbol": symbol}),
+        luck_cycle_evidence=_request().luck_cycle_evidence,
+    )
+
+
+def _scan_request(
+    targets: list[StockFortuneScanTarget],
+    *,
+    ten_god_filters: list[FortuneTenGodFilter] | None = None,
+    relation_filters: list[FortuneRelationFilter] | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> StockFortuneScanRequest:
+    return StockFortuneScanRequest(
+        temporal_mode=FortuneScanTemporalMode.DATE_SCAN_NOON,
+        evaluation_date=date(2025, 1, 10),
+        universe=StockFortuneScanUniverse(
+            version="test-universe-v1",
+            source=SourceRef(source="test-universe"),
+            targets=targets,
+        ),
+        ten_god_filters=ten_god_filters or [],
+        relation_filters=relation_filters or [],
+        limit=limit,
+        offset=offset,
+    )
+
+
+def test_f4_timeline_stable_context_and_replay_are_deterministic() -> None:
+    calendar = FakeCalendar()
+    bazi = FakeBazi()
+    engine = StockFortuneTimelineEngine(
+        StockFortuneEngine(FakeArtifactWriter(), calendar=calendar, bazi=bazi)
+    )
+    request = _timeline_request(date(2025, 1, 10), date(2025, 1, 12))
+
+    first = engine.build(request)
+    replay = engine.build(request)
+
+    assert [point.date for point in first.points] == [
+        date(2025, 1, 10), date(2025, 1, 11), date(2025, 1, 12)
+    ]
+    assert first.model_dump(mode="json") == replay.model_dump(mode="json")
+    assert len(first.stable_context.natal_ten_gods) == 4
+    assert first.stable_context.hidden_stem_ten_gods
+    assert len(first.stable_context.chart_artifact_ids) == 2
+    assert first.rule_versions.snapshot_rule_version
+    assert {item.component for item in first.provenance} >= {
+        "stock_identity", "birth_profile", "evaluation_time", "calendar", "bazi", "ten_god", "relation"
+    }
+    assert len(bazi.calls) == 2  # 每次 Timeline 只建一次原局，不按日期重复
+    assert all(point.availability == FortuneAvailability.AVAILABLE for point in first.points)
+
+
+def test_f4_timeline_ten_god_filters_keep_each_layer_explicit() -> None:
+    engine = StockFortuneTimelineEngine(
+        StockFortuneEngine(FakeArtifactWriter(), calendar=FakeCalendar(), bazi=FakeBazi())
+    )
+    baseline = engine.build(_timeline_request(date(2025, 1, 10)))
+    point = baseline.points[0]
+
+    for layer, observation in (
+        (FortuneTenGodLayer.ANNUAL, point.annual_ten_god),
+        (FortuneTenGodLayer.MONTHLY, point.monthly_ten_god),
+        (FortuneTenGodLayer.DAILY, point.daily_ten_god),
+    ):
+        assert observation is not None
+        filtered = engine.build(
+            _timeline_request(
+                date(2025, 1, 10),
+                ten_god_filters=[FortuneTenGodFilter(layer=layer, ten_god=observation.display_label)],
+            )
+        )
+        assert [item.date for item in filtered.points] == [date(2025, 1, 10)]
+
+    # 日柱的展示标签为“日主”，筛选语义必须读其 TenGodRef（比肩），不是展示标签。
+    natal_day = next(item for item in baseline.stable_context.natal_ten_gods if item.position == "day")
+    assert natal_day.stem is not None
+    natal_filtered = engine.build(
+        _timeline_request(
+            date(2025, 1, 10),
+            ten_god_filters=[
+                FortuneTenGodFilter(layer=FortuneTenGodLayer.NATAL, position="day", ten_god=natal_day.stem.ten_god)
+            ],
+        )
+    )
+    assert len(natal_filtered.points) == 1
+
+    unmatched = engine.build(
+        _timeline_request(
+            date(2025, 1, 10),
+            ten_god_filters=[
+                FortuneTenGodFilter(
+                    layer=FortuneTenGodLayer.DAILY,
+                    ten_god=next(
+                        value
+                        for value in ("比肩", "劫财", "食神", "伤官", "偏财", "正财", "七杀", "正官", "偏印", "正印")
+                        if value != point.daily_ten_god.display_label
+                    ),
+                )
+            ],
+        )
+    )
+    assert unmatched.points == []
+    assert unmatched.availability == FortuneAvailability.AVAILABLE
+
+    hidden = baseline.stable_context.hidden_stem_ten_gods[0]
+    hidden_filtered = engine.build(
+        _timeline_request(
+            date(2025, 1, 10),
+            ten_god_filters=[
+                FortuneTenGodFilter(
+                    layer=FortuneTenGodLayer.HIDDEN_STEM,
+                    position=hidden.pillar,
+                    hidden_stem=hidden.stem.stem,
+                    ten_god=hidden.stem.ten_god,
+                )
+            ],
+        )
+    )
+    assert len(hidden_filtered.points) == 1
+
+
+def test_f4_timeline_relation_filter_matches_structured_participants() -> None:
+    engine = StockFortuneTimelineEngine(
+        StockFortuneEngine(FakeArtifactWriter(), calendar=FakeCalendar(), bazi=FakeBazi())
+    )
+    baseline = engine.build(_timeline_request(date(2025, 1, 10)))
+    event = next(
+        item
+        for item in baseline.points[0].relation_events
+        if item.relation_type == "六合"
+        and item.source.context == FortuneContextKind.MONTH
+        and item.target.context == FortuneContextKind.NATAL
+        and item.target.pillar == "day"
+    )
+    condition = FortuneRelationFilter(
+        relation_type=event.relation_type,
+        source_context=event.source.context,
+        source_pillar=event.source.pillar,
+        target_context=event.target.context,
+        target_pillar=event.target.pillar,
+        source_component=event.source.component,
+        target_component=event.target.component,
+    )
+
+    filtered = engine.build(
+        _timeline_request(date(2025, 1, 10), relation_filters=[condition])
+    )
+    assert len(filtered.points) == 1
+    match = next(
+        item for item in filtered.points[0].relation_events
+        if item.relation_type == condition.relation_type
+    )
+    assert match.source.context == condition.source_context
+    assert match.source.pillar == condition.source_pillar == "month"
+    assert match.target.context == condition.target_context == FortuneContextKind.NATAL
+    assert match.target.pillar == condition.target_pillar == "day"
+
+
+@pytest.mark.parametrize(
+    ("relation_type", "component", "category"),
+    [
+        ("天干五合", FortuneRelationComponent.STEM, FortuneRelationCategory.COMBINATION),
+        ("天干克", FortuneRelationComponent.STEM, FortuneRelationCategory.OTHER),
+        ("天干相冲", FortuneRelationComponent.STEM, FortuneRelationCategory.CLASH),
+        ("六合", FortuneRelationComponent.BRANCH, FortuneRelationCategory.COMBINATION),
+        ("六冲", FortuneRelationComponent.BRANCH, FortuneRelationCategory.CLASH),
+        ("相刑", FortuneRelationComponent.BRANCH, FortuneRelationCategory.PUNISHMENT),
+        ("三刑", FortuneRelationComponent.BRANCH, FortuneRelationCategory.PUNISHMENT),
+        ("自刑", FortuneRelationComponent.BRANCH, FortuneRelationCategory.PUNISHMENT),
+        ("相害", FortuneRelationComponent.BRANCH, FortuneRelationCategory.HARM),
+        ("六破", FortuneRelationComponent.BRANCH, FortuneRelationCategory.BREAK),
+    ],
+)
+def test_f4_structured_relation_filter_supports_catalog_types(
+    relation_type: str,
+    component: FortuneRelationComponent,
+    category: FortuneRelationCategory,
+) -> None:
+    source_value, target_value = (
+        ("甲", "己") if component == FortuneRelationComponent.STEM else ("子", "午")
+    )
+    source = FortuneRelationParticipant(
+        context=FortuneContextKind.DAY,
+        pillar="day",
+        component=component,
+        value=source_value,
+    )
+    target = FortuneRelationParticipant(
+        context=FortuneContextKind.NATAL,
+        pillar="year",
+        component=component,
+        value=target_value,
+    )
+    event = FortuneRelationEvent(
+        category=category,
+        relation_type=relation_type,
+        source=source,
+        target=target,
+        participants=[
+            f"day:day:{component.value}:{source_value}",
+            f"natal:year:{component.value}:{target_value}",
+        ],
+        scope=FortuneRelationScope.TEMPORAL_TO_NATAL,
+        rule_version="test-relation-v1",
+    )
+    condition = FortuneRelationFilter(
+        relation_type=relation_type,
+        source_context=FortuneContextKind.DAY,
+        source_pillar="day",
+        target_context=FortuneContextKind.NATAL,
+        target_pillar="year",
+        source_component=component,
+        target_component=component,
+    )
+
+    assert StockFortuneTimelineEngine._matches_relation(event, condition)
+    assert not StockFortuneTimelineEngine._matches_relation(
+        event, condition.model_copy(update={"target_pillar": "month"})
+    )
+
+
+def test_f4_trading_days_require_known_calendar_evidence() -> None:
+    trading_days = frozenset(
+        {date(2025, 1, 6), date(2025, 1, 7), date(2025, 1, 9), date(2025, 1, 10)}
+    )
+    provider = StaticTradingCalendarProvider(
+        TradingCalendar(exchange="SSE", _days=trading_days, loaded=True)
+    )
+    engine = StockFortuneTimelineEngine(
+        StockFortuneEngine(FakeArtifactWriter(), calendar=FakeCalendar(), bazi=FakeBazi()),
+        trading_calendar_provider=provider,
+    )
+    request = _timeline_request(
+        date(2025, 1, 6),
+        date(2025, 1, 12),
+        date_mode=FortuneTimelineDateMode.TRADING_DAYS_ONLY,
+    )
+
+    timeline = engine.build(request)
+
+    assert [item.date for item in timeline.points] == sorted(trading_days)
+    assert all(item.trading_day is True for item in timeline.points)
+    assert all(item.trading_calendar_source == "observed_index_days" for item in timeline.points)
+    assert timeline.trading_calendar.confirmed_trading_days == 4
+    assert timeline.trading_calendar.confirmed_closed_days == 1
+    assert timeline.trading_calendar.unknown_days == 2
+    assert any(item.code == "TRADING_CALENDAR_COVERAGE_INCOMPLETE" for item in timeline.warnings)
+
+
+def test_f4_trading_only_returns_empty_when_calendar_is_unverified() -> None:
+    provider = StaticTradingCalendarProvider(
+        TradingCalendar(exchange="SSE", loaded=False, load_error="test missing calendar")
+    )
+    engine = StockFortuneTimelineEngine(
+        StockFortuneEngine(FakeArtifactWriter(), calendar=FakeCalendar(), bazi=FakeBazi()),
+        trading_calendar_provider=provider,
+    )
+    timeline = engine.build(
+        _timeline_request(
+            date(2025, 1, 6),
+            date_mode=FortuneTimelineDateMode.TRADING_DAYS_ONLY,
+        )
+    )
+
+    assert timeline.points == []
+    assert timeline.availability == FortuneAvailability.PARTIAL
+    assert timeline.trading_calendar.unknown_days == 1
+    assert any(item.code == "TRADING_CALENDAR_FALLBACK_REJECTED" for item in timeline.warnings)
+
+
+def test_f4_structural_benchmark_one_stock_365_days(capsys, record_property) -> None:
+    calendar = FakeCalendar()
+    bazi = FakeBazi()
+    engine = StockFortuneTimelineEngine(
+        StockFortuneEngine(FakeArtifactWriter(), calendar=calendar, bazi=bazi)
+    )
+
+    started = perf_counter()
+    timeline = engine.build(
+        _timeline_request(
+            date(2025, 1, 1),
+            date(2025, 12, 31),
+            include_ten_god_index=False,
+        )
+    )
+
+    evaluation_calls = [call for call in calendar.calls if call.date().year == 2025]
+    assert len(timeline.points) == 365
+    assert len({item.date for item in timeline.points}) == 365
+    assert len(evaluation_calls) == 365
+    assert len(bazi.calls) == 1
+    elapsed = perf_counter() - started
+    record_property("f4_1_stock_365_days_elapsed_seconds", f"{elapsed:.6f}")
+    with capsys.disabled():
+        print(f"F4_PERF scenario=1_stock_x_365_days elapsed_seconds={elapsed:.6f}")
+
+
+def test_f4_cross_section_filters_and_pagination_are_deterministic() -> None:
+    targets = [
+        _scan_target("600519"),
+        _scan_target("000001"),
+        _scan_target("000002", _profile(BirthTimePrecision.DATE_ONLY)),
+    ]
+    evaluator = StockFortuneEngine(FakeArtifactWriter(), calendar=FakeCalendar(), bazi=FakeBazi())
+    sample = evaluator.evaluate(_request())
+    daily_god = sample.ten_god_context.daily.display_label
+    relation = FortuneRelationFilter(
+        relation_type="六合",
+        source_context=FortuneContextKind.MONTH,
+        source_pillar="month",
+        target_context=FortuneContextKind.NATAL,
+        target_pillar="day",
+        source_component=FortuneRelationComponent.BRANCH,
+        target_component=FortuneRelationComponent.BRANCH,
+    )
+    scanner = StockFortuneCrossSectionScanner(
+        FakeArtifactWriter(), calendar=FakeCalendar(), bazi=FakeBazi()
+    )
+    request = _scan_request(
+        targets,
+        ten_god_filters=[
+            FortuneTenGodFilter(layer=FortuneTenGodLayer.DAILY, ten_god=daily_god)
+        ],
+        relation_filters=[relation],
+        limit=1,
+        offset=1,
+    )
+
+    response = scanner.scan(request)
+    replay = scanner.scan(request)
+
+    assert response.model_dump(mode="json") == replay.model_dump(mode="json")
+    assert response.total_examined == 3
+    assert response.total_matched == 2
+    assert response.total == 2
+    assert len(response.items) == 1
+    assert response.items[0].symbol == "600519"
+    assert [item.kind for item in response.items[0].matched_conditions] == ["ten_god", "relation"]
+    assert response.items[0].availability == FortuneAvailability.AVAILABLE
+    assert response.items[0].relevant_relation_events
+
+    no_match = scanner.scan(
+        _scan_request(
+            targets,
+            ten_god_filters=[
+                FortuneTenGodFilter(
+                    layer=FortuneTenGodLayer.DAILY,
+                    ten_god=next(god for god in ("比肩", "劫财", "食神", "伤官", "偏财", "正财", "七杀", "正官", "偏印", "正印") if god != daily_god),
+                )
+            ],
+        )
+    )
+    assert no_match.total_matched == 0
+    assert no_match.items == []
+
+
+def test_f4_cross_section_structural_benchmark_100_stocks_one_date(capsys, record_property) -> None:
+    calendar = FakeCalendar()
+    bazi = FakeBazi()
+    scanner = StockFortuneCrossSectionScanner(
+        FakeArtifactWriter(), calendar=calendar, bazi=bazi
+    )
+    targets = [_scan_target(f"{600000 + index:06d}") for index in range(100)]
+
+    started = perf_counter()
+    response = scanner.scan(_scan_request(targets))
+    elapsed = perf_counter() - started
+
+    evaluation_at = datetime(2025, 1, 10, 12, 0)
+    assert response.total_examined == 100
+    assert len(bazi.calls) == 100  # 每只股票只构造一次稳定原局
+    assert calendar.calls.count(evaluation_at) == 1  # 同日流柱共享一个 CalendarSnapshot
+    assert len(calendar.calls) == 2  # 再加一份共享的同日出生参考盘
+    record_property("f4_100_stocks_1_date_elapsed_seconds", f"{elapsed:.6f}")
+    with capsys.disabled():
+        print(f"F4_PERF scenario=100_stocks_x_1_date elapsed_seconds={elapsed:.6f}")
+
+
+def test_f4_calendar_snapshot_cache_is_request_scoped() -> None:
+    provider = FakeCalendar()
+    cache = RequestScopedCalendarSnapshotCache(provider)
+    evaluation_at = datetime(2025, 1, 10, 12, 0)
+
+    cache.begin_request()
+    cache.begin_evaluation()
+    cache.snapshot(evaluation_at)
+    cache.begin_request()
+    cache.begin_evaluation()
+    cache.snapshot(evaluation_at)
+
+    assert provider.calls == [evaluation_at, evaluation_at]
+    assert cache.calls == 1
+
+
+def test_f4_market_session_scan_requires_verified_trading_calendar() -> None:
+    target = _scan_target("600519")
+    base = _scan_request([target])
+    request = StockFortuneScanRequest(
+        temporal_mode=FortuneScanTemporalMode.MARKET_SESSION_DATE,
+        evaluation_date=date(2025, 1, 10),
+        exchange=Exchange.SSE,
+        is_trading_day=True,
+        universe=base.universe,
+        market_session_version="test-session-v1",
+        config_version="cfg-test",
+    )
+    known_calendar = StaticTradingCalendarProvider(
+        TradingCalendar(exchange="SSE", _days=frozenset({date(2025, 1, 10)}), loaded=True)
+    )
+    scanner = StockFortuneCrossSectionScanner(
+        FakeArtifactWriter(),
+        calendar=FakeCalendar(),
+        bazi=FakeBazi(),
+        trading_calendar_provider=known_calendar,
+    )
+
+    response = scanner.scan(request)
+
+    assert response.trading_calendar_source == "observed_index_days"
+    assert response.trading_calendar_version
+    assert any(item.code == "FORTUNE_SCAN_TRADING_CALENDAR_VERIFIED" for item in response.warnings)
+
+    unavailable = StaticTradingCalendarProvider(
+        TradingCalendar(exchange="SSE", loaded=False, load_error="no calendar")
+    )
+    rejected = StockFortuneCrossSectionScanner(
+        FakeArtifactWriter(),
+        calendar=FakeCalendar(),
+        bazi=FakeBazi(),
+        trading_calendar_provider=unavailable,
+    )
+    with pytest.raises(ValueError, match="必须由已加载的实测/官方日历确认"):
+        rejected.scan(request)
