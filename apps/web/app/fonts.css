@@ -30,3 +30,38 @@
   font-style: normal;
   font-display: swap;
 }
+
+/* --------------------------------------------------------------------------
+   等宽数字（JetBrains Mono，OFL 1.1，见 public/fonts/OFL-JetBrainsMono.txt）
+   --------------------------------------------------------------------------
+   为什么连数字也要自托管：页面上所有关键数字（价格、评分、百分比、排名）
+   都走 `--font-mono`，而系统等宽字体的**字宽在平台之间不同**
+   （Windows → Consolas，Ubuntu → DejaVu Sans Mono）。
+   同一个分数在两台机器上占不同宽度，依赖字面排版的绝对像素门禁
+   （例如 02 关键证据卡高 ±12px）在 Windows 通过、在 Ubuntu 偏出 26.6px。
+   自托管后，Windows / Ubuntu / macOS 用的是同一份字形与同一套 advance width。
+   latin 子集足够：等宽族只用于数字、代码与 ID，不承担中文。
+   -------------------------------------------------------------------------- */
+@font-face {
+  font-family: "SMP Mono";
+  src: url("/fonts/jetbrains-mono-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "SMP Mono";
+  src: url("/fonts/jetbrains-mono-latin-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "SMP Mono";
+  src: url("/fonts/jetbrains-mono-latin-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

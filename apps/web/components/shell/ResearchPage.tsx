@@ -18,7 +18,7 @@ import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/shell/AppShell";
 import { PageError, PageLoading } from "@/components/shell/PageState";
-import { PageHero } from "@/components/shell/TopBar";
+import { PageHero, type HeroVariant } from "@/components/shell/TopBar";
 import { StockContextBar } from "@/components/stock/StockContextBar";
 import { Card } from "@/components/cards/Card";
 import { FIXTURE_QUERY_VALUE } from "@/lib/fixture";
@@ -35,6 +35,13 @@ export interface ResearchPageProps {
   couplet?: string[];
   /** 竖排题词（每行四字，参考图右侧）。 */
   motto?: string[];
+  /** Hero 变体；研究主页用 `research`（更高头部、更强装饰），
+   *  统计/证据型页面（05 历史验证）用 `statistics`（紧凑标题带，让位给指标密度）。 */
+  heroVariant?: HeroVariant;
+  /** 单页 Hero 内容高度微调（见 `PageHero.heroMinHeight` 的说明）。 */
+  heroMinHeight?: number;
+  /** 副标题与标题并排（参考图 04 的 73px 标题带，见 `PageHero.subtitleInline`）。 */
+  subtitleInline?: boolean;
   code: string;
   analysis: ApiMultiAnalysis | null;
   loading: boolean;
@@ -52,6 +59,9 @@ export function ResearchPage({
   seal,
   couplet,
   motto,
+  heroVariant = "default",
+  heroMinHeight,
+  subtitleInline,
   code,
   analysis,
   loading,
@@ -115,7 +125,16 @@ export function ResearchPage({
       // 演示来源与真实来源必须在顶部状态就区分开，不能只靠角标
       statusText={error ? "后端未连接" : fixture ? "演示数据（固定样本）" : "数据正常"}
     >
-      <PageHero title={title} subtitle={subtitle} seal={seal} couplet={couplet} motto={motto} />
+      <PageHero
+        title={title}
+        subtitle={subtitle}
+        seal={seal}
+        couplet={couplet}
+        motto={motto}
+        variant={heroVariant}
+        heroMinHeight={heroMinHeight}
+        subtitleInline={subtitleInline}
+      />
       {ctx ? (
         <StockContextBar
           context={ctx}

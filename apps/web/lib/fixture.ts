@@ -209,6 +209,10 @@ export const overviewFixture: OverviewPageData = {
     horizon: "20 交易日",
     quality: "A",
   },
+  // 详情链接是**冻结那一刻拼好的**，所以自带当时的上下文（20d 窗口）。
+  // 渲染时由 `withAnalysisContext` 用 URL 上此刻的上下文覆盖 ——
+  // 这正是"链接携带过期上下文"这一类缺陷的样本，反例见
+  // e2e/ui-parity-r1.spec.ts 的浏览器级点击落地测试。
   engines: [
     {
       engine: "bazi",
@@ -221,7 +225,7 @@ export const overviewFixture: OverviewPageData = {
       negativeCount: 1,
       summary: "命理格局 · 五行生克",
       available: true,
-      detailHref: "bazi",
+      detailHref: "/stock/600519/bazi?fixture=ui-reference&horizon=20d",
       accent: "bazi",
     },
     {
@@ -235,7 +239,7 @@ export const overviewFixture: OverviewPageData = {
       negativeCount: 2,
       summary: "十四主星 · 宫位四化",
       available: true,
-      detailHref: "ziwei",
+      detailHref: "/stock/600519/ziwei?fixture=ui-reference&horizon=20d",
       accent: "ziwei",
     },
     {
@@ -249,7 +253,7 @@ export const overviewFixture: OverviewPageData = {
       negativeCount: 2,
       summary: "天时因素 · 宜忌冲煞",
       available: true,
-      detailHref: "huangli",
+      detailHref: "/stock/600519/huangli?fixture=ui-reference&horizon=20d",
       accent: "huangli",
     },
   ],
@@ -371,15 +375,24 @@ export const overviewFixture: OverviewPageData = {
     grade: "A",
     score: 0.92,
     title: "数据质量",
-    subtitle: "优秀",
+    // 演示样本没有真实行情与真实检索可核对，副标题必须说清这是冻结样本，
+    // 不能写成"优秀"这种像核对结论的词。
+    subtitle: "演示样本冻结值",
     items: [
-      { label: "数据完整性", value: "100%", state: "ok" },
-      { label: "数据一致性", value: "通过", state: "ok" },
-      { label: "未发现数据异常", value: "正常", state: "ok" },
-      { label: "模型适用性", value: "良好", state: "ok" },
+      // 与真实模式同结构（dataSource.toDataQualityView 的四项），
+      // 但演示模式下**没有依据的项一律标未提供 / 未验证**：
+      // 出生档案没冻进样本，古籍检索在演示模式下被故意阻断。
+      { label: "行情/资料完整性", value: "A（演示样本）", state: "warn" },
+      { label: "出生档案推导", value: "未提供", state: "warn" },
+      { label: "术数引擎版本", value: "smx-bazi-native-1.0.0", state: "ok" },
+      { label: "古籍来源完整性", value: "未验证", state: "warn" },
     ],
     riskNote:
-      "本分析基于历史数据与传统文化模型，不构成投资建议；市场有风险，决策需谨慎。",
+      "演示模式（UI 复刻）不加载真实行情与古籍检索，以上四项不构成数据质量核对结论。",
+    riskNotes: [
+      "演示模式（UI 复刻）不加载真实行情与古籍检索，以上四项不构成数据质量核对结论。",
+      "移除 URL 中的 fixture 参数后，本卡改由本次分析的出生档案、版本戳与检索结果实算。",
+    ],
   },
 };
 
@@ -523,6 +536,9 @@ export const ziweiReverseFixture = rawZiweiReverse as unknown as ApiZiweiChart;
 export const multiAnalysisFixture: ApiMultiAnalysis = {
   ...(rawAnalyze as unknown as ApiMultiAnalysis),
   as_of: "2024-11-15 14:32:00",
+  // 这份样本是在默认研究窗口下冻结的；后端会原样回传该字段，
+  // 上下文栏与导出快照都读它，不再写死成「20 交易日」。
+  horizon: "20d",
   ziwei_charts: {
     forward: ziweiForwardFixture,
     reverse: ziweiReverseFixture,

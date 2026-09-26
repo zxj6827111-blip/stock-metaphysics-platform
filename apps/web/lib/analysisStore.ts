@@ -95,7 +95,14 @@ export async function loadMultiAnalysis(
             `届时切换出生模型会真实重新分析（出生时刻不同 → 四柱与紫微盘面不同）。`,
         );
       }
-      return multiAnalysisFixture;
+      return {
+        ...multiAnalysisFixture,
+        // `horizon` 是**登记标签**，不参与任何计算（见 lib/useHorizonParam 的语义边界）：
+        // 同一份冻结盘面在不同登记窗口下就是同一份盘面，所以这里如实回显请求的窗口，
+        // 让"页面显示 / 请求上下文 / 导出快照"三处指向同一个值。
+        // 出生模型不一样 —— 那会真的换一张盘，因此上面按不支持直接拒绝。
+        horizon: key.horizon ?? DEFAULT_HORIZON,
+      };
     }
     throw new Error(
       `演示模式（UI 复刻）仅支持 600519（贵州茅台）。标的 ${key.code} 在演示模式下不可用；为保证数据隔离，系统已统一阻断对真实后端的排盘分析与持久化请求，请移除 URL 中的 fixture 参数以进入真实分析模式。`,

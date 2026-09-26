@@ -8,7 +8,7 @@
  * 一段可读的 `<figcaption>`。
  */
 
-import ReactECharts from "echarts-for-react";
+import { SmpECharts } from "./SmpECharts";
 import { useMemo } from "react";
 
 import { stripMdEmphasis } from "@/lib/text";
@@ -26,7 +26,6 @@ export function TimeWindowChart({
 }) {
   const option = useMemo(
     () => ({
-      animationDuration: 400,
       grid: { left: 44, right: 16, top: 14, bottom: 26 },
       tooltip: {
         trigger: "axis",
@@ -104,7 +103,7 @@ export function TimeWindowChart({
 
   return (
     <figure className="m-0" data-testid="time-window-chart">
-      <ReactECharts option={option} style={{ height }} opts={{ renderer: "svg" }} notMerge />
+      <SmpECharts option={option} height={height} />
       <figcaption className="sr-only">{summary}</figcaption>
     </figure>
   );
@@ -119,7 +118,6 @@ export function DistributionChart({
 }) {
   const option = useMemo(
     () => ({
-      animationDuration: 300,
       grid: { left: 34, right: 8, top: 8, bottom: 22 },
       tooltip: {
         trigger: "axis",
@@ -163,7 +161,7 @@ export function DistributionChart({
 
   return (
     <figure className="m-0" data-testid="distribution-chart">
-      <ReactECharts option={option} style={{ height }} opts={{ renderer: "svg" }} notMerge />
+      <SmpECharts option={option} height={height} />
       <figcaption className="mt-1 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
         正收益区间样本 {up} 个，负收益区间样本 {down} 个（样本分布，非预测）
       </figcaption>
@@ -183,7 +181,6 @@ export function MiniTrend({
   const color = tone === "up" ? "var(--color-up)" : "var(--color-down)";
   const option = useMemo(
     () => ({
-      animation: false,
       grid: { left: 0, right: 0, top: 4, bottom: 4 },
       xAxis: { type: "category", show: false, data: values.map((_, i) => i) },
       yAxis: { type: "value", show: false, scale: true },
@@ -209,7 +206,7 @@ export function MiniTrend({
     }),
     [values, tone, color],
   );
-  return <ReactECharts option={option} style={{ height }} opts={{ renderer: "svg" }} notMerge />;
+  return <SmpECharts option={option} height={height} />;
 }
 
 /* ==========================================================================
@@ -249,7 +246,6 @@ export function HuangliClassTrendChart({
   const keys = Object.keys(byClass);
   const option = useMemo(
     () => ({
-      animationDuration: 300,
       grid: { left: 52, right: 14, top: 26, bottom: 30 },
       tooltip: {
         trigger: "axis",
@@ -309,7 +305,7 @@ export function HuangliClassTrendChart({
 
   return (
     <figure className="m-0" data-testid="huangli-class-trend">
-      <ReactECharts option={option} style={{ height }} opts={{ renderer: "svg" }} notMerge />
+      <SmpECharts option={option} height={height} />
       <figcaption className="mt-1 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
         {latest.join("；") || "暂无数据"}。纵轴为扩展均值，非累计收益。
       </figcaption>
@@ -337,7 +333,6 @@ export function TimelineStepChart({
 }) {
   const option = useMemo(
     () => ({
-      animationDuration: 300,
       grid: { left: 46, right: 14, top: 26, bottom: 30 },
       tooltip: {
         trigger: "axis",
@@ -400,7 +395,7 @@ export function TimelineStepChart({
 
   return (
     <figure className="m-0" data-testid="timeline-step-chart">
-      <ReactECharts option={option} style={{ height }} opts={{ renderer: "svg" }} notMerge />
+      <SmpECharts option={option} height={height} />
       <figcaption className="mt-1 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
         {summary || "暂无数据"}。阶梯线按实际返回粒度绘制，缺失窗口断开而非补值。
       </figcaption>
@@ -423,14 +418,16 @@ export function HorizonComparisonChart({
   labels,
   series,
   height = 168,
+  captionLines,
 }: {
   labels: string[];
   series: { name: string; values: (number | null)[]; tone: "up" | "down" | "flat" }[];
   height?: number;
+  /** 摘要行数；05 首屏的持有期卡只有 194px 参考高度，传 1 收成一行为标题带。 */
+  captionLines?: 1;
 }) {
   const option = useMemo(
     () => ({
-      animationDuration: 300,
       grid: { left: 46, right: 8, top: 18, bottom: 24 },
       legend: {
         data: series.map((s) => s.name),
@@ -507,8 +504,14 @@ export function HorizonComparisonChart({
 
   return (
     <figure className="m-0" data-testid="horizon-comparison-chart">
-      <ReactECharts option={option} style={{ height }} opts={{ renderer: "svg" }} notMerge />
-      <figcaption className="mt-1 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
+      <SmpECharts option={option} height={height} />
+      <figcaption
+        className={`mt-1 text-[10.5px] ${captionLines === 1 ? "line-clamp-1" : ""}`}
+        // 文本摘要不能因为收高度而消失：单行截断时把全文挂到 title 上，
+        // DOM 里也仍然是完整句子（可搜索、可截图放大）。
+        title={captionLines === 1 ? summary : undefined}
+        style={{ color: "var(--color-ink-faint)" }}
+      >
         {summary || "暂无数据"}。仅绘制后端已算出的平均收益 / 平均超额收益；
         缺失持有期断开，不做插值，也不由前端派生基准序列。
       </figcaption>

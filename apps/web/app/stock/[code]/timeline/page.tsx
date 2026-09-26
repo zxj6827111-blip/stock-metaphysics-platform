@@ -17,6 +17,24 @@
  * 参考图右栏有「关键触发因子（高权重/中权重）」与"仓位建议"。本页**不生成**这类内容：
  * 后端没有为窗口提供因子归因数据，伪造权重会让人以为存在逐窗口的因子贡献分解。
  * 右栏改为展示**该窗口的原始结果、依据、可用性、假设、版本与风险**。
+ *
+ * 视觉层级（V3-B，对齐 doc/ui-reference/10_time_window.png 的实测骨架）
+ * -------------------------------------------------------------------
+ * 参考图第一屏只有两条带，热力图 / 周度排名 / 明细都在第三行（视口外）：
+ *
+ *   summaryTiles  y 228..378  h 150   ← 四张窗口摘要卡（+ 一行极短的状态）
+ *   mainRow       y 388..635  h 247   ← 左：未来周期时间轴（x 223..1182，宽 959）
+ *   rightSummary  y 388..635  h 247   ← 右：窗口解读（x 1182..1659，宽 477）
+ *   —— 分栏 959:477 ⇒ 66.8 : 33.2（x=1182 在 16/16 探测行一致）
+ *
+ * 之前这四块（时间轴 / 热力图 / 窗口解释 / 周度排名）挤在**同一个左右主区**里，
+ * 于是 mainRow 被撑到参考值的两倍以上：热力图和排名表是"第二层"内容，
+ * 不该参与第一屏的分栏高度。V3-B 起拆成 first fold + second layer。
+ *
+ * `mainRow` / `rightSummary` 的参考高度是 **confidence=medium**
+ * （底边只到 frac=0.73，与图内网格线混叠），所以本轮给它们的容差比其他锚点宽，
+ * 且明确写成"参考值本身不确定"而不是"我们允许差这么多"。
+ * 第三行的参考边界在 fixture 里记 null ⇒ 不猜、不断言。
  */
 
 import { useParams } from "next/navigation";
@@ -213,6 +231,14 @@ function TimelineInner() {
       seal="时"
       couplet={["观天时", "察地利", "知而为", "行合律"]}
       motto={["周期有时", "万物有序"]}
+      // 参考图 10 的 Hero 是 106px（02 是 124、08 是 109、05 是 94），下面直接接
+      // 上下文栏与四张摘要卡。统一 token 的 122 会把整条链推下 +16，使
+      // summaryTiles 顶边落到参考 +19.3（超出 ±16）。
+      // 取 `statistics` 档（紧凑标题带：小一号标题、星盘收小、山脊减淡）
+      // + heroMinHeight 88 ⇒ 88 + 16 padding + 2 border = 106，逐像素贴参考。
+      // 不为此新增第四档变体：十张参考图的 Hero 高度是连续谱，一档一页会无限膨胀。
+      heroVariant="statistics"
+      heroMinHeight={88}
       code={code}
       analysis={analysis}
       loading={loading}
@@ -220,8 +246,13 @@ function TimelineInner() {
       onReload={reload}
       loadingLabel="正在按交易日构建月度 / 周度 / 逐日窗口…"
     >
-      {/* ============ ① 窗口摘要 ============ */}
-      <Card testId="timeline-summary">
+      {/* ============ summaryTiles（参考图 y 228..378，h 150） ============ */}
+      {/* 第一屏这一带只留：四张摘要卡 + 一行极短的状态（研究状态 / 三模型方向 / 运限假设）。
+          聚合口径、交易日历三层覆盖、来源与版本、风险解释这些**必须保留**的审计文字
+          全部下移到第二层「窗口明细（审计入口）」—— 参考图这一带是 150px 的四块卡，
+          不是一屏说明文；把审计文字常驻在这里会让摘要带撑到参考值的两倍，
+          而摘要带的职责是"读者先看到窗口边界在哪"。 */}
+      <Card testId="timeline-summary" anchor="summary-tiles">
         <CardHeader
           icon={<IconCalendar size={15} />}
           title="未来窗口摘要"
@@ -294,51 +325,232 @@ function TimelineInner() {
           />
         </div>
 
-        {/* 三模型方向：逐个引擎给出，缺失显式标注 */}
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
-          <span style={{ color: "var(--color-ink-muted)" }}>三模型方向（最近窗口）：</span>
-          {(["bazi", "ziwei", "huangli"] as const).map((key) => {
-            const op = latestOpinion(key, dayList, monthList);
-            return (
-              <span key={key} className="flex items-center gap-1.5">
-                <span
-                  className="inline-block h-2 w-2 rounded-full"
-                  style={{ background: ENGINE_COLOR[key] }}
-                />
-                <span style={{ color: "var(--color-ink-sub)" }}>{engineCn(key)}</span>
-                <span
-                  className="smp-num"
-                  style={{
-                    color:
-                      op === null
-                        ? "var(--color-ink-faint)"
-                        : op.direction > 0
-                          ? "var(--color-up)"
-                          : op.direction < 0
-                            ? "var(--color-down)"
-                            : "var(--color-flat)",
-                  }}
-                >
-                  {op === null
-                    ? "不可用"
-                    : `${DIR_CN[String(op.direction)] ?? "—"} ${op.score ?? ""}`}
-                </span>
-              </span>
-            );
-          })}
-        </div>
-
-        <div className="mt-2 flex flex-wrap items-center gap-3">
+        {/* 一行状态：研究状态徽标（紧凑，原始码常驻）+ 三模型方向 + 运限假设 */}
+        <div
+          className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]"
+          data-testid="timeline-summary-status"
+        >
           <ResearchStatusBadge
             status={months?.research_status ?? "NOT_RUN"}
             reasons={(months?.research_status_reasons ?? []).map((r) => stripMdEmphasis(r))}
+            compact
+            showCode
           />
-          <span className="text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
+          <span className="flex items-center gap-2" data-testid="timeline-latest-directions">
+            <span style={{ color: "var(--color-ink-muted)" }}>三模型方向（最近窗口）</span>
+            {(["bazi", "ziwei", "huangli"] as const).map((key) => {
+              const op = latestOpinion(key, dayList, monthList);
+              return (
+                <span key={key} className="flex items-center gap-1">
+                  <span
+                    className="inline-block h-2 w-2 rounded-full"
+                    style={{ background: ENGINE_COLOR[key] }}
+                  />
+                  <span style={{ color: "var(--color-ink-sub)" }}>{engineCn(key)}</span>
+                  <span
+                    className="smp-num"
+                    style={{
+                      color:
+                        op === null
+                          ? "var(--color-ink-faint)"
+                          : op.direction > 0
+                            ? "var(--color-up)"
+                            : op.direction < 0
+                              ? "var(--color-down)"
+                              : "var(--color-flat)",
+                    }}
+                  >
+                    {op === null
+                      ? "不可用"
+                      : `${DIR_CN[String(op.direction)] ?? "—"} ${op.score ?? ""}`}
+                  </span>
+                </span>
+              );
+            })}
+          </span>
+          <span style={{ color: "var(--color-ink-muted)" }}>
             运限假设：{variantModeLabel(months?.variant_mode)}
           </span>
         </div>
+      </Card>
 
-        <div className="mt-2">
+      {/* ============ mainRow + rightSummary（参考图 y 388..635，h 247） ============ */}
+      {/* 分栏 668:332 = 参考图实测的 959:477（x=1182 在 16/16 探测行一致）。
+          items-stretch：参考图这两张卡同高（都到 y=635）。
+          热力图与周度排名**不在这一行** —— 它们是第二层内容，塞进来会把
+          第一屏的 247px 主行撑成参考值的两倍以上。 */}
+      <div
+        className="mt-3 grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[minmax(0,668fr)_minmax(0,332fr)]"
+        data-testid="timeline-first-fold"
+      >
+        <Card testId="timeline-main-view" anchor="main-row">
+          <CardHeader
+            icon={<IconTrend size={15} />}
+            title="未来周期时间轴"
+            right={
+              <div className="flex items-center gap-1" data-testid="timeline-granularity">
+                {(
+                  [
+                    { key: "days", label: "逐日（近20个交易日）" },
+                    { key: "months", label: "月度" },
+                  ] as const
+                ).map((g) => (
+                  <button
+                    key={g.key}
+                    type="button"
+                    onClick={() => setGranularity(g.key)}
+                    className="rounded-[4px] px-2 py-[3px] text-[11.5px] transition-colors"
+                    style={
+                      g.key === granularity
+                        ? {
+                            color: "#241c0c",
+                            background:
+                              "linear-gradient(180deg, var(--color-gold-strong), var(--color-gold))",
+                            fontWeight: 600,
+                          }
+                        : {
+                            color: "var(--color-ink-sub)",
+                            border: "1px solid var(--color-border)",
+                          }
+                    }
+                    aria-pressed={g.key === granularity}
+                    data-testid={`timeline-gran-${g.key}`}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            }
+            dense
+          />
+
+          {granularity === "days" ? (
+            dayLoading ? (
+              <SectionLoading
+                label="正在按交易日逐日求值（首次约数秒，之后命中缓存）…"
+                rows={4}
+              />
+            ) : dayError ? (
+              <SectionError
+                what="逐日窗口"
+                message={dayError}
+                onRetry={() => setDayNonce((n) => n + 1)}
+                testId="timeline-days-error"
+              />
+            ) : dayList.length ? (
+              <>
+                <TimelineStepChart
+                  labels={chart.labels}
+                  series={chart.series}
+                  yLabel={chart.yLabel}
+                  height={178}
+                />
+                <details className="mt-1" data-testid="timeline-chart-scope">
+                  <summary
+                    className="cursor-pointer text-[11.5px]"
+                    style={{ color: "var(--color-ink-muted)" }}
+                  >
+                    这张图按什么粒度画、为什么不合成第四条线
+                  </summary>
+                  <p
+                    className="mt-1 text-[11.5px] leading-relaxed"
+                    style={{ color: "var(--color-ink-faint)" }}
+                  >
+                    {stripMdEmphasis(days?.methodology)}
+                    <br />
+                    逐日视图只画三个模型各自的原始分数：后端给出的是该日的
+                    <strong>综合方向</strong>（偏强/中性/偏弱）而不是综合分，
+                    因此这里不合成"第四条线"，也不把方向换算成分数。
+                  </p>
+                </details>
+              </>
+            ) : (
+              <SectionEmpty
+                what="逐日窗口"
+                hint="as_of 之后没有可用交易日，或交易日历覆盖不足（不补造日期）。"
+              />
+            )
+          ) : winLoading ? (
+            <SectionLoading label="正在构建月度窗口…" rows={4} />
+          ) : winError ? (
+            <SectionError
+              what="月度窗口"
+              message={winError}
+              onRetry={() => setWinNonce((n) => n + 1)}
+              testId="timeline-windows-error"
+            />
+          ) : monthList.length ? (
+            <>
+              <TimelineStepChart
+                labels={chart.labels}
+                series={chart.series}
+                yLabel={chart.yLabel}
+                height={178}
+              />
+              <details className="mt-1" data-testid="timeline-chart-scope">
+                <summary
+                  className="cursor-pointer text-[11.5px]"
+                  style={{ color: "var(--color-ink-muted)" }}
+                >
+                  这张图按什么粒度画、为什么用阶梯线
+                </summary>
+                <p
+                  className="mt-1 text-[11.5px] leading-relaxed"
+                  style={{ color: "var(--color-ink-faint)" }}
+                >
+                  月度窗口取该月<strong>最后一个交易日</strong>求值；两点之间没有观测，因此用阶梯线而不是
+                  平滑曲线。点击下方明细表的月份可查看该窗口的原始结果与假设。
+                </p>
+              </details>
+            </>
+          ) : (
+            <SectionEmpty what="月度窗口" hint="后端未返回月度窗口数据。" />
+          )}
+        </Card>
+
+        <div data-anchor="right-summary" className="min-w-0">
+          <WindowExplainer
+            selected={selected}
+            monthList={monthList}
+            weekList={weekList}
+            dayList={dayList}
+            asOfDate={asOfDate}
+          />
+        </div>
+      </div>
+
+      {/* ============ 第二层：热力图 / 周度排名 / 审计明细 ============ */}
+      {/* 参考图这一排在视口外，且第三行顶边在 fixture 里记 null（探测强度不唯一）⇒
+          本轮不猜它的边界，只要求它不挤占第一屏。 */}
+      <div
+        className="mt-3 grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,668fr)_minmax(0,332fr)]"
+        data-anchor="second-layer"
+        data-testid="timeline-second-layer"
+      >
+        {/* 月历热力图：真实交易日 + 可用逐日结果 */}
+        <MonthHeatmapCard
+          dayList={dayList}
+          monthList={monthList}
+          // 分区加载：热力图只用逐日结果，不应等月度/周度窗口一起完成
+          loading={dayLoading}
+          onPick={(key) => setSelected({ kind: "day", key })}
+          selectedKey={selected?.kind === "day" ? selected.key : null}
+        />
+        <WeekRankingCard
+          weekList={weekList}
+          loading={winLoading}
+          error={winError}
+          onRetry={() => setWinNonce((n) => n + 1)}
+          onPick={(key) => setSelected({ kind: "week", key })}
+          selectedKey={selected?.kind === "week" ? selected.key : null}
+        />
+      </div>
+
+      {/* ============ 审计明细（第二层） ============ */}
+      <Card testId="timeline-audit">
+        <CardHeader icon={<IconCalendar size={15} />} title="窗口明细（审计入口）" dense />
+        {/* 从第一屏摘要带下移的审计文字：内容一行未删，只换承载位置。 */}
+        <div className="px-3.5 pt-2">
           <SourceMethod testId="timeline-source-method">
             <RawField label="分析基准日（as_of）" value={asOfDate.slice(0, 10) || "（未返回）"} />
             <RawField label="variant_mode（后端原值）" value={months?.variant_mode ?? "—"} />
@@ -378,148 +590,27 @@ function TimelineInner() {
               实测成交日历之外的未来交易日取交易所**已公布**的安排；
               两层都没有覆盖的日期一律回答「未知」，不照搬上一年节假日。
             </div>
+            {(months?.research_status_reasons ?? []).length ? (
+              <div data-testid="timeline-status-reasons">
+                研究状态原因（后端原值）：
+                <ul className="mt-0.5 space-y-0.5">
+                  {(months?.research_status_reasons ?? []).map((r) => (
+                    <li key={r}>· {stripMdEmphasis(r)}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {/* 参考图右栏的「关键触发因子（高权重/中权重）」在本系统没有对应契约：
+                后端未为单个窗口给出因子贡献分解，伪造权重等于凭空造归因。
+                这里给一条明确的不可用状态，而不是删掉这一格。 */}
+            <div data-testid="timeline-factor-attribution-status">
+              窗口因子归因：<b>不可用</b> —— 需要后端提供逐窗口的因子贡献分解
+              （factor_id + 贡献量 + 口径版本）后才可展示；本页不生成"关键触发因子 /
+              高中权重 / 仓位建议"这类内容。
+            </div>
           </SourceMethod>
         </div>
-      </Card>
-
-      {/* ============ ② 主视图 + 右栏解释 ============ */}
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]">
-        <div className="space-y-3">
-          <Card testId="timeline-main-view">
-            <CardHeader
-              icon={<IconTrend size={15} />}
-              title="未来周期时间轴"
-              right={
-                <div className="flex items-center gap-1" data-testid="timeline-granularity">
-                  {(
-                    [
-                      { key: "days", label: "逐日（近20个交易日）" },
-                      { key: "months", label: "月度" },
-                    ] as const
-                  ).map((g) => (
-                    <button
-                      key={g.key}
-                      type="button"
-                      onClick={() => setGranularity(g.key)}
-                      className="rounded-[4px] px-2 py-[3px] text-[11.5px] transition-colors"
-                      style={
-                        g.key === granularity
-                          ? {
-                              color: "#241c0c",
-                              background:
-                                "linear-gradient(180deg, var(--color-gold-strong), var(--color-gold))",
-                              fontWeight: 600,
-                            }
-                          : {
-                              color: "var(--color-ink-sub)",
-                              border: "1px solid var(--color-border)",
-                            }
-                      }
-                      aria-pressed={g.key === granularity}
-                      data-testid={`timeline-gran-${g.key}`}
-                    >
-                      {g.label}
-                    </button>
-                  ))}
-                </div>
-              }
-              dense
-            />
-
-            {granularity === "days" ? (
-              dayLoading ? (
-                <SectionLoading
-                  label="正在按交易日逐日求值（首次约数秒，之后命中缓存）…"
-                  rows={4}
-                />
-              ) : dayError ? (
-                <SectionError
-                  what="逐日窗口"
-                  message={dayError}
-                  onRetry={() => setDayNonce((n) => n + 1)}
-                  testId="timeline-days-error"
-                />
-              ) : dayList.length ? (
-                <>
-                  <TimelineStepChart
-                    labels={chart.labels}
-                    series={chart.series}
-                    yLabel={chart.yLabel}
-                  />
-                  <p className="mt-1 text-[11.5px] leading-relaxed" style={{ color: "var(--color-ink-faint)" }}>
-                    {stripMdEmphasis(days?.methodology)}
-                    <br />
-                    逐日视图只画三个模型各自的原始分数：后端给出的是该日的
-                    <strong>综合方向</strong>（偏强/中性/偏弱）而不是综合分，
-                    因此这里不合成"第四条线"，也不把方向换算成分数。
-                  </p>
-                </>
-              ) : (
-                <SectionEmpty
-                  what="逐日窗口"
-                  hint="as_of 之后没有可用交易日，或交易日历覆盖不足（不补造日期）。"
-                />
-              )
-            ) : winLoading ? (
-              <SectionLoading label="正在构建月度窗口…" rows={4} />
-            ) : winError ? (
-              <SectionError
-                what="月度窗口"
-                message={winError}
-                onRetry={() => setWinNonce((n) => n + 1)}
-                testId="timeline-windows-error"
-              />
-            ) : monthList.length ? (
-              <>
-                <TimelineStepChart
-                  labels={chart.labels}
-                  series={chart.series}
-                  yLabel={chart.yLabel}
-                />
-                <p className="mt-1 text-[11.5px] leading-relaxed" style={{ color: "var(--color-ink-faint)" }}>
-                  月度窗口取该月<strong>最后一个交易日</strong>求值；两点之间没有观测，因此用阶梯线而不是
-                  平滑曲线。点击下方明细表的月份可查看该窗口的原始结果与假设。
-                </p>
-              </>
-            ) : (
-              <SectionEmpty what="月度窗口" hint="后端未返回月度窗口数据。" />
-            )}
-          </Card>
-
-          {/* 月历热力图：真实交易日 + 可用逐日结果 */}
-          <MonthHeatmapCard
-            dayList={dayList}
-            monthList={monthList}
-            // 分区加载：热力图只用逐日结果，不应等月度/周度窗口一起完成
-            loading={dayLoading}
-            onPick={(key) => setSelected({ kind: "day", key })}
-            selectedKey={selected?.kind === "day" ? selected.key : null}
-          />
-        </div>
-
-        <div className="space-y-3">
-          <WindowExplainer
-            selected={selected}
-            monthList={monthList}
-            weekList={weekList}
-            dayList={dayList}
-            asOfDate={asOfDate}
-          />
-          <WeekRankingCard
-            weekList={weekList}
-            loading={winLoading}
-            error={winError}
-            onRetry={() => setWinNonce((n) => n + 1)}
-            onPick={(key) => setSelected({ kind: "week", key })}
-            selectedKey={selected?.kind === "week" ? selected.key : null}
-          />
-        </div>
-      </div>
-
-      {/* ============ ③ 明细表（可展开审计入口） ============ */}
-      <Card testId="timeline-audit">
-        <CardHeader icon={<IconCalendar size={15} />} title="窗口明细（审计入口）" dense />
-        <details className="mt-1" open>
+        <details className="mt-1 px-3.5" open>
           <summary className="cursor-pointer text-[12.5px]" style={{ color: "var(--color-ink-sub)" }}>
             {monthTitle} · {weekTitle}
           </summary>
@@ -983,7 +1074,7 @@ function WindowExplainer({
   }, [selected, monthList, weekList, dayList, asOfDate]);
 
   return (
-    <Card testId="timeline-explainer">
+    <Card testId="timeline-explainer" className="h-full">
       <CardHeader
         icon={<IconTrend size={15} />}
         title="窗口解释"

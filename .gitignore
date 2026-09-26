@@ -23,6 +23,8 @@ apps/web/node_modules/
 apps/web/.next/
 # 验收用的独立构建目录（与 .next 并存，避免 dev/start 互相覆盖产物）
 apps/web/.next-e2e/
+# ui-visual-parity 验收实例的构建目录（生产 build + next start 用）
+apps/web/.next-visual/
 apps/web/out/
 apps/web/next-env.d.ts
 apps/web/test-results/

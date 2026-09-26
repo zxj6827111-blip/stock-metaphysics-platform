@@ -55,11 +55,16 @@ test.describe("黄历：未来交易日日期卡", () => {
     expect([...new Set(labels)].every((v) => v === "吉" || v === "凶")).toBe(true);
     expect(new Set(labels).has("平"), "后端通书口径只有吉/凶，不得补出「平」").toBe(false);
 
-    const card = page.getByTestId("huangli-outlook");
-    await expect(card).toContainText("图例");
-    await expect(card).toContainText("huangli-day-class-v1");
-    await expect(card).toContainText("不产出「平」");
-    await expect(card).toContainText("不是买入/卖出建议");
+    // 首屏改左右双栏后：图例留在日期网格卡，分类口径说明随选中日详情进右栏。
+    // 这里改的是**选择器落点**，四条内容断言一条都没放宽。
+    const gridCard = page.getByTestId("huangli-outlook");
+    await expect(gridCard).toContainText("图例");
+    await expect(gridCard).toContainText("不是买入/卖出建议");
+    // R1.2：右栏拆成三张卡后，分类口径（rule_id 与「不产出「平」」）落在
+    // 「数据状态与分类口径」卡上。仍然只是**落点变更**，两条内容断言原样保留。
+    const statusCard = page.getByTestId("huangli-data-status-card");
+    await expect(statusCard).toContainText("huangli-day-class-v1");
+    await expect(statusCard).toContainText("不产出「平」");
   });
 
   test("点击日期卡联动当天干支/宜忌/冲煞", async ({ page }) => {

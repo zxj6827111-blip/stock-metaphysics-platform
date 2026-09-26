@@ -17,7 +17,7 @@
  * 4. "关键发现"由后端从实际数字生成，不预设吉日优于凶日。
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Card, CardHeader } from "@/components/cards/Card";
 import { CLASS_TONE, CLASS_TONE_CN, HuangliClassTrendChart } from "@/components/charts/Charts";
@@ -46,7 +46,14 @@ const HORIZONS = [
   { value: 20, label: "20 个交易日" },
 ] as const;
 
-export function HuangliPerformancePanel({ analysisId }: { analysisId: string | null }) {
+export function HuangliPerformancePanel({
+  analysisId,
+  sectionTag,
+}: {
+  analysisId: string | null;
+  /** 分区身份标签（③）：由页面传入，挂在卡头标题后。 */
+  sectionTag?: ReactNode;
+}) {
   const [windowKey, setWindowKey] = useState<string>("1y");
   const [horizon, setHorizon] = useState<number>(1);
   const [customStart, setCustomStart] = useState<string>("");
@@ -125,6 +132,7 @@ export function HuangliPerformancePanel({ analysisId }: { analysisId: string | n
       <CardHeader
         icon={<IconTrend size={15} />}
         title="黄历证据与历史表现"
+        tag={sectionTag}
         right={
           <div className="flex flex-wrap items-center gap-1.5" data-testid="huangli-perf-controls">
             <div className="flex items-center gap-1">

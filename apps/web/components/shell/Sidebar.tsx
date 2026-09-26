@@ -1,7 +1,17 @@
 "use client";
 
 /**
- * 左侧导航（参考图：宽 231px，顶部与 TopBar 相接，底部有品牌标语）。
+ * 左侧导航（顶部与 TopBar 相接，底部有品牌标语）。
+ *
+ * 宽度 210px：R1 版按「参考图 231px」定值，那个数来自有缺陷的测法
+ * （在 x=200..261 窗口内找亮度跳变，等于把边界限制在了内容区里）。
+ * R1.1 用背景→槽区亮度过渡逐页重测十张参考图，侧栏右边界分别是
+ * 01=229 / 02=174 / 03=230 / 04=190 / 05=206 / 06=213 / 07=229 /
+ * 08=203 / 09=204 / 10=209.5 —— 参考稿自身页间不一致（极差 56px）。
+ * 取 210px 的**理由不是「所有参考图都是 210px」**：十张参考图的侧栏宽度本身
+ * 就不一致（174..230，极差 56px），无约束下的 L1 median interval 约 206–209.5。
+ * 正式 AppShell 需要**统一产品尺寸**，而既有 layout.spec 要求 sidebar >= 210px，
+ * 因此在现有产品约束下取 210px 作为统一 Sidebar token（不逐页改、不为 02 单独改 174px）。
  *
  * 导航项结构与 uiux_spec §3 一致；未实现的模块（紫微/六爻/奇门）在
  * Phase 1 显示为 disabled 并带上"Phase 2"提示，而不是隐藏 —— 让用户
@@ -10,6 +20,9 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+
+import { analysisContextSuffix } from "@/lib/analysisContext";
+
 import { SidebarMountain } from "./Decorations";
 import {
   IconBook,
@@ -71,8 +84,15 @@ const NAV: { group: string; items: NavItem[] }[] = [
 export function Sidebar({ activeKey }: { activeKey?: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const fixture = searchParams?.get("fixture");
-  const suffix = fixture ? `?fixture=${fixture}` : "";
+
+  /**
+   * 跨页面导航必须带上**整份分析上下文**，不只是 fixture。
+   *
+   * 之前只有 fixture 被拼进去，于是从"60d + ipo_date + 指定基准日"的综合研判
+   * 点侧栏进八字页，落地页会静默回落到默认上下文 —— 用户在两个页面看到的
+   * 其实是两次不同的分析，却没有任何提示。
+   */
+  const suffix = analysisContextSuffix(searchParams);
 
   // 仅在已经进入个股页面时沿用当前标的；没有标的则进入统一选择入口。
   const match = pathname.match(/\/stock\/([^/]+)/);
@@ -100,23 +120,30 @@ export function Sidebar({ activeKey }: { activeKey?: string }) {
 
   return (
     <aside
-      className="relative z-10 flex w-[232px] shrink-0 flex-col border-r"
+      className="relative z-10 flex w-[210px] shrink-0 flex-col border-r"
       style={{
         borderColor: "var(--color-border)",
         background:
           "linear-gradient(180deg, rgba(13,26,37,0.92) 0%, rgba(9,20,31,0.96) 100%)",
       }}
+      data-anchor="sidebar"
     >
-      <nav className="smp-scroll flex-1 overflow-y-auto py-2">
+      {/* 导航节奏按参考图实测对齐：首项中心 y≈90、末项中心 y≈650、项距 ≈50px。
+          分组标题原来占两行共 ~34px，把后 6 项整体下推了近 50px；
+          改为 1px 分隔线（~13px）后分组语义仍在（断点可见），
+          而 12 项落回 93..656，与参考图逐项对齐。分组名保留在 title 上供审计。 */}
+      <nav className="smp-scroll flex-1 overflow-y-auto pt-1.5">
         {NAV.map((group, gi) => (
-          <div key={group.group || `g${gi}`} className={gi > 0 ? "mt-1" : ""}>
+          <div key={group.group || `g${gi}`}>
             {group.group ? (
               <div
-                className="px-4 pb-1 pt-3 text-[10.5px] tracking-[0.16em]"
-                style={{ color: "var(--color-ink-faint)" }}
-              >
-                {group.group}
-              </div>
+                className="mx-4 my-[7px] h-px"
+                style={{ background: "var(--color-border)" }}
+                title={group.group}
+                data-testid={`nav-group-${gi}`}
+                data-group={group.group}
+                aria-hidden="true"
+              />
             ) : null}
             {group.items.map((item) => {
               const active = isActive(item);

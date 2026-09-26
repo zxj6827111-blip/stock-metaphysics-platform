@@ -76,6 +76,33 @@ export function Astrolabe({
           strokeWidth={1.2}
           strokeOpacity={0.45}
         />
+        {/* 最细的一圈：参考图星盘外缘还有一道几乎看不清的密刻度环，
+            少了它整个盘子就显得"干净但平"。 */}
+        <circle
+          cx={center}
+          cy={center}
+          r={134}
+          fill="none"
+          stroke="var(--color-gold-dim)"
+          strokeOpacity={0.18}
+          strokeWidth={0.7}
+        />
+        {Array.from({ length: 72 }).map((_, i) => {
+          const rad = ((i * 5) * Math.PI) / 180;
+          const round = (n: number) => Math.round(n * 100) / 100;
+          return (
+            <line
+              key={`micro-${i}`}
+              x1={round(center + 130 * Math.cos(rad))}
+              y1={round(center + 130 * Math.sin(rad))}
+              x2={round(center + 134 * Math.cos(rad))}
+              y2={round(center + 134 * Math.sin(rad))}
+              stroke="var(--color-gold)"
+              strokeOpacity={0.16}
+              strokeWidth={0.6}
+            />
+          );
+        })}
         {Array.from({ length: 48 }).map((_, i) => {
           const angle = (i * 360) / 48;
           const rad = (angle * Math.PI) / 180;
@@ -179,6 +206,34 @@ export function Astrolabe({
           strokeWidth={0.9}
           strokeDasharray="3 3"
           strokeOpacity={0.45}
+        />
+
+        {/* 十二向辐条：参考图的盘不是"几个同心圆"，而是被辐条切成扇面。
+            没有辐条时环线再密也读不出方位感。 */}
+        {Array.from({ length: 12 }).map((_, i) => {
+          const rad = (((i * 360) / 12 - 90) * Math.PI) / 180;
+          const round = (n: number) => Math.round(n * 100) / 100;
+          return (
+            <line
+              key={`spoke-${i}`}
+              x1={round(center + 30 * Math.cos(rad))}
+              y1={round(center + 30 * Math.sin(rad))}
+              x2={round(center + 86 * Math.cos(rad))}
+              y2={round(center + 86 * Math.sin(rad))}
+              stroke="url(#goldLine)"
+              strokeOpacity={i % 3 === 0 ? 0.34 : 0.16}
+              strokeWidth={i % 3 === 0 ? 0.9 : 0.6}
+            />
+          );
+        })}
+        <circle
+          cx={center}
+          cy={center}
+          r={42}
+          fill="none"
+          stroke="var(--color-gold-dim)"
+          strokeOpacity={0.3}
+          strokeWidth={0.7}
         />
 
         {/* 星轨天体圆点 */}
@@ -313,14 +368,25 @@ export function SealStamp({
 export function MountainSilhouette({
   className = "",
   opacity = 0.28,
+  height = 160,
 }: {
   className?: string;
   opacity?: number;
+  /**
+   * 装饰层高度。
+   *
+   * 为什么它必须是参数而不是常量：Hero 卡片只有 94–124px 高，而 160px 的
+   * 装饰层底对齐后，viewBox 顶部（也就是**山峰所在**的那 40px）会被卡片裁掉 ——
+   * 于是参考图里"横穿标题区的清晰山脊"在实现里只剩贴着卡片底边的一线灰影。
+   * 让调用方按 Hero 实际高度给值（preserveAspectRatio=none 会整体压缩），
+   * 山峰才落回它该在的位置。
+   */
+  height?: number;
 }) {
   return (
     <div
       className={`absolute inset-x-0 bottom-0 pointer-events-none overflow-hidden select-none ${className}`}
-      style={{ height: 160, opacity }}
+      style={{ height, opacity }}
       aria-hidden="true"
     >
       <svg
@@ -329,6 +395,18 @@ export function MountainSilhouette({
         className="h-full w-full"
       >
         <defs>
+          {/* 最远一重：几乎只剩一点冷色，用来把山"推远" */}
+          <linearGradient id="farthestMountain" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#5a7794" stopOpacity="0.42" />
+            <stop offset="70%" stopColor="#22394d" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="#0c1722" stopOpacity="0" />
+          </linearGradient>
+          {/* 顶部雾化渐隐：山脊不是被一刀切断，而是化进夜色里 */}
+          <linearGradient id="mistFade" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#0d1a25" stopOpacity="0.92" />
+            <stop offset="45%" stopColor="#0d1a25" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#0d1a25" stopOpacity="0" />
+          </linearGradient>
           {/* 远山渐变：青黛墨色 */}
           <linearGradient id="farMountain" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#41576d" stopOpacity="0.75" />
@@ -355,6 +433,11 @@ export function MountainSilhouette({
           </linearGradient>
         </defs>
 
+        {/* 最远重山 (Layer 0)：峰更高更淡，形成纵深 */}
+        <path
+          d="M0,95 L90,38 L150,66 L250,22 L330,58 L430,18 L520,54 L620,26 L700,62 L800,20 L900,58 L1000,30 L1090,64 L1190,24 L1290,60 L1390,32 L1480,66 L1560,40 L1600,62 L1600,180 L0,180 Z"
+          fill="url(#farthestMountain)"
+        />
         {/* 远山重峦层 (Layer 1) */}
         <path
           d="M0,110 Q120,45 260,75 T540,50 T820,80 T1100,40 T1380,65 Q1500,45 1600,70 L1600,180 L0,180 Z"
@@ -375,6 +458,8 @@ export function MountainSilhouette({
           d="M0,150 Q140,110 320,135 T720,110 T1120,130 T1520,95 L1600,120 L1600,180 L0,180 Z"
           fill="url(#nearMountain)"
         />
+        {/* 顶部雾化遮罩：把最远重的峰顶化进背景，避免"剪纸感" */}
+        <rect x="0" y="0" width="1600" height="110" fill="url(#mistFade)" />
       </svg>
     </div>
   );
