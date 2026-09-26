@@ -35,6 +35,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="font/woff2"
           crossOrigin="anonymous"
         />
+        {/* 等宽数字同样是首屏关键数字（价格/评分/百分比），也走 preload：
+            否则首帧会先用平台等宽字体排一遍版，Windows 与 Ubuntu 的
+            字宽差异会让依赖字面排版的像素门禁在两个平台给出不同结论。 */}
+        <link
+          rel="preload"
+          href="/fonts/jetbrains-mono-latin-600.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
       </head>
       <body>{children}</body>
     </html>

@@ -10,6 +10,13 @@
 |---|---|---|
 | `noto-serif-sc-subset.woff2` | Google Fonts · Noto Serif SC（可变字重 200–900）`NotoSerifSC[wght].ttf` | SIL Open Font License 1.1（见 `OFL-NotoSerifSC.txt`） |
 | `noto-sans-sc-subset.woff2` | Google Fonts · Noto Sans SC（可变字重 100–900）`NotoSansSC[wght].ttf` | SIL Open Font License 1.1（见 `OFL-NotoSansSC.txt`） |
+| `jetbrains-mono-latin-400/600/700.woff2` | JetBrains Mono 5.2.5 · latin 子集（npm `@fontsource/jetbrains-mono`） | SIL Open Font License 1.1（见 `OFL-JetBrainsMono.txt`） |
+
+* 等宽族（JetBrains Mono）用于**全部关键数字与代码**：此前 `--font-mono` 走系统字体，
+  Windows 命中 Consolas、Ubuntu 命中 DejaVu Sans Mono，字宽不同 ⇒ 同一页面在两个平台上
+  由字面排版决定的绝对像素门禁结论不同（Ubuntu 上 02 卡高实测偏出 26.6px）。
+  自托管后三平台用同一份字形与同一套 advance width。
+  latin 子集足够：等宽族只承载数字 / 英文 / 代码，不承载中文。
 
 * 上游仓库：`https://github.com/google/fonts/tree/main/ofl/notoserifsc`、
   `https://github.com/google/fonts/tree/main/ofl/notosanssc`

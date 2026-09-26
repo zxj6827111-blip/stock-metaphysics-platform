@@ -1,0 +1,165 @@
+{
+  "_about": "参考图（doc/ui-reference/*.png，实测尺寸 1672×941）关键矩形的人工读数，供 scripts/visual-anchors.mjs 与 candidate 侧 getBoundingClientRect 对照。",
+  "_method": "R1.1 重测：对 PNG 做亮度边缘剖面（行方向：每行统计 |L(x,y)-L(x,y-1)|>=12 的列数；列方向同理），再按分栏区间（左栏/右栏）分别重跑以排除跨栏干扰，最后把候选边界画回图上人工判读归属。confidence=high 表示该边在整栏内是满宽强边（frac>=0.95）且判读唯一；medium 表示强度 0.6–0.95、或需由相邻结构推断；只有顶边没有底边时 height 记 null，不估计。",
+  "_supersedes": "R1 版本文件用『边框色 #1E3444 长程连续段 + 在 x=200..261 内找最大亮度跳变』测侧栏宽度，得到 02=231。该搜索窗把侧栏右边界限制在了内容区里，实测 02 侧栏右边界在 x=175、08 在 x=202（见各页 note）。旧值一并作废，视觉门禁与报告以本文件为准。",
+  "_not_derivable": "检测不出唯一边界的一律 null（禁止凭空制造精度）。侧栏宽度按『背景→更暗槽区』的亮度过渡逐页重测十张图，结果为 01=229 / 02=174 / 03=230 / 04=190 / 05=206 / 06=213 / 07=229 / 08=203 / 09=204 / 10=209.5（每页在 y=250..800 的 4–6 条探测行上读数完全一致，因此单页内可信）。页间极差 56px 说明参考稿自身不统一，故侧栏宽度不作为统一产品标准，只作为逐页调校参考；当前实现取 210px 作为**统一产品 token**：无约束 L1 median interval 约 206–209.5，而既有 layout.spec 要求 sidebar >= 210px，故在产品约束下取 210px。理由不是「所有参考图都是 210px」，也不逐页改（02 单独改回 174px 已被明确否决）。",
+  "_provenance": "与 docs/ui-implementation.md §6.5 的 Phase 1 实测（顶栏 67px）在顶栏量级上一致；侧栏 231px 一项已被本文件的逐页重测推翻。",
+
+  "01-home": {
+    "anchors": {
+      "topbar": null,
+      "sidebar": { "x": 0, "y": 0, "width": 230, "height": null, "confidence": "medium", "note": "R1 版列跳变测值，侧栏右边界未按 R1.1 方法逐页复核；首页不在本阶段整改范围。" },
+      "pageHero": null,
+      "stockContextBar": null,
+      "primaryCard": null,
+      "primaryChart": null,
+      "rightSummary": null
+    },
+    "note": "首页 Hero 无底边框（装饰带直接接搜索卡），整页只有 y=395 一条强边框，无法唯一定位 Hero/上下文栏；如实留空。"
+  },
+
+  "02-overview": {
+    "anchors": {
+      "topbar": { "x": 0, "y": 0, "width": 1672, "height": 61, "confidence": "high" },
+      "sidebar": { "x": 0, "y": 61, "width": 174, "height": 880, "confidence": "high", "note": "侧栏背景亮度 ~20，x=174 出现整列亮边、其后 176..190 是更暗的槽区（亮度 ~10），内容卡左边框在 x=191。" },
+      "pageHero": { "x": 191, "y": 61, "width": 1469, "height": 124, "confidence": "high", "note": "Hero 底边 y=184/186（强度 760/862）。y=123/168 是 Hero 内部文字与山脊装饰的边，不作底边。" },
+      "stockContextBar": { "x": 191, "y": 185, "width": 1469, "height": 49, "confidence": "high", "note": "底边 y=234（强度 1308，全宽）。" },
+      "firstRow": { "x": 191, "y": 244, "width": 1469, "height": 197, "confidence": "high", "note": "首行三卡（模型评分与判断 / 多模型共识 / 模型分歧监测）：顶 y=244，底 y=441；卡间分隔 x≈899 与 x≈1327 ⇒ 708/406/333，即 49:28:23。" },
+      "primaryCard": { "x": 191, "y": 244, "width": 708, "height": 197, "confidence": "high", "note": "首行最左卡（模型评分与判断）。" },
+      "primaryChart": { "x": 191, "y": 450, "width": 804, "height": 278, "confidence": "medium", "note": "第二行左卡（未来时间窗口）：顶 y=450（全宽强边），底 y=728（左栏内 frac=1.00）。绘图区顶边在 y=537（图例下方），未单列为 anchor。" },
+      "historySummary": { "x": 191, "y": 742, "width": 804, "height": null, "confidence": "medium", "note": "第三行左卡（历史验证摘要）顶边 y=742 只在右栏探测到满宽强边，左栏该处与图表刻度混在一起，故 height=null 不估计。" },
+      "rightSummary": { "x": 1010, "y": 450, "width": 650, "height": 278, "confidence": "medium", "note": "第二行右卡（关键证据）：顶 y=450，底 y≈728（右栏 frac≈0.96 的强边在 742/752/760，取与左栏同一条行界）。" },
+      "dataQuality": { "x": 1010, "y": 742, "width": 650, "height": null, "confidence": "medium", "note": "第三行右卡（数据质量与风险）顶边 y=742（右栏 frac=0.96）。" }
+    },
+    "columnSplit": { "left": [191, 995], "right": [1010, 1660], "confidence": "high", "note": "第二行左右分栏 804:650 ⇒ 扣 15px 栏间距后 55.3:44.7。" }
+  },
+
+  "03-bazi": {
+    "anchors": {
+      "topbar": { "x": 0, "y": 0, "width": 1672, "height": 66, "confidence": "medium", "note": "R1 版边框检测值，未按 R1.1 方法逐页复核（八字页不在本阶段范围）。" },
+      "sidebar": { "x": 0, "y": 66, "width": 231, "height": null, "confidence": "low", "note": "R1 旧法测值，侧栏宽度已知不可靠（同法在 02 上给出 231，R1.1 复测为 175）。保留但不得用于门禁。" },
+      "pageHero": { "x": 245, "y": 66, "width": 1419, "height": 117, "confidence": "medium" },
+      "stockContextBar": { "x": 245, "y": 183, "width": 1419, "height": 47, "confidence": "medium" },
+      "primaryCard": { "x": 245, "y": 230, "width": 1419, "height": null, "confidence": "medium" },
+      "primaryChart": null,
+      "rightSummary": null
+    },
+    "note": "八字页 Hero 与上下文栏都有清晰整宽底边（183 / 230）。本阶段不整改该页，数值仅作后续参考。"
+  },
+
+  "04-ziwei": {
+    "anchors": {
+      "topbar": { "x": 0, "y": 0, "width": 1672, "height": 59, "confidence": "medium" },
+      "sidebar": { "x": 0, "y": 59, "width": 220, "height": null, "confidence": "low", "note": "R1 旧法测值，同 03 不作门禁。" },
+      "pageHero": { "x": 234, "y": 59, "width": 1430, "height": 73, "confidence": "medium" },
+      "stockContextBar": { "x": 234, "y": 132, "width": 1430, "height": 68, "confidence": "medium" },
+      "primaryCard": { "x": 234, "y": 200, "width": 1430, "height": null, "confidence": "medium" },
+      "primaryChart": null,
+      "rightSummary": null
+    },
+    "note": "紫微页 y=132 与 y=200 两条边的归属由人工判读；侧栏检测值比其他页窄，属参考图自身不一致。"
+  },
+
+  "05-backtest": {
+    "anchors": {
+      "topbar": { "x": 0, "y": 0, "width": 1672, "height": 61, "confidence": "high", "note": "底边 y=60/61，强度 frac=1.00（满宽）。" },
+      "sidebar": { "x": 0, "y": 61, "width": 206, "height": 880, "confidence": "high", "note": "背景→暗槽过渡在 x=206，y=250..800 的 6 条探测行读数完全一致。旧 R1 值 224 作废。" },
+      "pageHero": { "x": 224, "y": 61, "width": 1433, "height": 94, "confidence": "high", "note": "Hero 底边 y=155/156（frac=1.00）。右侧「历史统计验证 VS 传统术数判断」横幅在 Hero 内。" },
+      "stockContextBar": { "x": 224, "y": 155, "width": 1433, "height": 54, "confidence": "high", "note": "底边 y=209（frac=1.00）。内容为标的 + 最新价 + 总市值 + 行业 + 更新时间 + 切换股票。" },
+      "filterBar": { "x": 224, "y": 218, "width": 1433, "height": 67, "confidence": "high", "note": "研究条件/筛选条：术数·因子·共振组合 / 预测窗口 / 股票池 / 样本区间 / 更多筛选 / 运行验证。顶 y=218（frac=1.00），底 y=285（frac=0.92）。y=253/255 是条内标签与控件之间的边，不是卡边界。" },
+      "summaryMetrics": { "x": 224, "y": 299, "width": 1433, "height": 85, "confidence": "high", "note": "9 个统计磁贴一行：样本数 / 上涨率 / 平均收益 / 中位数收益 / 超额收益 / 最大回撤 / IC / 稳定性 / 样本外表现。列边界 x=224,376,543,694,858,1017,1175,1341,1499,1657（每块约 159px，5/5 探测行一致）。顶 y=299（frac=1.00），底 y=384（frac=0.93）。" },
+      "primaryChart": { "x": 224, "y": 395, "width": 708, "height": 194, "confidence": "high", "note": "收益分布卡（收益率分布 / 累计分布切换）。顶 y=395，底 y=589（frac=0.99）。" },
+      "holdingPeriodCard": { "x": 942, "y": 395, "width": 715, "height": 194, "confidence": "high", "note": "持有期收益卡（收益对比 / 超额收益切换，1D..60D 双序列）。与收益分布同一行、几乎等宽。" },
+      "controlRow": { "x": 224, "y": 599, "width": 1433, "height": 172, "confidence": "high", "note": "四张对照卡一行：年度稳定性 / 牛·熊·震荡分组 / 随机对照 / 出生日期平移对照。列边界 x=224,576 | 586,932 | 942,1282 | 1291,1657（11/11 探测行一致）。顶 y=599，底 y=771（frac=0.96）。后两张是负对照，不得为压缩首屏而删除。" },
+      "resultTable": { "x": 224, "y": 781, "width": 1433, "height": null, "confidence": "high", "note": "实验结果明细表顶边 y=781（frac=0.95）；表格底边在视口外，height 记 null 不估计。y=839 是表头行下沿、880 是数据行分隔线，均非卡边界。" },
+      "primaryCard": { "x": 224, "y": 218, "width": 1433, "height": 67, "confidence": "high", "note": "首个主内容区即研究条件/筛选条（与 filterBar 同一条），保留此键是为了与 anchor 测量脚本的通用 primaryCard 口径对齐。" }
+    },
+    "columnSplit": { "left": [224, 932], "right": [942, 1657], "confidence": "high", "note": "图表行两栏 708:715 ⇒ 49.7:50.3（近似等分，栏间距 10px）。对照行是四等分。" },
+    "controlColumns": {
+      "_about": "V3-A.1 新增：把上面 controlRow note 里**已经冻结**的四条列边界改写成机器可读结构，供 e2e/v3a-backtest.spec.ts 做对照行内部几何测试。数值一字未改、未重新测量，只是换了承载形式（原来只写在 note 的自由文本里，测试读不到）。",
+      "columns": [
+        { "index": 1, "title": "年度稳定性", "x": 224, "width": 352 },
+        { "index": 2, "title": "牛/熊/震荡分组", "x": 586, "width": 346 },
+        { "index": 3, "title": "随机对照", "x": 942, "width": 340 },
+        { "index": 4, "title": "出生日期平移对照", "x": 1291, "width": 366 }
+      ],
+      "row": { "y": 599, "bottom": 771, "height": 172 },
+      "confidence": "high",
+      "note": "列边界来自 11/11 探测行一致的纵边（x=224,576 | 586,932 | 942,1282 | 1291,1657）；width = 右边界 − 左边界。四列宽 340..366，极差 26px ⇒ 参考稿是「近似等宽」而非严格等分，门禁按 ±20px 容差判等宽。"
+    },
+    "note": "V3-A 用 R1.1 方法重测（亮度边缘剖面 + 分栏区间分别测 + 回图人工判读）。旧 R1 值 topbar 60 / sidebar 224 / pageHero 95 / stockContextBar 53 / primaryCardTop 298 全部作废：其中 primaryCardTop=298 实际是统计磁贴行顶边，把筛选条整块漏掉了。"
+  },
+
+  "06-factors": {
+    "anchors": {
+      "topbar": { "x": 0, "y": 0, "width": 1672, "height": 61, "confidence": "medium" },
+      "sidebar": { "x": 0, "y": 61, "width": 228, "height": null, "confidence": "low" },
+      "pageHero": { "x": 242, "y": 61, "width": 1422, "height": 141, "confidence": "medium" },
+      "stockContextBar": { "x": 242, "y": 202, "width": 1422, "height": 36, "confidence": "medium" },
+      "primaryCard": { "x": 242, "y": 267, "width": 1422, "height": null, "confidence": "medium" },
+      "primaryChart": null,
+      "rightSummary": null
+    },
+    "note": "因子字典页 202/238 分别是 Hero 与筛选条底边；267 是左右分栏卡片顶边。"
+  },
+
+  "07-conflicts": {
+    "anchors": {
+      "topbar": { "x": 0, "y": 0, "width": 1672, "height": 65, "confidence": "high", "note": "底边 y=65，frac=1.00。" },
+      "sidebar": { "x": 0, "y": 65, "width": 229, "height": 876, "confidence": "high", "note": "背景→暗槽在 x=229（6 条探测行中 5 条一致，第 6 条因底部标语区偏到 264，取众数 229）。旧 R1 值 229 恰好一致，但测法不同，此处为新法复测结果。" },
+      "pageHero": { "x": 245, "y": 65, "width": 1411, "height": 122, "confidence": "high", "note": "底边 y=187（frac=0.98）。" },
+      "stockContextBar": { "x": 245, "y": 187, "width": 1411, "height": 51, "confidence": "high", "note": "底边 y=238（frac=0.99）。" },
+      "conflictBanner": { "x": 245, "y": 250, "width": 1411, "height": 102, "confidence": "high", "note": "「当前轻度分歧」告警横幅：顶 y=250（frac=0.99），底 y=352（frac=0.99）。含分歧评分 42/100 与主要原因。这是研究状态类信息，任何页面整改都不得为省高度删它。" },
+      "mainRow": { "x": 245, "y": 352, "width": 1411, "height": 427, "confidence": "high", "note": "观点总览 + 能力对比 + 冲突归因整行：顶 y=352，底 y=779（frac=0.98）。" },
+      "bottomRow": { "x": 245, "y": 779, "width": 1411, "height": 158, "confidence": "medium", "note": "冲突解决建议 + 历史类似分歧案例：顶 y=779，底 y=937（frac=0.87，接近视口底）。" },
+      "primaryCard": { "x": 245, "y": 250, "width": 1411, "height": 102, "confidence": "high", "note": "首个主内容区是金色告警横幅而非普通卡片（与 conflictBanner 同一条）。" }
+    },
+    "columnSplit": { "left": [245, 1010], "right": null, "confidence": "medium", "note": "mainRow 内在 x=1022 有一条 3/4 探测行一致的纵边（左：各模型观点总览 + 结论对比矩阵；右：多维度能力对比 + 冲突归因）。再往右的中/右分界只有 2/4 强度，不唯一，故 right 记 null 不估计。" },
+    "note": "V3-A 重测登记，**本轮不整改该页布局**。旧 R1 值 pageHeroBottom 186 / stockContextBarBottom 239 与新测 187 / 238 接近，但 sidebar 与区域划分改用了新法。"
+  },
+
+  "08-huangli": {
+    "anchors": {
+      "topbar": { "x": 0, "y": 0, "width": 1672, "height": 63, "confidence": "high" },
+      "sidebar": { "x": 0, "y": 63, "width": 203, "height": 878, "confidence": "high", "note": "侧栏背景亮度 ~19-20，x=204 之后转为更暗的槽区（~9），内容卡左边框在 x≈221-233。与 02 的 174 不一致，是参考图自身的页间差异。" },
+      "pageHero": { "x": 233, "y": 63, "width": 1424, "height": 109, "confidence": "high", "note": "Hero 底边 y=170/172（强度 1384/1406，满宽）。" },
+      "stockContextBar": { "x": 233, "y": 172, "width": 1424, "height": 48, "confidence": "high", "note": "底边 y=220/222（强度 1406/1402，满宽）。" },
+      "primaryCard": { "x": 233, "y": 230, "width": 811, "height": 229, "confidence": "high", "note": "左栏首卡（今日黄历简要）：顶 y=230（满宽强边），底 y=459（满宽强边）。" },
+      "mainColumn": { "x": 233, "y": 230, "width": 811, "height": 512, "confidence": "medium", "note": "左主栏整体：从首卡顶 y=230 到第二行交易日卡底 y=729。" },
+      "detailColumn": { "x": 1071, "y": 230, "width": 586, "height": 512, "confidence": "medium", "note": "右详情栏整体：从今日结论卡顶 y=230 到时辰窗口卡底 y=742。" },
+      "primaryChart": { "x": 233, "y": 466, "width": 811, "height": 263, "confidence": "medium", "note": "「未来20个交易日黄历」卡：顶 y=466，底 y=729。" },
+      "dayGrid": { "x": 246, "y": 516, "width": 789, "height": 199, "confidence": "high", "note": "日期卡网格本体：第一行顶 y=516，行间隔 611/620，第二行底 y=715（左栏内 frac 0.81-0.84）。10 列 × 2 行。" },
+      "rightSummary": { "x": 1071, "y": 230, "width": 586, "height": 196, "confidence": "high", "note": "右栏首卡（今日结论）：顶 y=230，底 y=424/426（满宽强边）。" }
+    },
+    "columnSplit": { "left": [233, 1044], "right": [1071, 1657], "confidence": "high", "note": "左右分栏 811:586 ⇒ 扣 27px 栏间距后 58.1:41.9。" }
+  },
+
+  "09-evidence": {
+    "anchors": {
+      "topbar": { "x": 0, "y": 0, "width": 1672, "height": 61, "confidence": "medium" },
+      "sidebar": { "x": 0, "y": 61, "width": 235, "height": null, "confidence": "low" },
+      "pageHero": { "x": 249, "y": 61, "width": 1415, "height": 102, "confidence": "medium" },
+      "stockContextBar": null,
+      "primaryCard": null,
+      "primaryChart": null,
+      "rightSummary": null
+    },
+    "note": "古籍证据页只检测到 Hero 底边；上下文栏与检索条的边框在参考图里被控件打断。"
+  },
+
+  "10-timeline": {
+    "anchors": {
+      "topbar": { "x": 0, "y": 0, "width": 1672, "height": 62, "confidence": "high", "note": "底边 y=62，frac=0.99。" },
+      "sidebar": { "x": 0, "y": 62, "width": 210, "height": 879, "confidence": "high", "note": "背景→暗槽 x=209/210（4 条探测行一致，中位数 209.5，取 210）。旧 R1 值 223 作废。" },
+      "pageHero": { "x": 223, "y": 62, "width": 1436, "height": 106, "confidence": "high", "note": "底边 y=168（frac=0.98）。" },
+      "stockContextBar": { "x": 223, "y": 168, "width": 1436, "height": 51, "confidence": "high", "note": "底边 y=219（frac=1.00）。" },
+      "summaryTiles": { "x": 223, "y": 228, "width": 1436, "height": 150, "confidence": "high", "note": "四张窗口摘要卡一行：下一个高共识周 / 下一个高共识月 / 风险冲突窗口 / 未来20交易日综合评分。顶 y=228（frac=1.00），底 y=378（frac=0.99）。" },
+      "mainRow": { "x": 223, "y": 388, "width": 959, "height": 247, "confidence": "medium", "note": "未来周期时间轴（左）顶 y=388；底边只到 frac=0.73（y=635，与图内网格线混叠），故 height 取 247 并标 medium，不当精确值用。" },
+      "rightSummary": { "x": 1182, "y": 388, "width": 477, "height": 247, "confidence": "medium", "note": "窗口解读（右栏，最佳布局/观察窗口、风险提示期间三条）。分栏纵边 x=1182 为 16/16 探测行一致；底边同 mainRow 的 medium 判定。" },
+      "primaryCard": { "x": 223, "y": 228, "width": 1436, "height": 150, "confidence": "high", "note": "首个主内容区是四张摘要卡（与 summaryTiles 同一条）。" },
+      "bottomRow": null
+    },
+    "columnSplit": { "left": [223, 1182], "right": [1182, 1659], "confidence": "high", "note": "时间轴 : 窗口解读 = 959:477 ⇒ 66.8:33.2（x=1182 在 16/16 探测行上一致）。" },
+    "note": "V3-A 重测登记，**本轮不整改该页布局**。第三行（月份日历热力图 / 未来12周窗口排名 / 关键触发因子）的顶边在 frac>=0.6 判据下不唯一（最强只有 frac≈0.48），如实记 null 不估计。"
+  }
+}

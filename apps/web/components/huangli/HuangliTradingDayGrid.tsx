@@ -17,13 +17,15 @@
  * 日历覆盖不足时组件保留结构并说明实际覆盖天数与原因（不补造日期）。
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { Card, CardHeader } from "@/components/cards/Card";
 import { CLASS_TONE, CLASS_TONE_CN } from "@/components/charts/Charts";
-import { IconCalendar } from "@/components/shell/Icons";
+import { IconCalendar, IconClock, IconDatabase } from "@/components/shell/Icons";
 import { SectionNote } from "@/components/shell/ResearchPage";
-import { SectionEmpty, SectionError, SectionLoading } from "@/components/shell/SectionState";import { api, endpoints, type ApiHuangliOutlook } from "@/lib/api";
+import { SectionEmpty, SectionError, SectionLoading } from "@/components/shell/SectionState";
+import { ResearchStatusBadge } from "@/components/shell/PageState";
+import { api, endpoints, type ApiHuangliOutlook } from "@/lib/api";
 import {
   huangliOutlook20dFixture,
   huangliOutlook3mFixture,
@@ -41,6 +43,18 @@ const TABS: { key: string; label: string; mode: Mode; value: number }[] = [
 ];
 
 /** 传统分类的语义色（与行情涨跌色完全分离，避免读成买卖信号）。 */
+/** 日格底色/边框：只按后端 class_code 分三档（吉 / 凶 / 未给分类）。 */
+function classFill(code: string | null): string {
+  if (code === "auspicious") return "rgba(45,132,100,0.20)";
+  if (code === "inauspicious") return "rgba(140,44,48,0.20)";
+  return "rgba(255,255,255,0.012)";
+}
+function classBorder(code: string | null): string {
+  if (code === "auspicious") return "rgba(79,211,155,0.38)";
+  if (code === "inauspicious") return "rgba(232,88,90,0.34)";
+  return "var(--color-border)";
+}
+
 function classTone(code: string | null): string {
   if (code === "auspicious") return CLASS_TONE.auspicious;
   if (code === "inauspicious") return CLASS_TONE.inauspicious;
@@ -63,6 +77,22 @@ function daySourceSummary(sources?: Record<string, number>): string {
   return parts.length ? `（${parts.join("，")}）` : "";
 }
 
+/**
+ * 日历覆盖状态的一行摘要。
+ *
+ * `coverage.status` 不是 `complete` 时，这里只给状态词，
+ * 真正的告警由下方**常驻不折叠**的 `huangli-outlook-coverage` 块承担 ——
+ * partial / unavailable / degraded 不允许被收进 `<details>` 里看不见。
+ */
+function COVERAGE_CN(status?: string): string {
+  if (!status) return "覆盖状态未读取";
+  if (status === "complete") return "覆盖完整";
+  if (status === "partial") return "部分覆盖";
+  if (status === "unavailable") return "覆盖不可用";
+  if (status === "degraded") return "覆盖降级";
+  return `覆盖状态：${status}`;
+}
+
 /** 日期卡的判定来源短标签。 */
 function sourceLabel(source?: string): string {
   if (source === "published_exchange_calendar") return "公布";
@@ -70,30 +100,43 @@ function sourceLabel(source?: string): string {
   return "";
 }
 
-export function HuangliTradingDayGrid({
-  analysisId,
-  onSelectDate,
-  selectedDate,
-}: {
-  analysisId: string | null;
-  onSelectDate?: (date: string) => void;
-  selectedDate?: string | null;
-}) {
-  const [tab, setTab] = useState<string>("20d");
+/* ==========================================================================
+   取数：唯一入口
+   ========================================================================== */
+
+export interface HuangliOutlookState {
+  active: (typeof TABS)[number];
+  data: ApiHuangliOutlook | null;
+  days: ApiHuangliOutlook["days"];
+  loading: boolean;
+  error: string | null;
+  coverage: ApiHuangliOutlook["coverage"] | undefined;
+}
+
+/**
+ * 读取「未来交易日黄历」。
+ *
+ * 为什么单独导出：参考图的第一屏是**左 60% 日期网格 / 右 40% 选中日详情**。
+ * 原来 grid、选中日详情、分类口径说明绑在一个组件里，页面要拆成左右两栏
+ * 就只能把整个组件渲染两遍 —— 那会把同一个 `/huangli/outlook` 请求发两次。
+ * 现在取数只有一个入口，两个视图都是纯展示，选中状态由页面持有。
+ *
+ * 演示模式读**各自档位**的冻结样本，绝不发起真实请求：用同一份样本顶替所有
+ * 档位，等于把「今日」渲染成 20 天、「近 3 个月」渲染成 20 天。
+ */
+export function useHuangliOutlook(
+  analysisId: string | null,
+  tabKey: string,
+  nonce = 0,
+): HuangliOutlookState {
+  const active = TABS.find((t) => t.key === tabKey) ?? TABS[1];
   const [data, setData] = useState<ApiHuangliOutlook | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [internalSelected, setInternalSelected] = useState<string | null>(null);
-
-  const active = TABS.find((t) => t.key === tab) ?? TABS[1];
-  const selection = selectedDate ?? internalSelected;
 
   useEffect(() => {
     let cancelled = false;
-    // 演示模式：直接读固定样本，绝不发起真实请求
     if (isFixtureActive()) {
-      // 每个档位读**自己**那份固定样本。用同一份样本顶替所有档位等于把
-      // 「今日」渲染成 20 天、「近 3 个月」渲染成 20 天 —— 读者看到的是错的粒度。
       const byTab: Record<string, ApiHuangliOutlook> = {
         today: huangliOutlookTodayFixture,
         "20d": huangliOutlook20dFixture,
@@ -128,40 +171,50 @@ export function HuangliTradingDayGrid({
     return () => {
       cancelled = true;
     };
-  }, [analysisId, active.key, active.mode, active.value]);
+  }, [analysisId, active.key, active.mode, active.value, nonce]);
 
-  const days = data?.days ?? [];
-  const firstDate = days[0]?.date ?? null;
+  return { active, data, days: data?.days ?? [], loading, error, coverage: data?.coverage };
+}
 
-  // 默认选中第一张卡（"今日"即基准日当天）
-  useEffect(() => {
-    if (!selection && firstDate) setInternalSelected(firstDate);
-  }, [firstDate, selection]);
+/** 默认档位（页面初始化选中状态用）。 */
+export const HUANGLI_DEFAULT_TAB = "20d";
 
-  const selected = useMemo(
-    () => days.find((d) => d.date === selection) ?? days[0] ?? null,
-    [days, selection],
-  );
+/* ==========================================================================
+   视图一：日期网格卡（参考图左栏 ~60%）
+   ========================================================================== */
 
-  const pick = (date: string) => {
-    setInternalSelected(date);
-    onSelectDate?.(date);
-  };
-
-  const coverage = data?.coverage;
-
+export function HuangliOutlookGridCard({
+  state,
+  tab,
+  onTab,
+  selected,
+  onPick,
+  onRetry,
+  sectionTag,
+}: {
+  state: HuangliOutlookState;
+  tab: string;
+  onTab: (key: string) => void;
+  selected: string | null;
+  onPick: (date: string) => void;
+  onRetry?: () => void;
+  /** 分区身份标签（②）：由页面传入，挂在卡头标题后，不再单独占一行。 */
+  sectionTag?: ReactNode;
+}) {
+  const { active, data, days, loading, error, coverage } = state;
   return (
-    <Card testId="huangli-outlook">
+    <Card testId="huangli-outlook" anchor="primary-chart">
       <CardHeader
         icon={<IconCalendar size={15} />}
         title={`未来交易日黄历（${labelForTabs(active.key)}）`}
+        tag={sectionTag}
         right={
           <div className="flex items-center gap-1" data-testid="huangli-outlook-tabs">
             {TABS.map((t) => (
               <button
                 key={t.key}
                 type="button"
-                onClick={() => setTab(t.key)}
+                onClick={() => onTab(t.key)}
                 className="rounded-[4px] px-2 py-[3px] text-[11.5px] transition-colors"
                 style={
                   t.key === tab
@@ -184,38 +237,15 @@ export function HuangliTradingDayGrid({
         dense
       />
 
-      {/* 口径说明：交易日从哪来、基准日怎么处理 */}
-      <div
-        className="mb-2 rounded border-l-2 px-2.5 py-1.5 text-[11.5px] leading-relaxed"
-        style={{
-          borderColor: "var(--color-gold-dim)",
-          background: "rgba(212,184,122,0.05)",
-          color: "var(--color-ink-sub)",
-        }}
-        data-testid="huangli-outlook-rule"
-      >
-        {loading ? "正在按交易日历取黄历…" : stripMdEmphasis(data?.rule_cn) || "—"}
-        {data && !loading ? (
-          <>
-            {" "}
-            <span style={{ color: "var(--color-ink-muted)" }} data-testid="huangli-calendar-scope">
-              交易日历：{data.exchange} 实测成交日
-              {coverage?.calendar_coverage
-                ? `（${coverage.calendar_coverage.start} ~ ${coverage.calendar_coverage.end}）`
-                : "（不可用）"}
-              {coverage?.published_coverage
-                ? `；官方已公布安排（${coverage.published_coverage.start} ~ ${coverage.published_coverage.end}）`
-                : ""}
-              ；本区共返回 {data.returned_days} 张日期卡{daySourceSummary(coverage?.day_sources)}。
-            </span>
-          </>
-        ) : null}
-      </div>
-
       {loading ? <SectionLoading label="正在按实测交易日历取黄历…" rows={3} /> : null}
 
       {!loading && error ? (
-        <SectionError what="未来交易日黄历" message={error} testId="huangli-outlook-error" />
+        <SectionError
+          what="未来交易日黄历"
+          message={error}
+          onRetry={onRetry}
+          testId="huangli-outlook-error"
+        />
       ) : null}
 
       {!loading && !error && coverage && coverage.status !== "complete" ? (
@@ -244,15 +274,60 @@ export function HuangliTradingDayGrid({
 
       {!loading && days.length ? (
         active.key === "3m" ? (
-          <MonthGroupedGrid
-            data={data!}
-            selected={selection}
-            onPick={pick}
-          />
+          <MonthGroupedGrid data={data!} selected={selected} onPick={onPick} />
         ) : (
-          <DayCardGrid days={days} selected={selection} onPick={pick} columns={10} />
+          <DayCardGrid days={days} selected={selected} onPick={onPick} columns={10} />
         )
       ) : null}
+
+      {/* 口径行放在网格**下方**（与图例同区）：参考图 08 的日期网格顶边就在卡头下 50px 处，
+          任何夹在卡头与网格之间的说明行都会把网格整体下推 —— R1.1 的 +156px 偏移里
+          有 24.5px 是这一行造成的。内容一条不删，只是换承载位置：
+          首屏只留**一行紧凑状态**，明细进 `<details>`。 */}
+      <div
+        className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded border-l-2 px-2.5 py-1 text-[11.5px]"
+        style={{
+          borderColor: "var(--color-gold-dim)",
+          background: "rgba(212,184,122,0.05)",
+          color: "var(--color-ink-sub)",
+        }}
+        data-testid="huangli-outlook-rule"
+      >
+        <span data-testid="huangli-calendar-scope">
+          交易日来源：{data?.exchange ?? "未读取"} 实测成交日 · {labelForTabs(active.key)} ·{" "}
+          {COVERAGE_CN(coverage?.status)}
+        </span>
+        <details data-testid="huangli-outlook-rule-details">
+          <summary
+            className="cursor-pointer text-[11px]"
+            style={{ color: "var(--color-ink-muted)" }}
+          >
+            查看口径
+          </summary>
+          <div
+            className="mt-1 space-y-1 text-[11.5px] leading-relaxed"
+            style={{ color: "var(--color-ink-muted)" }}
+          >
+            <div>{loading ? "正在按交易日历取黄历…" : stripMdEmphasis(data?.rule_cn) || "—"}</div>
+            {data && !loading ? (
+              <>
+                <div>
+                  实测成交日覆盖：
+                  {coverage?.calendar_coverage
+                    ? `${coverage.calendar_coverage.start} ~ ${coverage.calendar_coverage.end}`
+                    : "不可用"}
+                  {coverage?.published_coverage
+                    ? `；官方已公布安排：${coverage.published_coverage.start} ~ ${coverage.published_coverage.end}`
+                    : ""}
+                </div>
+                <div>
+                  本区返回 {data.returned_days} 张日期卡{daySourceSummary(coverage?.day_sources)}
+                </div>
+              </>
+            ) : null}
+          </div>
+        </details>
+      </div>
 
       {/* 图例：颜色不能是唯一信息载体（文字 + 图例同时给出） */}
       <div className="mt-2 flex flex-wrap items-center gap-3 text-[11.5px]">
@@ -277,22 +352,214 @@ export function HuangliTradingDayGrid({
           · 分类描述传统择日观念，不是买入/卖出建议
         </span>
       </div>
+    </Card>
+  );
+}
 
-      {/* 选中日的详情联动 */}
-      {selected ? <SelectedDayDetail card={selected} rule={data?.class_rule} /> : null}
+/* ==========================================================================
+   视图二 / 三 / 四：右栏三张展示卡（参考图右栏 ~40%）
 
-      {/* 分类口径差异：把"为什么没有平"讲在前面，而不是让读者以为漏了一类 */}
-      {data?.class_rule ? (
-        <div className="mt-2">
-          <SectionNote>
-            <b>分类口径（{data.class_rule.rule_id}）：</b>
-            {stripMdEmphasis(data.class_rule.difference_note_cn)}
-            <br />
-            依据字段：<code>{data.class_rule.basis_field}</code>（{data.class_rule.basis_source}）。
-            {stripMdEmphasis(data.class_rule.not_a_recommendation_cn)}
-          </SectionNote>
+   参考图 08 右栏第一张卡（今日结论）实测 230..426，只有 196px：日期 + 吉凶 +
+   一句依据 + 少量指标。R1.1 把「选中日详情 + 全部原始字段 + 时辰不可用长文 +
+   分类方法长文」塞进同一张卡，量出来 615px（比参考高 419.5px）。
+   这里拆成三张**纯展示**卡：数据仍由页面调用一次 `useHuangliOutlook()` 取得，
+   再把 state 传进来 —— 子组件里不得重新调用 hook，那才是重复请求的根因。
+   ========================================================================== */
+
+/** Card A：选中日期 / 今日结论。长字段收进 `<details>`，卡面只留判定所需。 */
+export function HuangliSelectedDayCard({
+  selected,
+  loading,
+  error,
+}: {
+  selected: ApiHuangliOutlook["days"][number] | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  return (
+    <Card testId="huangli-selected-card" anchor="right-summary">
+      <CardHeader
+        icon={<IconCalendar size={15} />}
+        title="选中日期 / 今日结论"
+        right={
+          selected ? (
+            <span
+              className="rounded-[3px] px-1.5 py-[1px] text-[11.5px] font-semibold"
+              style={{ color: "#0d1a25", background: classTone(selected.class_code) }}
+              data-testid="huangli-selected-class"
+            >
+              {classLabel(selected)}
+            </span>
+          ) : null
+        }
+        dense
+      />
+      {loading ? <SectionLoading label="正在读取选中日期…" rows={4} /> : null}
+      {!loading && error ? (
+        <div className="p-3">
+          <SectionError what="选中日期详情" message={error} testId="huangli-selected-error" />
         </div>
       ) : null}
+      {!loading && !error && selected ? (
+        <div className="px-3 pb-3 pt-1 text-[11.5px]" data-testid="huangli-selected-day">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span
+              className="smp-serif-title text-[16px]"
+              style={{ color: "var(--color-gold-strong)" }}
+            >
+              {selected.date}
+            </span>
+            <span style={{ color: "var(--color-ink-sub)" }}>
+              {selected.weekday_cn} · {selected.lunar_text || "农历（未返回）"} ·{" "}
+              {selected.day_ganzhi}日
+              {selected.jieqi ? ` · 节气 ${selected.jieqi}` : ""}
+            </span>
+          </div>
+
+          {/* 最重要原始依据：这一天凭什么算吉 / 凶 */}
+          <div className="mt-1 leading-relaxed" style={{ color: "var(--color-ink-muted)" }}>
+            {stripMdEmphasis(selected.class_basis_cn) || "后端未返回分类依据"}
+          </div>
+
+          <div className="mt-1.5 leading-relaxed" style={{ color: "var(--color-ink-sub)" }}>
+            建除十二值 {selected.duty_officer ? `${selected.duty_officer}日` : "—"} · 黄黑道{" "}
+            {selected.day_tian_shen || "—"}（{selected.day_tian_shen_type || "—"}） · 冲煞{" "}
+            {selected.chong_desc ? `冲${selected.chong_desc} 煞${selected.sha_direction || "—"}` : "—"}
+          </div>
+
+          <div className="mt-1" style={{ color: "var(--color-ink-sub)" }}>
+            <b style={{ color: "var(--color-gold)" }}>宜（通书事宜）：</b>
+            {selected.day_yi.slice(0, 3).join(" · ") || "无特定事宜"}
+          </div>
+          <div className="mt-0.5" style={{ color: "var(--color-ink-sub)" }}>
+            <b style={{ color: "var(--color-ink-muted)" }}>忌（通书禁忌）：</b>
+            {selected.day_ji.slice(0, 3).join(" · ") || "诸事不忌"}
+          </div>
+
+          <details className="mt-2" data-testid="huangli-selected-day-full">
+            <summary
+              className="cursor-pointer text-[11.5px]"
+              style={{ color: "var(--color-ink-muted)" }}
+            >
+              该日完整通书字段（彭祖百忌 / 吉神方位 / 星宿 / 纳音 / 全量宜忌）
+            </summary>
+            <SelectedDayFields card={selected} />
+          </details>
+        </div>
+      ) : null}
+      {!loading && !error && !selected ? (
+        <div className="p-3">
+          <SectionEmpty
+            what="选中日期详情"
+            hint="在左侧日期卡中选择一个交易日后，这里显示它的传统字段。"
+          />
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
+/** Card B：时辰窗口。后端没有逐时辰产出 ⇒ 短状态常驻，长原因可展开（§2.4 不以占位值代替）。 */
+export function HuangliHoursCard() {
+  return (
+    <Card testId="huangli-hours-card">
+      <CardHeader
+        icon={<IconClock size={15} />}
+        title="时辰窗口"
+        right={
+          <span
+            className="rounded-[3px] border px-1.5 py-[1px] text-[11px]"
+            style={{ borderColor: "var(--color-border)", color: "var(--color-warn)" }}
+            data-testid="huangli-hours-state"
+          >
+            不可用
+          </span>
+        }
+        dense
+      />
+      <div
+        className="px-3 pb-3 text-[11.5px] leading-relaxed"
+        style={{ color: "var(--color-ink-muted)" }}
+        data-testid="huangli-hours-unavailable"
+      >
+        <b style={{ color: "var(--color-ink-sub)" }}>不可用。</b>
+        当前引擎仅提供日级通书字段，未实现逐时辰推演。
+        <details className="mt-1">
+          <summary
+            className="cursor-pointer text-[11.5px]"
+            style={{ color: "var(--color-ink-muted)" }}
+          >
+            为什么不显示、也不占位
+          </summary>
+          <p className="mt-1">
+            黄历引擎按「日」产出通书字段与黄黑道分类；参考图里的六格时辰吉凶在本系统没有对应数据，
+            因此不显示，也不画空卡位假装「稍后加载」，更不以占位值代替（AGENTS.md §2.4：
+            不可用与 0 是两件事）。
+          </p>
+        </details>
+      </div>
+    </Card>
+  );
+}
+
+/** Card C：数据状态与分类口径。研究状态与版本常驻，口径差异说明可展开。 */
+export function HuangliDataStatusCard({
+  data,
+  rule,
+  engineVersion,
+  configVersion,
+  asOf,
+  researchStatus,
+  reasons,
+}: {
+  data: ApiHuangliOutlook | null;
+  rule?: ApiHuangliOutlook["class_rule"];
+  engineVersion?: string | null;
+  configVersion?: string | null;
+  asOf?: string | null;
+  researchStatus: string;
+  reasons: string[];
+}) {
+  return (
+    <Card testId="huangli-data-status-card">
+      <CardHeader icon={<IconDatabase size={15} />} title="数据状态与分类口径" dense />
+      <div
+        className="px-3 pb-3 text-[11.5px] leading-relaxed"
+        style={{ color: "var(--color-ink-muted)" }}
+        data-testid="huangli-data-status"
+      >
+        <div>
+          交易日口径：{data ? `${data.exchange} 实测成交日` : "未读取"}；分类版本：
+          <code className="smp-num">{data?.class_rule_version ?? "—"}</code>
+        </div>
+        <div className="mt-1">
+          快照版本：engine <code className="smp-num">{engineVersion ?? "—"}</code> · config{" "}
+          <code className="smp-num">{configVersion ?? "—"}</code> · as_of{" "}
+          <code className="smp-num">{asOf ?? "—"}</code>
+        </div>
+        <div className="mt-1.5">
+          <ResearchStatusBadge status={researchStatus} reasons={reasons} />
+        </div>
+        {rule ? (
+          <details className="mt-2">
+            <summary
+              className="cursor-pointer text-[11.5px]"
+              style={{ color: "var(--color-ink-muted)" }}
+            >
+              分类口径差异（为什么没有「平」）
+            </summary>
+            <div className="mt-1">
+              <SectionNote>
+                <b>分类口径（{rule.rule_id}）：</b>
+                {stripMdEmphasis(rule.difference_note_cn)}
+                <br />
+                依据字段：<code>{rule.basis_field}</code>（{rule.basis_source}）。
+                {stripMdEmphasis(rule.not_a_recommendation_cn)}
+              </SectionNote>
+            </div>
+          </details>
+        ) : null}
+      </div>
     </Card>
   );
 }
@@ -317,6 +584,7 @@ function DayCardGrid({
       className="grid gap-1.5"
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
       data-testid="huangli-day-grid"
+      data-anchor="day-grid"
     >
       {days.map((d) => (
         <DayCard key={d.date} card={d} active={d.date === selected} onPick={onPick} />
@@ -346,8 +614,12 @@ function DayCard({
       onClick={() => onPick(card.date)}
       className="flex flex-col items-stretch rounded-[6px] border px-1.5 py-1.5 text-left transition-colors"
       style={{
-        borderColor: active ? "var(--color-gold)" : "var(--color-border)",
-        background: active ? "rgba(212,184,122,0.10)" : "rgba(255,255,255,0.012)",
+        /* 卡面按吉/凶染色（参考图 08：吉=绿底绿框，凶=暗红底红框）。
+           原来 20 张卡底色完全一致，读者必须逐张读小标签才能分吉凶；
+           底色 + 边框双编码后，整块日历一眼可扫。
+           颜色只表达后端给出的 class_code，不叠加任何"程度"含义。 */
+        borderColor: active ? "var(--color-gold)" : classBorder(card.class_code),
+        background: active ? "rgba(212,184,122,0.10)" : classFill(card.class_code),
         boxShadow: active ? "inset 0 0 0 1px rgba(212,184,122,0.35)" : undefined,
       }}
       data-testid={`huangli-day-${card.date}`}
@@ -435,44 +707,21 @@ function MonthGroupedGrid({
   );
 }
 
-/** 选中日的完整传统字段（与参考图右栏「今日结论」位置对应，但只讲传统口径）。 */
-function SelectedDayDetail({
-  card,
-  rule,
-}: {
-  card: ApiHuangliOutlook["days"][number];
-  rule?: ApiHuangliOutlook["class_rule"];
-}) {
+/**
+ * 选中日的完整通书字段。
+ *
+ * 卡面（`HuangliSelectedDayCard`）只留判定所需的日期 / 吉凶 / 依据 / 宜忌前三条，
+ * 这里承载其余原始字段，默认收在 `<details>` 内 —— 内容一条不少，
+ * 但不再把右栏第一张卡撑到参考图的四倍高。
+ */
+function SelectedDayFields({ card }: { card: ApiHuangliOutlook["days"][number] }) {
   return (
     <div
-      className="mt-2 rounded border p-2.5"
+      className="mt-1.5 rounded border p-2.5"
       style={{ borderColor: "var(--color-border-strong)", background: "rgba(0,0,0,0.18)" }}
-      data-testid="huangli-selected-day"
+      data-testid="huangli-selected-day-full-fields"
     >
-      <div className="flex flex-wrap items-baseline gap-2">
-        <span className="smp-serif-title text-[16px]" style={{ color: "var(--color-gold-strong)" }}>
-          {card.date}
-        </span>
-        <span className="text-[12px]" style={{ color: "var(--color-ink-sub)" }}>
-          {card.weekday_cn} · {card.lunar_text || "农历（未返回）"}
-        </span>
-        <span
-          className="rounded-[3px] px-1.5 py-[1px] text-[11.5px] font-semibold"
-          style={{ color: "#0d1a25", background: classTone(card.class_code) }}
-        >
-          {classLabel(card)}
-        </span>
-        <span className="text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
-          {card.day_ganzhi}日 · {card.zodiac ? `${card.zodiac}年` : ""}
-          {card.jieqi ? ` · 节气 ${card.jieqi}` : ""}
-        </span>
-      </div>
-
-      <div className="mt-1.5 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
-        {stripMdEmphasis(card.class_basis_cn)}
-      </div>
-
-      <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <Detail label="建除十二值" value={`${card.duty_officer || "—"}日`} />
         <Detail
           label="十二神 / 黄黑道"
@@ -515,7 +764,7 @@ function SelectedDayDetail({
       <div className="mt-1.5 text-[11px]" style={{ color: "var(--color-ink-faint)" }}>
         通书宜忌为传统择日观念，与证券价格没有已确认的因果关系；系统把它作为研究变量，
         历史表现见下方「黄历证据与历史表现」。
-        {rule ? ` 分类口径：${rule.rule_id}。` : ""}
+        分类口径与版本见右栏「数据状态与分类口径」。
       </div>
     </div>
   );

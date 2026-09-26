@@ -8,6 +8,8 @@ import {
   api,
   endpoints,
   type ApiBaziAnalysis,
+  type ApiBirthProfile,
+  type ApiEvidenceItem,
   type ApiMultiAnalysis,
   type ApiConsensus,
   type ApiConflict,
@@ -64,8 +66,26 @@ const BIRTH_BASIS_LABEL: Record<string, string> = {
   custom: "自定义基准",
 };
 
-export function birthBasisLabel(basis: string | null | undefined): string {
-  if (!basis) return "—";
+/**
+ * 研究窗口（horizon）→ 中文表达。
+ *
+ * 之前 `buildContext` / `buildContextFromMulti` 都把这里写死成「20 交易日」，
+ * 于是用户在上下文栏选 60d、请求体带 `horizon=60d`，页面上却仍显示 20 交易日，
+ * 导出的快照里也没有这个字段 —— 同一份分析在三个地方身份不一致。
+ * 现在取后端回传的 `analysis.horizon`；后端没回传时如实显示「未指定」，
+ * 不拿默认值冒充（AGENTS.md §2.4）。
+ */
+const HORIZON_LABEL: Record<string, string> = {
+  "20d": "20 交易日",
+  "60d": "60 交易日",
+};
+
+export function horizonLabel(horizon: string | null | undefined): string {
+  if (!horizon) return "未指定";
+  return HORIZON_LABEL[horizon] ?? horizon;
+}
+
+export function birthBasisLabel(basis: string | null | undefined): string {  if (!basis) return "—";
   return BIRTH_BASIS_LABEL[basis] ?? basis;
 }
 
@@ -109,7 +129,8 @@ export function buildContext(
       assumptions: b.assumptions ?? [],
     },
     asOf: (asOfOverride ?? analysis.factors.as_of).replace("T", " "),
-    horizon: "20 交易日",
+    // 单引擎响应不带 horizon 字段：如实显示「未指定」，不拿默认窗口冒充
+    horizon: horizonLabel((analysis as { horizon?: string }).horizon),
     quality: b.data_quality?.grade ?? "B",
   };
 }
@@ -423,25 +444,118 @@ export function toDistribution(es: ApiEventStudy, bins = 9, isFixture = false): 
   });
 }
 
-export function toDataQualityView(
-  grade: string,
-  notes: string[],
-  engineLine: string,
-): DataQualityView {
+/**
+ * 数据质量视图 —— **每一项都必须能指回一个真实字段**。
+ *
+ * 这里曾经是硬编码的 `已验证 / 公版原文 / state:"ok"`：不管后端有没有回传
+ * 出生档案推导证据、不管古籍检索是否成功，卡片上永远是四个绿勾。
+ * 研究终端里"看起来已经核对过"的假勾等于虚报数据质量
+ * （AGENTS.md §13「不得把降级/合成数据伪装成真实数据」、§16.4 synthetic 隔离）。
+ * 现在：证明不了的一律 未提供 / 未验证，并用 warn 而不是绿色 ok。
+ */
+
+/** 后端 `DataQualityGrade` 的语义，见 `src/core/schemas/common.py`。 */
+const GRADE_MEANING: Record<string, { value: string; state: "ok" | "warn" | "bad" }> = {
+  A: { value: "来源确定", state: "ok" },
+  B: { value: "含假设", state: "warn" },
+  C: { value: "部分缺失", state: "warn" },
+  D: { value: "严重缺失", state: "bad" },
+  unavailable: { value: "不可用", state: "bad" },
+};
+
+/** 公版与"已核实授权"之外的一切许可状态，不得显示成来源完整。 */
+const CLEAR_LICENSE: Set<string> = new Set(["public_domain", "verified"]);
+
+export interface DataQualityInputs {
+  /** 本次分析的数据质量等级（`birth_profile.data_quality.grade`）。 */
+  grade?: string | null;
+  /** 后端登记的质量说明。**逐条保留**，不得只显示第一条就丢掉其余风险。 */
+  notes?: string[];
+  /** `versions.engine_version`；没有就显示未提供，不拼一个 `v-` 冒充有版本。 */
+  engineVersion?: string | null;
+  /** 出生档案：推导证据（上市日 / 首个交易日）是否真的取到了。 */
+  birthProfile?: ApiBirthProfile | null;
+  /**
+   * 古籍检索条目。
+   * `null` / `undefined` = 证据接口这次没成功 ⇒「未验证」；
+   * `[]` = 检索成功但零条命中 ⇒「无检索结果」。两者语义不同，不能合并。
+   */
+  evidenceItems?: ApiEvidenceItem[] | null;
+}
+
+/** 出生档案推导：等级 + 推导证据是否落地，两个条件都满足才说"来源确定"。 */
+function birthDerivationView(bp: ApiBirthProfile | null | undefined): {
+  value: string;
+  state: "ok" | "warn" | "bad";
+} {
+  if (!bp) return { value: "未提供", state: "warn" };
+  const proved = !!bp.evidence?.listing_date || !!bp.evidence?.first_trading_day;
+  if (!proved) return { value: "未验证", state: "warn" };
+  return GRADE_MEANING[bp.data_quality?.grade ?? ""] ?? { value: "未验证", state: "warn" };
+}
+
+/**
+ * 古籍来源完整性：只统计检索结果里真实带回的 `license_status`。
+ *
+ * 许可状态之间不可互相指代（后端 `LicenseStatus` 四值）：
+ * `public_domain` 是公版刊本原文，`verified` 是**已核实授权**——
+ * 两者都允许展示，但把混合结果写成「公版原文」就是虚报版权状态。
+ * `unknown` / `restricted` 一律计入未核实。
+ */
+function knowledgeLicenseView(items: ApiEvidenceItem[] | null | undefined): {
+  value: string;
+  state: "ok" | "warn" | "bad";
+} {
+  if (items === null || items === undefined) return { value: "未验证", state: "warn" };
+  if (items.length === 0) return { value: "无检索结果", state: "warn" };
+  const unclear = items.filter((i) => !CLEAR_LICENSE.has(i.license_status)).length;
+  if (unclear) return { value: `含 ${unclear} 条未核实`, state: "warn" };
+  const kinds = new Set(items.map((i) => i.license_status));
+  if (kinds.size === 1) {
+    return kinds.has("public_domain")
+      ? { value: `公版原文 · ${items.length} 条`, state: "ok" }
+      : { value: `已核实授权 · ${items.length} 条`, state: "ok" };
+  }
+  return { value: `公版/已核实授权 · ${items.length} 条`, state: "ok" };
+}
+
+export function toDataQualityView(input: DataQualityInputs): DataQualityView {
+  const grade = input.grade?.trim() ? input.grade.trim() : null;
+  const gradeInfo = grade ? GRADE_MEANING[grade] : undefined;
+  const notes = (input.notes ?? []).filter((n) => n.trim() !== "");
+  const engine = input.engineVersion?.trim()
+    ? { value: input.engineVersion.trim(), state: "ok" as const }
+    : { value: "未提供", state: "warn" as const };
+
   return {
-    grade,
+    grade: grade ?? "—",
     score: grade === "A" ? 0.95 : grade === "B" ? 0.8 : grade === "C" ? 0.55 : 0.3,
     title: "数据质量",
-    subtitle: grade === "A" ? "优秀" : grade === "B" ? "良好" : grade === "C" ? "一般" : "较差",
+    subtitle:
+      grade === "A"
+        ? "优秀"
+        : grade === "B"
+          ? "良好"
+          : grade === "C"
+            ? "一般"
+            : grade === "D"
+              ? "较差"
+              : "未评级",
     items: [
-      { label: "行情/资料完整性", value: grade, state: grade === "A" ? "ok" : "warn" },
-      { label: "出生档案推导", value: "已验证", state: "ok" },
-      { label: "术数引擎版本", value: engineLine, state: "ok" },
-      { label: "古籍来源完整性", value: "公版原文", state: "ok" },
+      {
+        label: "行情/资料完整性",
+        value: grade ? `${grade}（${gradeInfo?.value ?? "未评级"}）` : "未提供",
+        state: gradeInfo?.state ?? "warn",
+      },
+      { label: "出生档案推导", ...birthDerivationView(input.birthProfile) },
+      { label: "术数引擎版本", ...engine },
+      { label: "古籍来源完整性", ...knowledgeLicenseView(input.evidenceItems) },
     ],
+    // 首条作为主风险前置展示，其余由卡片里的「其它 N 条」展开层逐条列出
     riskNote:
       notes[0] ??
       "本分析基于历史数据与传统文化模型，不构成投资建议；市场有风险，决策需谨慎。",
+    riskNotes: notes,
   };
 }
 
@@ -734,7 +848,7 @@ export function buildContextFromMulti(analysis: ApiMultiAnalysis): StockContext 
       assumptions: b.assumptions ?? [],
     },
     asOf: (analysis.as_of ?? "").replace("T", " "),
-    horizon: "20 交易日",
+    horizon: horizonLabel(analysis.horizon),
     quality: b.data_quality?.grade ?? "B",
   };
 }
@@ -832,7 +946,8 @@ export const CONTROL_RESULT_LABEL: Record<string, { label: string; tone: string 
  */
 export function toEngineCardsFromOpinions(
   analysis: ApiMultiAnalysis,
-  fixtureSuffix = "",
+  /** 分析上下文后缀（fixture + birthBasis + horizon + asOf），见 `lib/analysisContext.ts`。 */
+  contextSuffix = "",
 ): EngineCardView[] {
   const order: { key: "bazi" | "ziwei" | "huangli"; display: string; route: string }[] = [
     { key: "bazi", display: "八字模型", route: "bazi" },
@@ -858,7 +973,7 @@ export function toEngineCardsFromOpinions(
         ? positives[0] ?? negatives[0] ?? "该引擎未给出明细理由"
         : op?.note ?? "该引擎本次不可用（score = null，不计入共识分母）",
       unavailableReason: ok ? "" : (op?.note ?? "本次分析未产出该引擎结果"),
-      detailHref: `/stock/${analysis.stock.stock_code}/${route}${fixtureSuffix}`,
+      detailHref: `/stock/${analysis.stock.stock_code}/${route}${contextSuffix}`,
       accent: key,
     } satisfies EngineCardView;
   });

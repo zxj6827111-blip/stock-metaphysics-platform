@@ -130,6 +130,8 @@ export interface DataQualityView {
   subtitle: string;
   items: { label: string; value: string; state: "ok" | "warn" | "bad" }[];
   riskNote: string;
+  /** 后端登记的**全部**质量说明：`riskNote` 只是首条，其余必须在 UI 里可展开。 */
+  riskNotes?: string[];
 }
 
 export interface BaziPillarView {

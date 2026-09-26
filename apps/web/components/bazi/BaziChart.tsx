@@ -9,8 +9,6 @@
 
 import type { BaziPillarView, WuxingBar, FateSummaryRow, TimelineItem } from "@/lib/types";
 import { variantModeLabel } from "@/lib/dataSource";
-import { Chip } from "../cards/Card";
-import { IconDiamond, IconLayers, IconTaiji } from "../shell/Icons";
 
 const WUXING_COLOR_MAP: Record<string, string> = {
   // 木 (Wood) -> 绿
@@ -52,7 +50,7 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
       label: "天干",
       render: (p) => (
         <span
-          className="smp-serif-title text-[26px] font-semibold leading-none"
+          className="smp-serif-title text-[32px] font-semibold leading-none"
           style={{ color: getWuxingColor(p.stem), fontFamily: "var(--font-serif-cn)" }}
           data-testid={`stem-${p.position}`}
           data-char={p.stem}
@@ -65,7 +63,7 @@ export function BaziChart({ pillars }: { pillars: BaziPillarView[] }) {
       label: "地支",
       render: (p) => (
         <span
-          className="smp-serif-title text-[26px] font-semibold leading-none"
+          className="smp-serif-title text-[32px] font-semibold leading-none"
           style={{ color: getWuxingColor(p.branch), fontFamily: "var(--font-serif-cn)" }}
           data-testid={`branch-${p.position}`}
           data-char={p.branch}
@@ -220,8 +218,12 @@ export function FateSummary({ rows }: { rows: FateSummaryRow[] }) {
             {r.label}
           </span>
           <span
-            className="shrink-0 rounded-[3px] border px-1.5 py-[1px] text-[11.5px]"
-            style={{ color: tone(r.tone), borderColor: `${tone(r.tone)}55`, background: "rgba(0,0,0,0.2)" }}
+            className="shrink-0 rounded-[4px] border px-2 py-[2px] text-[12px] font-medium"
+            style={{
+              color: tone(r.tone),
+              borderColor: `${tone(r.tone)}66`,
+              background: `color-mix(in srgb, ${tone(r.tone)} 15%, transparent)`,
+            }}
           >
             {r.value}
           </span>
@@ -234,68 +236,102 @@ export function FateSummary({ rows }: { rows: FateSummaryRow[] }) {
   );
 }
 
+/** 时间结构四段的固定配色（大运/流年/流月/流日）。
+ *  颜色只区分**尺度**，不表达好坏 —— 方向语义在 factor.direction 与正负因素区。 */
+const TIMELINE_TONE: Record<string, { fg: string; ring: string; bg: string; dot: string }> = {
+  dayun: {
+    fg: "var(--color-gold)",
+    ring: "rgba(212,184,122,0.55)",
+    bg: "rgba(120,92,40,0.16)",
+    dot: "#d4b87a",
+  },
+  year: { fg: "#5ad3c0", ring: "rgba(90,211,192,0.5)", bg: "rgba(40,120,112,0.16)", dot: "#5ad3c0" },
+  month: { fg: "#7fb2f0", ring: "rgba(127,178,240,0.5)", bg: "rgba(48,88,150,0.16)", dot: "#7fb2f0" },
+  day: { fg: "#e8585a", ring: "rgba(232,88,90,0.5)", bg: "rgba(150,48,52,0.16)", dot: "#e8585a" },
+};
+
 export function TimeStructure({ items }: { items: TimelineItem[] }) {
-  const iconFor: Record<string, React.ReactNode> = {
-    dayun: <IconLayers size={13} />,
-    year: <IconTaiji size={13} />,
-    month: <IconDiamond size={13} />,
-    day: <IconDiamond size={13} />,
-  };
   return (
-    <div className="px-3 pb-2 pt-0.5">
-      {/* 时间节点 + 连接线：大运 → 流年 → 流月 → 流日 是同一条时间轴的推进，
-          用贯穿线表达"顺序"，比四张并列卡片更贴近参考图（复核任务书 §R1）；
-          变体说明与运限假设标签在卡头，不占数据区高度。 */}
-      <div className="relative px-1 pt-0.5">
-        <div
-          className="pointer-events-none absolute left-[12.5%] right-[12.5%] top-[14px] h-[1px]"
-          style={{
-            background:
-              "linear-gradient(90deg, rgba(212,184,122,0.55), rgba(212,184,122,0.22) 55%, rgba(212,184,122,0.55))",
-          }}
-          aria-hidden="true"
-        />
-        <div className="relative grid grid-cols-4 gap-3">
-          {items.map((it) => (
+    <div className="px-3 pb-1 pt-0" data-testid="time-structure-body">
+      {/* 四段并排的"尺度卡"：左圆环标尺度名，右列给区间/干支/说明。
+          卡下再挂一条贯穿的时间轨与四个色点 —— 轨子表达"这是同一条时间轴"，
+          圆环表达"这是四个不同尺度"；两者缺一，时间结构就会被读成四张并列卡片。
+          颜色按尺度固定（参考图 03：大运=金、流年=青、流月=蓝、流日=红），
+          颜色本身不承载"好坏"语义，方向仍由 factor.direction 表达。 */}
+      <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+        {items.map((it) => {
+          const t = TIMELINE_TONE[it.key] ?? TIMELINE_TONE.dayun;
+          return (
             <div
               key={it.key}
-              className="flex flex-col items-center text-center"
+              className="flex items-center gap-3 rounded-[7px] border px-3 py-1.5"
+              style={{ borderColor: "var(--color-border)", background: t.bg }}
               data-testid={`timeline-${it.key}`}
             >
               <span
-                className="flex h-[28px] w-[28px] items-center justify-center rounded-full"
+                className="flex h-[50px] w-[50px] shrink-0 select-none items-center justify-center rounded-full text-[14.5px] font-medium"
                 style={{
-                  color: it.tone === "gold" ? "var(--color-gold)" : "var(--color-ink-sub)",
-                  border: `1px solid ${
-                    it.tone === "gold" ? "var(--color-gold-dim)" : "var(--color-border-strong)"
-                  }`,
-                  background:
-                    it.tone === "gold"
-                      ? "radial-gradient(circle, rgba(212,184,122,0.20), rgba(9,19,29,0.95) 75%)"
-                      : "var(--color-surface-1)",
+                  color: t.fg,
+                  border: `1.5px solid ${t.ring}`,
+                  background: `radial-gradient(circle at 36% 30%, ${t.ring}44, rgba(9,19,29,0.92) 78%)`,
+                  boxShadow: `inset 0 0 16px ${t.ring}33`,
+                  fontFamily: "var(--font-serif-cn)",
                 }}
+                aria-hidden="true"
               >
-                {iconFor[it.key]}
+                {it.key === "dayun"
+                  ? "大运"
+                  : it.key === "year"
+                    ? "流年"
+                    : it.key === "month"
+                      ? "流月"
+                      : "流日"}
               </span>
-              <div className="mt-1 text-[10.5px]" style={{ color: "var(--color-ink-muted)" }}>
-                {it.title}
-              </div>
-              <div className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
-                {it.primary}
-              </div>
-              <div className="text-[11px]" style={{ color: "var(--color-gold)" }}>
-                {it.secondary}
-              </div>
-              <div
-                className="line-clamp-1 text-[10px] leading-[14px]"
-                style={{ color: "var(--color-ink-muted)" }}
-                title={it.note}
-              >
-                {it.note}
+              <div className="min-w-0">
+                <div className="truncate text-[13.5px] font-semibold" style={{ color: t.fg }}>
+                  {it.title}
+                </div>
+                <div className="smp-num text-[12.5px]" style={{ color: "var(--color-ink)" }}>
+                  {it.primary}
+                </div>
+                <div className="text-[12.5px] font-medium" style={{ color: "var(--color-gold)" }}>
+                  {it.secondary}
+                </div>
+                <div
+                  className="line-clamp-1 text-[11px] leading-[15px]"
+                  style={{ color: "var(--color-ink-muted)" }}
+                  title={it.note}
+                >
+                  {it.note}
+                </div>
               </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
+      </div>
+      {/* 贯穿轨 + 四个色点：色点与上方四张卡的色相一一对应。 */}
+      <div className="relative mt-1.5 h-[10px]" aria-hidden="true">
+        <div
+          className="absolute left-0 right-0 top-1/2 h-[1px]"
+          style={{
+            background:
+              "linear-gradient(90deg, rgba(212,184,122,0.5), rgba(90,211,192,0.4) 38%, rgba(127,178,240,0.4) 68%, rgba(232,88,90,0.5))",
+          }}
+        />
+        {items.map((it, i) => {
+          const t = TIMELINE_TONE[it.key] ?? TIMELINE_TONE.dayun;
+          return (
+            <span
+              key={it.key}
+              className="absolute top-1/2 h-[9px] w-[9px] -translate-y-1/2 rounded-full"
+              style={{
+                left: `${((i + 0.5) / items.length) * 100}%`,
+                background: t.dot,
+                boxShadow: `0 0 8px ${t.dot}aa`,
+              }}
+            />
+          );
+        })}
       </div>
     </div>
   );

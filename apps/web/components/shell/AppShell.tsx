@@ -55,18 +55,33 @@ function ShellInner({
    * 延时既可能太短（看到中间态）也可能掩盖真正的挂载失败。
    */
   const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
+  useEffect(() => {
+    setReady(true);
+    /**
+     * 图表就绪属性的初值。
+     *
+     * `data-charts-ready` 由 `lib/chartReadiness` 在图表登记时写；但**没有图表的页面**
+     * 永远不会触发登记，属性就一直缺席，视觉测试会等它等到超时。
+     * 这里补一个"当前没有待完成图表"的初值：React 先跑子组件 effect，
+     * 所以真有图表时它已经写成 false，`??=` 不会把未完成的图表误标成完成。
+     */
+    const ds = document.documentElement.dataset;
+    if (ds.chartsReady === undefined) ds.chartsReady = "true";
+  }, []);
 
   return (
     <div
       className="relative z-10 flex h-screen flex-col overflow-hidden"
       data-app-ready={ready ? "true" : "false"}
       data-fixture-mode={fixture ? "fixture" : "live"}
+      // 构建身份在编译期就被内联：视觉候选必须是 production，
+      // 否则 Next dev 指示器与 HMR 浮层会混进像素差异。
+      data-build-mode={process.env.NODE_ENV === "production" ? "production" : "development"}
     >
       <TopBar dataStatus={dataStatus} statusText={statusText} asOf={asOf} />
       <div className="flex min-h-0 flex-1">
         <Sidebar activeKey={activeNav} />
-        <main className="smp-scroll min-w-0 flex-1 overflow-y-auto px-[14px] pb-2 pt-2">
+        <main className="smp-scroll min-w-0 flex-1 overflow-y-auto px-[14px] pb-2" data-anchor="main">
           {children}
           <FooterNote left={footerLeft} center={footerCenter} right={footerRight} />
         </main>

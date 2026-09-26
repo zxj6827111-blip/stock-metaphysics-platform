@@ -61,7 +61,7 @@ export function StockContextBar({
   return (
     <>
       <div
-        className={`smp-card mb-2.5 px-3.5 py-1`}
+        className={`smp-card mb-2.5 px-3.5 py-2`}
         data-testid="stock-context-bar"
         style={{ background: "var(--color-surface-1)" }}
       >
