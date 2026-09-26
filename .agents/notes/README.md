@@ -43,6 +43,11 @@
 | [0011](../../docs/ADR/ADR-0011-consensus-not-averaging.md) | Consensus 禁止简单平均，冲突必须显式保留 | 改共识/冲突/聚合逻辑或相关 UI |
 | [0012](../../docs/ADR/ADR-0012-phase3a-astockdata-canonical.md) | Phase 3A 主数据源切换（含退市股，根治 survivorship bias） | 改行情导入、universe、复算历史面板 |
 | [0013](../../docs/ADR/ADR-0013-research-validity-boundary.md) | 研究有效性边界：规则强度≠市场预测，负结果是合法结果 | 写任何结论文案、改阈值/负对照/多重检验、被要求"让结论更好看" |
+| [0015](../../docs/ADR/ADR-0015-stock-fortune-birth-basis-and-precision.md) | 股票出生基准与时间精度 | 改 Fortune 出生档案或精度语义 |
+| [0016](../../docs/ADR/ADR-0016-fortune-temporal-boundaries-and-market-session.md) | Fortune 时间边界与版本化市场 session | 改时间输入解析或市场时段锚点 |
+| [0017](../../docs/ADR/ADR-0017-fortune-polarity-and-dayun-direction.md) | 首日阴阳研究约定与大运方向 | 改股票极性或大运方向映射 |
+| [0018](../../docs/ADR/ADR-0018-fortune-first-trade-and-temporal-resolution.md) | 首笔观测、出生时间推定与时间输入精度 | 改 Fortune 首笔/出生解析或时间上下文 |
+| [0019](../../docs/ADR/ADR-0019-stock-fortune-snapshot-contract.md) | Stock Fortune Snapshot 聚合契约及语义边界 | 改 Snapshot、十神分层、大运 Context 或关系事件归属 |
 
 ---
 

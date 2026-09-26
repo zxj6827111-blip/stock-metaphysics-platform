@@ -13,9 +13,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
 
 import pytest
-from sqlalchemy import inspect, text
+from sqlalchemy import create_engine, inspect, text
 
 EXPECTED_TABLES = {
     "stock_master", "stock_birth_profile", "exchange_session_calendar",
@@ -75,6 +77,71 @@ class TestSchemaCompleteness:
             missing = required - cols
             assert not missing, f"{table} 缺少时间戳列: {missing}"
 
+    def test_chart_artifact_birth_version_column_fits_frozen_fortune_version(self):
+        from src.db.models import ChartArtifactRow
+
+        column = ChartArtifactRow.__table__.c.birth_profile_version
+        assert column.type.length >= len("stock-fortune-birth-v2")
+
+    def test_f3_birth_profile_version_migration_preserves_data_and_blocks_lossy_downgrade(self):
+        migration_path = (
+            Path(__file__).resolve().parents[2]
+            / "migrations"
+            / "versions"
+            / "f3a9c26d71be_stock_fortune_artifact_version_width.py"
+        )
+        spec = spec_from_file_location("f3_birth_version_migration", migration_path)
+        assert spec is not None and spec.loader is not None
+        migration = module_from_spec(spec)
+        spec.loader.exec_module(migration)
+
+        from alembic.migration import MigrationContext
+        from alembic.operations import Operations
+
+        engine = create_engine("sqlite://")
+        with engine.begin() as connection:
+            connection.execute(text(
+                "CREATE TABLE chart_artifact ("
+                "id INTEGER PRIMARY KEY, birth_profile_version VARCHAR(16) NOT NULL)"
+            ))
+            connection.execute(text(
+                "INSERT INTO chart_artifact (id, birth_profile_version) "
+                "VALUES (1, 'stock-fortune-birth-v2')"
+            ))
+            context = MigrationContext.configure(connection)
+            with Operations.context(context):
+                migration.upgrade()
+
+            column = next(
+                item for item in inspect(connection).get_columns("chart_artifact")
+                if item["name"] == "birth_profile_version"
+            )
+            assert column["type"].length == 32
+            assert connection.execute(text(
+                "SELECT birth_profile_version FROM chart_artifact WHERE id=1"
+            )).scalar_one() == "stock-fortune-birth-v2"
+
+            with Operations.context(context), pytest.raises(RuntimeError, match="longer version values exist"):
+                migration.downgrade()
+
+            connection.execute(text("DELETE FROM chart_artifact"))
+            connection.execute(text(
+                "INSERT INTO chart_artifact (id, birth_profile_version) VALUES (2, 'v1')"
+            ))
+            with Operations.context(context):
+                migration.downgrade()
+
+            column = next(
+                item for item in inspect(connection).get_columns("chart_artifact")
+                if item["name"] == "birth_profile_version"
+            )
+            assert column["type"].length == 16
+            assert connection.execute(text(
+                "SELECT birth_profile_version FROM chart_artifact WHERE id=2"
+            )).scalar_one() == "v1"
+
+        engine.dispose()
+
     def test_unique_constraints_present(self, engine):
         insp = inspect(engine)
         expected_uniques = {
@@ -119,6 +186,55 @@ class TestVersioningSemantics:
         db_session.flush()
         count = db_session.query(ChartArtifactRow).filter_by(stock_code="TST001").count()
         assert count == 2, "chart_artifact 必须保留旧 engine_version 的盘面"
+
+    def test_chart_artifact_preserves_frozen_fortune_birth_profile_version(self, db_session):
+        from src.db.models import ChartArtifactRow
+
+        version = "stock-fortune-birth-v2"
+        db_session.add(ChartArtifactRow(
+            chart_id="chart-stock-fortune-birth-v2",
+            stock_code="TST003",
+            engine="bazi",
+            engine_version="bazi-v1",
+            birth_profile_version=version,
+            as_of=datetime(2024, 1, 1),
+            input_json={},
+            raw_chart={"stub": True},
+        ))
+        db_session.flush()
+        stored = db_session.query(ChartArtifactRow).filter_by(
+            chart_id="chart-stock-fortune-birth-v2"
+        ).one()
+        assert stored.birth_profile_version == version
+
+    def test_fortune_artifact_writer_is_idempotent(self, db_session):
+        from zoneinfo import ZoneInfo
+
+        from src.core.orchestration.stock_fortune import DatabaseFortuneChartArtifactWriter
+        from src.db.models import ChartArtifactRow
+
+        writer = DatabaseFortuneChartArtifactWriter(db_session)
+        payload = {
+            "engine_id": "bazi",
+            "engine_version": "bazi-v1",
+            "symbol": "TST004",
+            "as_of": datetime(2025, 1, 2, 9, 30, tzinfo=ZoneInfo("Asia/Shanghai")),
+            "input_payload": {"request": "same"},
+            "raw_chart": {"pillars": ["甲子", "乙丑", "丙寅", "丁卯"]},
+            "assumptions": [{"key": "mode", "value": "forward"}],
+            "warnings": [],
+            "birth_profile_version": "stock-fortune-birth-v2",
+            "config_version": "config-test-v1",
+        }
+        first_id = writer.persist_chart_artifact(**payload)
+        replay_id = writer.persist_chart_artifact(**payload)
+
+        assert replay_id == first_id
+        assert db_session.query(ChartArtifactRow).filter_by(chart_id=first_id).count() == 1
+        row = db_session.get(ChartArtifactRow, first_id)
+        assert row is not None
+        assert row.birth_profile_version == "stock-fortune-birth-v2"
+        assert row.raw_chart == payload["raw_chart"]
 
     def test_factor_observation_distinguishes_rule_versions(self, db_session):
         from src.db.models import FactorObservationRow
