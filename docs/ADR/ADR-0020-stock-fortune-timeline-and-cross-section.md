@@ -37,4 +37,4 @@ F3 已冻结单股票、单时点 `StockFortuneSnapshot`。历史重放和日期
 
 ## 接受依据
 
-F4 contract、Golden、API integration 与结构性能测试通过；PR #7 implementation head `796076e2418e847dcb6f6f8dae169f5f7b4c81a1` 的 acceptance run [36240460811](https://github.com/zxj6827111-blip/stock-metaphysics-platform/actions/runs/36240460811) 六个 job 全部 success。Backend 为 2192 passed、20 skipped、28 deselected；Ziwei engine + Golden 为 331 passed；E2E 为 7 passed；UI structure 为 40 passed；frontend typecheck/build 均 success。第一次 F4 run 的共同 schema AttributeError 已在 `796076e` 修复，后续完整 run 全绿。F3 历史 CI 不作为 F4 接受依据。
+F4 contract、Golden、API integration 与结构性能测试通过；PR #7 acceptance evidence head `de29c195fb10096babae66bb1ffcc3748ec0aada` 的 run [36241192474](https://github.com/zxj6827111-blip/stock-metaphysics-platform/actions/runs/36241192474) 六个 job 全部 success。Backend 为 2192 passed、20 skipped、28 deselected；Ziwei engine + Golden 为 331 passed；E2E 为 7 passed；UI structure 为 40 passed；frontend typecheck/build 均 success。第一次 F4 run 的共同 schema AttributeError 已在 `796076e` 修复，后续完整 run 全绿。F3 历史 CI 不作为 F4 接受依据。
