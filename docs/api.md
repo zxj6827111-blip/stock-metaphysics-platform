@@ -208,7 +208,7 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
     "current_month_pillar": { "kind":"month", "ganzhi":{"text":"乙亥"}, "clashes_with_natal":["year","hour"], ... },
     "current_day_pillar":   { "kind":"day",   "ganzhi":{"text":"癸未"}, ... },
     "variant_mode": "not_applicable", "da_yun": [], "da_yun_note": "大运顺逆由性别…",
-    "engine_version": "smx-bazi-native-1.0.0", "assumptions": [...], "warnings": [...]
+    "engine_version": "smx-bazi-native-1.0.1", "assumptions": [...], "warnings": [...]
   },
   "huangli": { "primary": {...}, "days": [31 天], "raw_huangli": {...} },
   "factors": { "observations": [ 65 条 ], "rule_version": "v1", "engine_version": "..." },
@@ -245,8 +245,8 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
 {
   "chart_id": "bazi-600519-20241115143200-a1b2c3",
   "engine": "bazi",
-  "engine_version": "smx-bazi-native-1.0.0",
-  "config_version": "cfg-2026.09",
+  "engine_version": "smx-bazi-native-1.0.1",
+  "config_version": "cfg-2026.09.1",
   "birth_profile_version": "v1",
   "as_of": "2024-11-15T14:32:00",
   "chart": { ... }
@@ -383,7 +383,7 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
 {
   "analysis_id": "AN-…",
   "engines": [
-    { "engine": "bazi", "display_name": "八字引擎", "available": true, "engine_version": "smx-bazi-native-1.0.0" },
+    { "engine": "bazi", "display_name": "八字引擎", "available": true, "engine_version": "smx-bazi-native-1.0.1" },
     { "engine": "ziwei", "display_name": "紫微斗数引擎", "available": false, "engine_version": "",
       "reason": "Phase 2 实现。当前不提供任何紫微结果，也不以 0 分参与聚合。" }
   ],
@@ -538,10 +538,10 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
   "phase": "phase1",
   "engines": [
     { "engine_id": "calendar", "display_name": "历法引擎", "available": true,
-      "engine_version": "lunar-python-1.4.8", "third_party": "6tail/lunar-python",
+      "engine_version": "smx-calendar-1.0.1+lunar-python-1.4.8", "third_party": "6tail/lunar-python",
       "third_party_commit": "v1.4.8 (PyPI release)" },
     { "engine_id": "bazi", "display_name": "八字引擎", "available": true,
-      "engine_version": "smx-bazi-native-1.0.0",
+      "engine_version": "smx-bazi-native-1.0.1",
       "third_party": "6tail/lunar-python（仅历法）+ 自研确定性规则内核",
       "third_party_commit": "v1.4.8 (PyPI release) / smx-bazi-native" },
     { "engine_id": "ziwei", "display_name": "紫微斗数引擎", "available": false,
@@ -556,7 +556,7 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
 
 ### 5.3 `GET /api/v1/system/data-quality`
 
-数据库中的数据规模与质量分级。
+数据库数据规模、来源元数据、数据质量与行情截止日。记录数量本身不用于推断质量；尚未认证的数据范围不能标记为研究可用。
 
 ### 5.4 `GET /api/v1/system/versions`
 
@@ -565,6 +565,27 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
 ### 5.5 `GET /api/v1/system/phase1-status`
 
 **诚实**列出 Phase 1 已实现与未实现项。
+
+### 5.6 `GET /api/v2/system/readiness`
+
+运行就绪检查与 v1 健康接口分开：`/api/v1/system/health` 仍是存活探针，保持原响应结构。
+v2 返回数据库、Alembic 迁移、紫微服务和研究数据 Provider 的独立状态：
+
+```json
+{
+  "status": "degraded",
+  "ready": true,
+  "checked_at": "...",
+  "components": {
+    "database": {"status": "ready", "required": true, "reason": ""},
+    "migrations": {"status": "ready", "required": true, "current_revision": "...", "heads": ["..."], "reason": ""},
+    "ziwei_service": {"status": "degraded", "required": false, "available": false, "transport": "...", "reason": "..."},
+    "research_data": {"status": "not_certified", "required": false, "research_eligible": false, "cutoff_date": null, "reason": "..."}
+  }
+}
+```
+
+数据库查询或迁移版本未到唯一 head 时返回 HTTP 503、`ready=false`。紫微或行情数据未认证时保留各自状态；核心数据库和迁移已就绪时返回 HTTP 200，可同时标记整体 `degraded`。未知行情截止日保持 `null`，不会从请求区间或记录数量推断。
 
 ---
 

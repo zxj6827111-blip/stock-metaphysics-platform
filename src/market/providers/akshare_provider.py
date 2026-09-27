@@ -172,6 +172,23 @@ class AkshareMarketProvider(MarketDataProvider):
         )
         self._last_error: str = ""
 
+    def status_descriptor(self) -> dict:
+        return {
+            "provider_id": self.provider_id,
+            "data_version": settings.market_data_version or None,
+            "snapshot_at": None,
+            "cutoff_date": None,
+            "cutoff_basis": "no_immutable_snapshot_configured",
+            "data_quality_grade": "C",
+            "is_degraded": False,
+            "research_eligible": False,
+            "status": "configured",
+            "notes": [
+                "Provider 版本按配置固定；当前未声明不可变快照截止日或完成研究数据认证。",
+                *([f"最近一次上游错误：{self._last_error[:200]}"] if self._last_error else []),
+            ],
+        }
+
     # ------------------------------------------------------------------
     # 股票基础资料
     # ------------------------------------------------------------------

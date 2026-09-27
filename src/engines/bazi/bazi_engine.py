@@ -288,7 +288,8 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
             source=SourceRef(
                 source="smx-bazi-native",
                 extra={
-                    "calendar": "lunar-python 1.4.8",
+                    # 以本次盘面自身记录的版本为准；Calendar provider 可能被请求级缓存包装。
+                    "calendar": natal.engine_version,
                     "rules": "src/engines/bazi/rules.py",
                     "as_of": as_of.isoformat(),
                 },

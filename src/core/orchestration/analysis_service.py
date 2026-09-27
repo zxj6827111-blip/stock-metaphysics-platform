@@ -47,11 +47,12 @@ from src.db.models import (
 )
 from src.engines.base import EngineContext
 from src.engines.bazi.bazi_engine import BaziEngine
-from src.engines.calendar.calendar_engine import CalendarEngine
+from src.engines.calendar.calendar_engine import CalendarCalculationError, CalendarEngine
 from src.engines.huangli.huangli_engine import HuangliEngine
 from src.engines.ziwei.ziwei_engine import ZiweiEngine, ZiweiUnavailableError
 from src.factors.registry.compute import compute_factor_set
 from src.factors.registry.definitions import DEFINITION_INDEX
+from src.market.status import current_market_data_version
 
 # 方向标签（中文）
 DIRECTION_LABEL: dict[int, str] = {1: "偏强", 0: "中性", -1: "偏弱"}
@@ -628,7 +629,7 @@ class AnalysisService:
             birth_profile_version=birth_profile.birth_profile_version,
             knowledge_version=settings.knowledge_version,
             factor_version=settings.factor_rule_version,
-            market_data_version=settings.market_data_version,
+            market_data_version=current_market_data_version(),
             computed_at=datetime.now(),
         )
 
@@ -837,19 +838,53 @@ class AnalysisService:
         共识的可用引擎数相应降低，**绝不把紫微按 0 分计入**。
         """
         warnings: list[Warning_] = []
+        engine_failures: list[dict] = []
         analysis_id = f"AN-{as_of.strftime('%Y%m%d%H%M%S')}-{stock.stock_code}-{uuid.uuid4().hex[:6]}"
         variant_mode = VariantMode(ex_value(birth_profile.variant_mode))
 
         # --- 黄历 ---
-        huangli = self.huangli.snapshot(as_of, days=huangli_days)
+        huangli = None
+        huangli_error = ""
+        try:
+            huangli = self.huangli.snapshot(as_of, days=huangli_days)
+        except CalendarCalculationError as exc:
+            huangli_error = str(exc)
+            engine_failures.extend([
+                {"engine": "calendar", "status": "unavailable", "reason": huangli_error},
+                {"engine": "huangli", "status": "unavailable", "reason": huangli_error},
+            ])
+            warnings.append(Warning_(
+                code="HUANGLI_UNAVAILABLE",
+                message="核心历法字段不可用，已停止黄历计算；其他独立引擎仍会继续。",
+                severity="warning",
+                context={"field": exc.field, "reason": exc.reason},
+            ))
 
         # --- 八字 ---
-        chart = self.bazi.build_chart(
-            birth_datetime=birth_profile.birth_datetime.replace(tzinfo=None),
-            as_of=as_of,
-            variant_mode=variant_mode,
-            stock_code=stock.stock_code,
-        )
+        chart = None
+        bazi_error = ""
+        try:
+            chart = self.bazi.build_chart(
+                birth_datetime=birth_profile.birth_datetime.replace(tzinfo=None),
+                as_of=as_of,
+                variant_mode=variant_mode,
+                stock_code=stock.stock_code,
+            )
+        except CalendarCalculationError as exc:
+            bazi_error = str(exc)
+            if not any(item["engine"] == "calendar" for item in engine_failures):
+                engine_failures.append(
+                    {"engine": "calendar", "status": "unavailable", "reason": bazi_error}
+                )
+            engine_failures.append(
+                {"engine": "bazi", "status": "unavailable", "reason": bazi_error}
+            )
+            warnings.append(Warning_(
+                code="BAZI_UNAVAILABLE",
+                message="核心历法字段不可用，已停止八字计算；其他独立引擎仍会继续。",
+                severity="warning",
+                context={"field": exc.field, "reason": exc.reason},
+            ))
 
         # --- 紫微（可失败） ---
         ziwei_charts, ziwei_chart_ids, ziwei_warnings = self.build_ziwei_charts(
@@ -880,13 +915,44 @@ class AnalysisService:
                 ))
 
         # --- 因子 ---
-        factor_set = compute_factor_set(
-            chart, huangli, as_of, stock_code=stock.stock_code, ziwei_chart=ziwei_chart,
-        )
+        if chart is not None:
+            factor_set = compute_factor_set(
+                chart, huangli, as_of, stock_code=stock.stock_code, ziwei_chart=ziwei_chart,
+            )
+        else:
+            observations = []
+            if ziwei_chart is not None:
+                from src.factors.ziwei.compute import compute_ziwei_factors
+
+                primary = "forward" if "forward" in ziwei_charts else next(iter(ziwei_charts))
+                observations = compute_ziwei_factors(
+                    ziwei_chart, as_of, stock_code=stock.stock_code, variant=primary,
+                )
+            factor_set = FactorSet(
+                stock_code=stock.stock_code,
+                as_of=as_of,
+                engine_version=(settings.ziwei_engine_version if observations else ""),
+                rule_version=(
+                    settings.ziwei_factor_rule_version if observations
+                    else settings.factor_rule_version
+                ),
+                config_version=settings.config_version,
+                observations=observations,
+            )
 
         # --- 三个独立观点 ---
-        bazi_opinion = self.build_opinion(EngineId.BAZI, factor_set, self.bazi.engine_version)
-        huangli_opinion = self.build_opinion(EngineId.HUANGLI, factor_set, self.huangli.engine_version)
+        bazi_opinion = self.build_opinion(
+            EngineId.BAZI, factor_set, self.bazi.engine_version,
+            unavailable_reason=bazi_error or (
+                "八字盘不可用，因此没有可计算的八字因子。" if chart is None else ""
+            ),
+        )
+        huangli_opinion = self.build_opinion(
+            EngineId.HUANGLI, factor_set, self.huangli.engine_version,
+            unavailable_reason=huangli_error or (
+                "八字盘不可用，黄历结果无法转换为可追溯因子。" if chart is None else ""
+            ),
+        )
 
         if ziwei_chart is not None:
             ziwei_opinion = self.build_opinion(EngineId.ZIWEI, factor_set, self.ziwei.engine_version)
@@ -920,7 +986,7 @@ class AnalysisService:
             birth_profile_version=birth_profile.birth_profile_version,
             knowledge_version=settings.knowledge_version,
             factor_version=settings.factor_rule_version,
-            market_data_version=settings.market_data_version,
+            market_data_version=current_market_data_version(),
             computed_at=datetime.now(),
         )
 
@@ -929,34 +995,40 @@ class AnalysisService:
             self.upsert_stock(db, stock)
             self.save_birth_profile(db, birth_profile)
             chart_ids: dict[str, str] = {}
-            chart_ids["bazi"] = self.save_chart_artifact(
-                db, engine_id="bazi", engine_version=self.bazi.engine_version,
-                stock_code=stock.stock_code, as_of=as_of,
-                input_payload={
-                    "birth_datetime": birth_profile.birth_datetime.isoformat(),
-                    "birth_basis": ex_value(birth_profile.birth_basis),
-                    "variant_mode": ex_value(birth_profile.variant_mode),
-                    "as_of": as_of.isoformat(),
-                },
-                raw_chart=chart.model_dump(mode="json"),
-                assumptions=[a.model_dump(mode="json") for a in chart.assumptions],
-                warnings=[w.model_dump(mode="json") for w in chart.warnings],
-                birth_profile_version=birth_profile.birth_profile_version,
-            )
-            chart_ids["huangli"] = self.save_chart_artifact(
-                db, engine_id="huangli", engine_version=self.huangli.engine_version,
-                stock_code=stock.stock_code, as_of=as_of,
-                input_payload={"as_of": as_of.isoformat(), "days": huangli_days},
-                raw_chart=huangli.raw_huangli,
-                assumptions=huangli.assumptions,
-                warnings=[w.model_dump(mode="json") for w in huangli.warnings],
-                birth_profile_version=birth_profile.birth_profile_version,
-            )
+            if chart is not None:
+                chart_ids["bazi"] = self.save_chart_artifact(
+                    db, engine_id="bazi", engine_version=self.bazi.engine_version,
+                    stock_code=stock.stock_code, as_of=as_of,
+                    input_payload={
+                        "birth_datetime": birth_profile.birth_datetime.isoformat(),
+                        "birth_basis": ex_value(birth_profile.birth_basis),
+                        "variant_mode": ex_value(birth_profile.variant_mode),
+                        "as_of": as_of.isoformat(),
+                    },
+                    raw_chart=chart.model_dump(mode="json"),
+                    assumptions=[a.model_dump(mode="json") for a in chart.assumptions],
+                    warnings=[w.model_dump(mode="json") for w in chart.warnings],
+                    birth_profile_version=birth_profile.birth_profile_version,
+                )
+            if huangli is not None:
+                chart_ids["huangli"] = self.save_chart_artifact(
+                    db, engine_id="huangli", engine_version=self.huangli.engine_version,
+                    stock_code=stock.stock_code, as_of=as_of,
+                    input_payload={"as_of": as_of.isoformat(), "days": huangli_days},
+                    raw_chart=huangli.raw_huangli,
+                    assumptions=huangli.assumptions,
+                    warnings=[w.model_dump(mode="json") for w in huangli.warnings],
+                    birth_profile_version=birth_profile.birth_profile_version,
+                )
             for variant, cid in ziwei_chart_ids.items():
                 chart_ids[f"ziwei:{variant}"] = cid
             self.save_factors(db, factor_set)
 
-            engines_completed = [EngineId.HUANGLI, EngineId.BAZI]
+            engines_completed = []
+            if huangli is not None:
+                engines_completed.append(EngineId.HUANGLI)
+            if chart is not None:
+                engines_completed.append(EngineId.BAZI)
             if ziwei_charts:
                 engines_completed.append(EngineId.ZIWEI)
             run = AnalysisRun(
@@ -968,7 +1040,7 @@ class AnalysisService:
                 birth_profile=birth_profile,
                 engines_requested=[EngineId.CALENDAR, EngineId.HUANGLI, EngineId.BAZI, EngineId.ZIWEI],
                 engines_completed=engines_completed,
-                engines_failed=[],
+                engines_failed=engine_failures,
                 chart_artifact_ids=chart_ids,
                 factor_set=factor_set,
                 opinions=opinions,
@@ -979,7 +1051,7 @@ class AnalysisService:
             )
             self.save_analysis_run(db, run, extra={
                 "factor_count": len(factor_set.observations),
-                "huangli": huangli.model_dump(mode="json"),
+                "huangli": huangli.model_dump(mode="json") if huangli is not None else None,
                 "ziwei_variants": sorted(ziwei_charts.keys()),
             })
 
@@ -990,7 +1062,7 @@ class AnalysisService:
             as_of=as_of,
             variant_mode=ex_value(variant_mode),
             horizon=horizon,
-            bazi_chart=chart.model_dump(mode="json"),
+            bazi_chart=chart.model_dump(mode="json") if chart is not None else None,
             ziwei_charts={k: v.model_dump(mode="json") for k, v in ziwei_charts.items()},  # type: ignore[attr-defined]
             huangli=huangli,
             factors=factor_set,

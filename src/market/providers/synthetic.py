@@ -36,6 +36,20 @@ class SyntheticMarketProvider(MarketDataProvider):
     def __init__(self, *, start: date | None = None) -> None:
         self._start = start or DEFAULT_START
 
+    def status_descriptor(self) -> dict:
+        return {
+            "provider_id": self.provider_id,
+            "data_version": "synthetic-demo-v1",
+            "snapshot_at": None,
+            "cutoff_date": None,
+            "cutoff_basis": "not_applicable_synthetic",
+            "data_quality_grade": "D",
+            "is_degraded": True,
+            "research_eligible": False,
+            "status": "degraded",
+            "notes": ["合成行情仅用于演示、联调和降级测试，不属于真实研究数据。"],
+        }
+
     # ------------------------------------------------------------------
     def search(self, query: str, limit: int = 20) -> list[StockMaster]:
         from src.market.providers.akshare_provider import BUILTIN_STOCKS

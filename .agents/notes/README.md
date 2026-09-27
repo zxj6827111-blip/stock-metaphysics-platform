@@ -48,6 +48,7 @@
 | [0017](../../docs/ADR/ADR-0017-fortune-polarity-and-dayun-direction.md) | 首日阴阳研究约定与大运方向 | 改股票极性或大运方向映射 |
 | [0018](../../docs/ADR/ADR-0018-fortune-first-trade-and-temporal-resolution.md) | 首笔观测、出生时间推定与时间输入精度 | 改 Fortune 首笔/出生解析或时间上下文 |
 | [0019](../../docs/ADR/ADR-0019-stock-fortune-snapshot-contract.md) | Stock Fortune Snapshot 聚合契约及语义边界 | 改 Snapshot、十神分层、大运 Context 或关系事件归属 |
+| [0021](../../docs/ADR/ADR-0021-runtime-readiness-and-fail-closed-calendar.md) | 核心历法失败关闭与实例就绪状态 | 改历法失败传播、v2 readiness 或 Provider 质量状态 |
 
 ---
 

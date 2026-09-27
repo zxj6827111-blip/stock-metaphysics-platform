@@ -44,6 +44,7 @@ from src.core.stock import codes
 from src.core.stock.birth_profile import build_birth_profile
 from src.factors.registry.definitions import DEFINITION_INDEX
 from src.knowledge.retrieval.provider import build_query_from_factors
+from src.market.status import current_market_data_version
 
 router = APIRouter(tags=["analysis"])
 
@@ -250,7 +251,7 @@ def analyze_ziwei(
             config_version=settings.config_version,
             birth_profile_version=profile.birth_profile_version,
             knowledge_version=settings.knowledge_version,
-            market_data_version=settings.market_data_version,
+            market_data_version=current_market_data_version(market),
             computed_at=datetime.now(),
         ),
         assumptions=[

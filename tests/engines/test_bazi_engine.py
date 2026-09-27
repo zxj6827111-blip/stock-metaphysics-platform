@@ -246,7 +246,9 @@ class TestRawChartTraceability:
         assert maotai_chart.engine_version
         assert maotai_chart.config_version
         assert maotai_chart.source.source == "smx-bazi-native"
-        assert maotai_chart.source.extra["calendar"] == "lunar-python 1.4.8"
+        from src.core.config import settings
+
+        assert maotai_chart.source.extra["calendar"] == settings.calendar_engine_version
 
     def test_chart_serializes_fully(self, maotai_chart):
         """原始盘面必须能完整序列化落库（chart_artifact.raw_chart）。"""

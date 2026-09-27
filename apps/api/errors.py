@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.core.stock.birth_profile import BirthProfileError
+from src.engines.calendar.calendar_engine import CalendarCalculationError
 from src.market.normalization.errors import MarketDataError
 
 logger = logging.getLogger("smp.api")
@@ -73,6 +74,19 @@ def _payload(code: str, message: str, detail: str = "", retryable: bool = False,
 
 def install_exception_handlers(app: FastAPI) -> None:
     """注册统一异常处理。"""
+
+    @app.exception_handler(CalendarCalculationError)
+    async def _calendar_error(_request: Request, exc: CalendarCalculationError) -> JSONResponse:
+        logger.warning("calendar calculation unavailable: %s", exc)
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content=_payload(
+                "ENGINE_UNAVAILABLE",
+                "核心历法计算不可用，本次结果已停止生成",
+                detail=str(exc),
+                retryable=True,
+            ),
+        )
 
     @app.exception_handler(MarketDataError)
     async def _market_error(_request: Request, exc: MarketDataError) -> JSONResponse:
