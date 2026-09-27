@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 const TABS = [
   { href: "/research/date-scan", label: "择日关系扫描", key: "date-scan" },
   { href: "/research/relation-study", label: "关系历史研究", key: "relation-study" },
+  { href: "/research/history", label: "历史验证 v2", key: "historical-v2" },
   { href: "/research/experiments", label: "历史实验", key: "experiments" },
 ] as const;
 
