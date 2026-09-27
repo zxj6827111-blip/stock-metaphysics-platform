@@ -202,6 +202,138 @@ class BootstrapResult:
         }
 
 
+@dataclass(frozen=True)
+class MovingDateBlockBootstrapResult:
+    """连续交易日期移动块 bootstrap；与旧的按日期独立重采样口径并存。"""
+
+    point_estimate: float | None
+    ci_lower: float | None
+    ci_upper: float | None
+    confidence: float
+    requested_count: int
+    bootstrap_count: int
+    bootstrap_seed: int
+    date_count: int
+    block_length: int
+    candidate_block_count: int
+    crosses_zero: bool | None
+    bootstrap_version: str = "f5-moving-date-block-bootstrap-v1"
+
+    def to_dict(self) -> dict:
+        return {
+            "bootstrap_version": self.bootstrap_version,
+            "point_estimate": self.point_estimate,
+            "ci_lower": self.ci_lower,
+            "ci_upper": self.ci_upper,
+            "confidence": self.confidence,
+            "requested_count": self.requested_count,
+            "bootstrap_count": self.bootstrap_count,
+            "bootstrap_seed": self.bootstrap_seed,
+            "date_count": self.date_count,
+            "block_length": self.block_length,
+            "candidate_block_count": self.candidate_block_count,
+            "crosses_zero": self.crosses_zero,
+        }
+
+
+def moving_date_block_bootstrap(
+    frame: pd.DataFrame,
+    value_col: str,
+    *,
+    date_col: str = "as_of",
+    hit_col: str = "hit",
+    block_length: int = 20,
+    bootstrap_count: int = DEFAULT_BOOTSTRAP_COUNT,
+    confidence: float = 0.95,
+    seed: int = 0,
+) -> MovingDateBlockBootstrapResult:
+    """对日期等权的命中−补集差异做连续日期移动块重采样。
+
+    每个 block 是按日期排序后的连续 ``block_length`` 个研究日，块内保留全部证券。
+    只有至少两个可用 block 起点时才给置信区间；单个可用 block 虽可重复抽样，
+    但不能据此估计跨时间块的不确定性。
+    """
+    if block_length < 1 or bootstrap_count < 1:
+        raise ValueError("block_length 与 bootstrap_count 必须 >= 1")
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence 必须在 (0, 1) 内")
+    required = {date_col, hit_col, value_col}
+    if frame is None or not required.issubset(frame.columns):
+        return MovingDateBlockBootstrapResult(
+            None, None, None, confidence, bootstrap_count, 0, seed, 0,
+            block_length, 0, None,
+        )
+
+    work = frame[[date_col, hit_col, value_col]].copy()
+    numeric = pd.to_numeric(work[value_col], errors="coerce")
+    work = work.loc[np.isfinite(numeric)].copy()
+    work[value_col] = numeric.loc[work.index].astype(float)
+    if work.empty:
+        return MovingDateBlockBootstrapResult(
+            None, None, None, confidence, bootstrap_count, 0, seed, 0,
+            block_length, 0, None,
+        )
+
+    date_statistics: list[float | None] = []
+    for _day, group in work.groupby(date_col, sort=True):
+        hits = group[hit_col].astype(bool).to_numpy()
+        values = group[value_col].to_numpy(dtype=float)
+        picked = values[hits]
+        complement = values[~hits]
+        date_statistics.append(
+            float(picked.mean() - complement.mean())
+            if len(picked) and len(complement) else None
+        )
+
+    valid_point_dates = [value for value in date_statistics if value is not None]
+    date_count = len(date_statistics)
+    point = float(np.mean(valid_point_dates)) if valid_point_dates else None
+    candidate_blocks = max(0, date_count - block_length + 1)
+    if point is None or candidate_blocks == 0:
+        return MovingDateBlockBootstrapResult(
+            None if point is None else round(point, 8), None, None, confidence,
+            bootstrap_count, 0, seed, date_count, block_length, candidate_blocks, None,
+        )
+
+    rng = np.random.default_rng(seed)
+    blocks_per_draw = (date_count + block_length - 1) // block_length
+    draws = np.empty(bootstrap_count, dtype=float)
+    valid_draws = 0
+    for _draw in range(bootstrap_count):
+        starts = rng.integers(0, candidate_blocks, size=blocks_per_draw)
+        indices = [
+            index
+            for start in starts
+            for index in range(int(start), int(start) + block_length)
+        ][:date_count]
+        sampled = [date_statistics[index] for index in indices]
+        sampled = [value for value in sampled if value is not None]
+        if sampled:
+            draws[valid_draws] = float(np.mean(sampled))
+            valid_draws += 1
+
+    lower = upper = None
+    if candidate_blocks >= 2 and valid_draws >= max(20, int(bootstrap_count * 0.9)):
+        sample = draws[:valid_draws]
+        lower_q = (1.0 - confidence) / 2.0
+        upper_q = 1.0 - lower_q
+        lower = round(float(np.quantile(sample, lower_q)), 8)
+        upper = round(float(np.quantile(sample, upper_q)), 8)
+    return MovingDateBlockBootstrapResult(
+        point_estimate=round(point, 8),
+        ci_lower=lower,
+        ci_upper=upper,
+        confidence=confidence,
+        requested_count=bootstrap_count,
+        bootstrap_count=valid_draws,
+        bootstrap_seed=seed,
+        date_count=date_count,
+        block_length=block_length,
+        candidate_block_count=candidate_blocks,
+        crosses_zero=(lower <= 0.0 <= upper) if lower is not None and upper is not None else None,
+    )
+
+
 def date_block_bootstrap(
     frame: pd.DataFrame,
     value_col: str,
@@ -297,7 +429,9 @@ __all__ = [
     "DEFAULT_PERMUTATION_COUNT",
     "PERMUTATION_VERSION",
     "BootstrapResult",
+    "MovingDateBlockBootstrapResult",
     "PermutationResult",
     "date_block_bootstrap",
+    "moving_date_block_bootstrap",
     "permutation_test",
 ]

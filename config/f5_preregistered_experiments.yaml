@@ -1,0 +1,91 @@
+# F5 W6 冻结实验协议。修改任何事件定义/族归属/持有期必须新建版本。
+protocol_version: f5-preregistered-v1
+registered_at: "2026-09-28"
+pilot_labels_previously_seen: true
+pilot_scope: "W4 单证券工程样本的汇总验证；001/002 分类结果未查看。"
+category_level_results_seen_at_registration: false
+confirmatory_eligible: false
+
+dataset:
+  dataset_id: w4-engineering-002561-20120223-asof-v2
+  dataset_digest: 5c1537d8ddea505f854ca78e3d01932740d7768a9f90ff19bd7bf7b96cf771cb
+  use: engineering_replay_only
+  require_manifest_sha256: true
+
+split:
+  version: phase3-oos-v1
+  partitions:
+    - id: TRAIN
+      start: "2010-01-01"
+      end: "2018-12-31"
+    - id: VALIDATION
+      start: "2019-01-01"
+      end: "2022-12-31"
+    - id: OOS
+      start: "2023-01-01"
+      end: "2026-08-14"
+  boundary_policy: "需要每个目标周期的 label_end_date；缺失时只给描述结果，不做分区隔离推断。跨入下一分区的结果窗口从该分区统计中排除。"
+
+analysis:
+  horizons: [5, 20]
+  primary_metric: excess_return
+  secondary_metric: adjusted_absolute_return
+  alpha: 0.05
+  min_hit_and_complement_samples: 20
+  multiple_testing:
+    method: [benjamini-hochberg, bonferroni]
+    missing_hypothesis_p_value: "pad_with_1_for_registered_family_size"
+    f5-exp-001_family_size: 60
+    f5-exp-002_family_size: 18
+  permutation:
+    method: date_stratified_permutation
+    tail: two_sided
+    count: 2000
+    seed: 20260928
+  bootstrap:
+    method: moving_consecutive_date_blocks
+    count: 2000
+    confidence: 0.95
+    block_length_trading_dates: 20
+    seed: 20260928
+  negative_control:
+    method: existing_random_factor_control
+    seed: 20260928
+    scope_note: "沿用既有随机因子负对照；其原接口比较绝对收益，只作诊断，不替代主分析的基准超额收益。"
+
+experiments:
+  - experiment_id: F5-EXP-001
+    title: 十种流日十神
+    family_id: f5_exp_001_ten_gods
+    factor_id: B_DAY_005
+    raw_value_categories: [比肩, 劫财, 食神, 伤官, 正财, 偏财, 正官, 七杀, 正印, 偏印]
+    condition: "raw_value 等于对应十神；每个类别独立与同一因子其余类别比较。"
+    expected_direction: none
+    tails: two_sided
+    registered_tests_per_partition: 20
+    registered_family_size: 60
+
+  - experiment_id: F5-EXP-002
+    title: 六合、六冲、相害
+    family_id: f5_exp_002_relations
+    conditions:
+      - factor_id: B_DAY_003
+        condition_id: liuhe
+        title: 流日六合
+        activation: "raw_value > 0"
+      - factor_id: B_DAY_002
+        condition_id: liuchong
+        title: 流日六冲
+        activation: "raw_value > 0"
+      - factor_id: B_DAY_008
+        condition_id: xianghai
+        title: 流日相害
+        activation: "raw_value > 0"
+    expected_direction: none
+    tails: two_sided
+    registered_tests_per_partition: 6
+    registered_family_size: 18
+
+not_configured:
+  - experiment_id: F5-EXP-003
+    reason: "尚未预先指定唯一组合；不搜索、排序或挑选最佳组合。"
