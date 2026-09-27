@@ -9,10 +9,12 @@ import pandas as pd
 import pytest
 
 from src.research.labels.horizon_returns import (
+    BENCHMARK_STORAGE_CODE,
     HORIZONS,
     LABEL_VERSION,
     BenchmarkSeries,
     align_adj_factor,
+    benchmark_storage_code,
     compute_forward_returns,
     label_frame,
 )
@@ -25,10 +27,19 @@ def _bars(closes: list[float], start: str = "2020-01-01") -> pd.DataFrame:
     })
 
 
+def _factors(bars: pd.DataFrame, values: list[float] | None = None) -> pd.DataFrame:
+    return pd.DataFrame({
+        "trade_date": pd.to_datetime(bars["trade_date"]),
+        "factor": values or [1.0] * len(bars),
+    })
+
+
 class TestReturnComputation:
     def test_all_horizons_use_real_trading_days(self):
         bars = _bars([100.0 + index for index in range(80)])
-        rows = compute_forward_returns(bars, [date(2020, 1, 1)], stock_code="T")
+        rows = compute_forward_returns(
+            bars, [date(2020, 1, 1)], stock_code="T", adj_factors=_factors(bars),
+        )
         row = rows[0]
         assert row["trade_index"] == 0
         for horizon in HORIZONS:
@@ -38,7 +49,9 @@ class TestReturnComputation:
 
     def test_insufficient_forward_data_is_none_not_zero(self):
         bars = _bars([100.0 + index for index in range(30)])
-        row = compute_forward_returns(bars, [date(2020, 1, 1)], stock_code="T")[0]
+        row = compute_forward_returns(
+            bars, [date(2020, 1, 1)], stock_code="T", adj_factors=_factors(bars),
+        )[0]
         assert row["ret_5d"] is not None
         assert row["ret_60d"] is None
         assert row["excess_return_60d"] is None
@@ -51,7 +64,7 @@ class TestReturnComputation:
     def test_as_of_on_non_trading_day_uses_next_trading_day(self):
         bars = _bars([10.0, 11.0, 12.0, 13.0, 14.0, 15.0], start="2020-01-03")  # 周五起
         rows = compute_forward_returns(
-            bars, [date(2020, 1, 4)], stock_code="T", horizons=(1,)
+            bars, [date(2020, 1, 4)], stock_code="T", horizons=(1,), adj_factors=_factors(bars),
         )
         assert rows[0]["trade_date"] == date(2020, 1, 6)  # 周六 as_of → 下周一为基准日
         assert rows[0]["trade_index"] == 1
@@ -69,9 +82,11 @@ class TestAdjustment:
             "trade_date": pd.date_range("2020-01-01", periods=6, freq="B"),
             "factor": [1.0, 1.0, 2.0, 2.0, 2.0, 2.0],
         })
-        raw_row = compute_forward_returns(bars, [date(2020, 1, 1)], stock_code="T",
-                                          horizons=(2,))[0]
-        assert raw_row["ret_2d"] == pytest.approx(-0.5, abs=1e-6)  # 未复权：-50%
+        missing_factor_row = compute_forward_returns(
+            bars, [date(2020, 1, 1)], stock_code="T", horizons=(2,),
+        )[0]
+        assert missing_factor_row["ret_2d"] is None
+        assert missing_factor_row["horizon_available"]["2d"] is False
         adj_row = compute_forward_returns(bars, [date(2020, 1, 1)], stock_code="T",
                                           horizons=(2,), adj_factors=factors)[0]
         assert adj_row["ret_2d"] == pytest.approx(0.0, abs=1e-6)  # 复权后：0%
@@ -85,9 +100,10 @@ class TestAdjustment:
         factor, stats = align_adj_factor(bars, factors)
         assert stats["raw_rows"] == 5
         assert stats["matched_rows"] == 2
-        assert stats["filled_rows"] == 3  # 前向填充
-        assert stats["uncovered_rows"] == 0
-        assert factor.tolist() == [1.0, 2.0, 2.0, 2.0, 2.0]
+        assert stats["filled_rows"] == 0
+        assert stats["uncovered_rows"] == 3
+        assert factor[:2].tolist() == [1.0, 2.0]
+        assert np.isnan(factor[2:]).all()
 
     def test_missing_adj_factor_is_reported_not_silently_one(self):
         bars = _bars([10.0] * 3)
@@ -119,6 +135,7 @@ class TestExcessReturns:
         bench = BenchmarkSeries.from_frame(bench_frame)
         row = compute_forward_returns(
             bars, [date(2020, 1, 1)], stock_code="T", benchmark=bench,
+            adj_factors=_factors(bars),
         )[0]
         for horizon in HORIZONS:
             expected = (1.02 ** horizon) - (1.01 ** horizon)
@@ -127,7 +144,9 @@ class TestExcessReturns:
 
     def test_benchmark_missing_leaves_excess_none(self):
         bars = _bars([100.0 + index for index in range(30)])
-        row = compute_forward_returns(bars, [date(2020, 1, 1)], stock_code="T")[0]
+        row = compute_forward_returns(
+            bars, [date(2020, 1, 1)], stock_code="T", adj_factors=_factors(bars),
+        )[0]
         assert row["excess_return_20d"] is None
         assert row["bench_ret_20d"] is None
         assert row["ret_20d"] is not None
@@ -146,7 +165,9 @@ class TestExcessReturns:
 class TestLabelFrame:
     def test_label_frame_has_all_horizon_columns(self):
         bars = _bars([100.0 + index for index in range(80)])
-        rows = compute_forward_returns(bars, [date(2020, 1, 1)], stock_code="T")
+        rows = compute_forward_returns(
+            bars, [date(2020, 1, 1)], stock_code="T", adj_factors=_factors(bars),
+        )
         frame = label_frame(rows)
         assert len(frame) == 1
         for horizon in HORIZONS:
@@ -154,6 +175,7 @@ class TestLabelFrame:
             assert f"excess_return_{horizon}d" in frame.columns
         assert frame["label_version"].iloc[0] == LABEL_VERSION
         assert frame["trade_index"].iloc[0] == 0
+        assert frame["horizon_available_1d"].iloc[0]
 
     def test_label_frame_accepts_empty_rows(self):
         frame = label_frame([])
@@ -164,13 +186,70 @@ class TestLabelFrame:
         bars = _bars([100.0 + index for index in range(30)])
         row = compute_forward_returns(
             bars, [date(2020, 1, 1)], stock_code="T", is_degraded=True,
+            adj_factors=_factors(bars),
         )[0]
         assert row["is_degraded"] is True
 
     def test_no_nan_leaks_into_returns_as_zero(self):
         bars = _bars([100.0 + index for index in range(30)])
-        rows = compute_forward_returns(bars, [date(2020, 1, 1)], stock_code="T")
+        rows = compute_forward_returns(
+            bars, [date(2020, 1, 1)], stock_code="T", adj_factors=_factors(bars),
+        )
         values = [rows[0].get(f"ret_{h}d") for h in HORIZONS]
         assert None in values
         assert all(value != 0.0 for value in values if value is not None)
         assert not np.any(np.isnan([value for value in values if value is not None]))
+
+    def test_missing_factor_before_evidence_start_is_not_backfilled(self):
+        bars = _bars([10.0, 10.0, 10.0])
+        factors = _factors(bars.iloc[1:].reset_index(drop=True))
+        row = compute_forward_returns(
+            bars, [date(2020, 1, 1)], stock_code="T", horizons=(1,), adj_factors=factors,
+        )[0]
+        assert row["ret_1d"] is None
+        assert row["horizon_available"]["1d"] is False
+
+    def test_missing_factor_inside_window_makes_return_unavailable(self):
+        bars = _bars([10.0, 10.0, 10.0, 10.0])
+        factors = _factors(bars.drop(index=1).reset_index(drop=True))
+        row = compute_forward_returns(
+            bars, [date(2020, 1, 1)], stock_code="T", horizons=(2,), adj_factors=factors,
+        )[0]
+        assert row["ret_2d"] is None
+        assert row["horizon_available"]["2d"] is False
+
+    def test_corporate_action_one_day_return_and_v2_path_metrics(self):
+        bars = pd.DataFrame({
+            "trade_date": pd.date_range("2020-01-01", periods=21, freq="B"),
+            "close": [100.0, 110.0, 100.0, 120.0, *([110.0] * 17)],
+            "high": [100.0, 115.0, 105.0, 125.0, *([112.0] * 17)],
+            "low": [100.0, 108.0, 95.0, 90.0, *([105.0] * 17)],
+        })
+        row = compute_forward_returns(
+            bars, [date(2020, 1, 1)], stock_code="T", horizons=(1, 20),
+            adj_factors=_factors(bars),
+        )[0]
+        assert row["ret_1d"] == pytest.approx(0.1)
+        assert row["max_favorable_move_20d"] == pytest.approx(0.25)
+        assert row["max_adverse_move_20d"] == pytest.approx(-0.1)
+        assert row["max_drawdown_20d"] == pytest.approx(1 - 100 / 110, abs=1e-6)
+
+    def test_benchmark_requires_exact_shared_calendar_endpoints(self):
+        bars = _bars([100.0 + i for i in range(8)])
+        bench = BenchmarkSeries.from_frame(pd.DataFrame({
+            "trade_date": pd.to_datetime(["2020-01-01", "2020-01-06"]),
+            "close": [100.0, 102.0],
+        }))
+        row = compute_forward_returns(
+            bars, [date(2020, 1, 1)], stock_code="T", horizons=(1,),
+            adj_factors=_factors(bars), benchmark=bench,
+        )[0]
+        assert row["ret_1d"] is not None
+        assert row["bench_ret_1d"] is None
+        assert row["excess_return_1d"] is None
+
+    def test_benchmark_storage_identity_is_explicit(self):
+        assert benchmark_storage_code("000300") == BENCHMARK_STORAGE_CODE
+        assert benchmark_storage_code("IDX000300") == BENCHMARK_STORAGE_CODE
+        with pytest.raises(ValueError, match="未配置基准代码映射"):
+            benchmark_storage_code("399001")

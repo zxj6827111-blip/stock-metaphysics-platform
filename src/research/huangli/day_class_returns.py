@@ -148,7 +148,7 @@ def load_stock_bars(stock_code: str) -> tuple[pd.DataFrame, dict]:
         "adjust": "raw+adj_factor",
         "source": _RAW_SOURCE,
         "return_basis_cn": "原始收盘价 × 除权因子（TuShare adj_factor 快照）",
-        "adj_factor_snapshot": "提供" if factors is not None else "缺失（按 1.0 处理，已披露）",
+        "adj_factor_snapshot": "提供" if factors is not None else "缺失（相应收益标签不可用）",
         "adj_factor_uncovered_rows": 0,
         "unavailable_reason": "",
     }
@@ -376,6 +376,9 @@ def build_day_class_performance(
         horizons=(horizon,),
         adj_factors=adj,
         benchmark=benchmark,
+        bar_version=str(provenance.get("source") or ""),
+        factor_version=str(provenance.get("adj_factor_snapshot") or "embedded_or_unavailable"),
+        price_basis="already_hfq" if provenance.get("adjust") == "hfq" else "raw_times_factor",
         coverage_out=coverage,
     )
     base["labels"]["adj_factor_uncovered_rows"] = int(coverage.get("uncovered_rows", 0))
@@ -386,7 +389,7 @@ def build_day_class_performance(
             "severity": "warning",
             "message": (
                 f"{int(coverage.get('uncovered_rows', 0))} 行行情没有匹配到除权因子，"
-                "这些行的收益未做复权（已在结论中作为限制披露）。"
+                "缺因子的持有期标签已标记为不可用，不会回退到原始价收益。"
             ),
         })
 

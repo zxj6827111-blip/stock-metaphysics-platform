@@ -201,8 +201,9 @@ class TestAsOfSafety:
             "trade_date": pd.date_range("2020-01-01", periods=30, freq="B"),
             "close": [10.0 + index for index in range(30)],
         })
+        factors = pd.DataFrame({"trade_date": bars["trade_date"], "factor": 1.0})
         rows = compute_forward_returns(
-            bars, [date(2020, 1, 1)], stock_code="000001",
+            bars, [date(2020, 1, 1)], stock_code="000001", adj_factors=factors,
         )
         assert len(rows) == 1
         row = rows[0]
@@ -216,12 +217,14 @@ class TestAsOfSafety:
             "trade_date": pd.date_range("2020-01-01", periods=40, freq="B"),
             "close": [10.0 * (1.01 ** index) for index in range(40)],
         })
+        factors = pd.DataFrame({"trade_date": bars["trade_date"], "factor": 1.0})
         bench = BenchmarkSeries.from_frame(pd.DataFrame({
             "trade_date": pd.date_range("2020-01-01", periods=40, freq="B"),
             "close": [100.0] * 40,
         }), code="000300")
         row = compute_forward_returns(
             bars, [date(2020, 1, 1)], stock_code="000001", benchmark=bench,
+            adj_factors=factors,
         )[0]
         assert row["bench_ret_20d"] == 0.0
         assert row["excess_return_20d"] == pytest.approx(row["ret_20d"])

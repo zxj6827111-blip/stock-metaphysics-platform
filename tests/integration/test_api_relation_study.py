@@ -217,6 +217,20 @@ def test_relation_factor_observation_uses_v3_rule_version(client, db_session):
     assert observation.as_of.hour == 12
     assert observation.raw_value["evaluation_time"] == "12:00:00"
 
+    # 新历史研究显式取收盘观察点；旧 API 默认的 12:00 语义仍保持不变。
+    historical_observation = build_relation_observations(
+        stock_code=code,
+        profile=profile,
+        as_of_date=date(2026, 9, 22),
+        relation_type="六合",
+        bazi=BaziEngine(),
+        calendar=CalendarEngine(),
+        use_static_natal=_load_static_natal_cache().get(code),
+        evaluation_time="15:00:00",
+    )[0]
+    assert historical_observation.as_of.hour == 15
+    assert historical_observation.raw_value["evaluation_time"] == "15:00:00"
+
 
 def test_relation_study_and_date_scan_agree_on_pinned_relation(client, db_session):
     """固定 600519 / 2026-09-22：两个模块对**全部**目录关系在流日行计数一致。
