@@ -262,7 +262,7 @@ class ChartArtifactRow(UpdatedAtMixin, Base):
     engine: Mapped[str] = mapped_column(String(32), index=True)
     engine_version: Mapped[str] = mapped_column(String(64), default="")
     config_version: Mapped[str] = mapped_column(String(32), default="")
-    birth_profile_version: Mapped[str] = mapped_column(String(16), default="")
+    birth_profile_version: Mapped[str] = mapped_column(String(32), default="")
     as_of: Mapped[datetime] = mapped_column(DateTime, index=True)
     input_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     raw_chart: Mapped[dict | None] = mapped_column(JSON, nullable=True)

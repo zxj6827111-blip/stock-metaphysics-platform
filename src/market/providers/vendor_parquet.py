@@ -173,20 +173,33 @@ class VendorParquetProvider(MarketDataProvider):
         return self._to_master(hit.iloc[0])
 
     def get_daily_bars(
-        self, code: str, start: date, end: date, *, adjust: str = "none",
+        self,
+        code: str,
+        start: date | None = None,
+        end: date | None = None,
+        *,
+        adjust: str = "none",
     ) -> BarSeries:
         catalog = self.catalog()
         hit = catalog[catalog["stock_code"] == str(code).strip()]
         if hit.empty:
             raise SymbolNotFoundError(f"{code} 不在供应商 Parquet 仓库内")
+        filters = ["stock_code = ?"]
+        params: list[object] = [str(code).strip()]
+        if start is not None:
+            filters.append("trade_date >= ?")
+            params.append(start)
+        if end is not None:
+            filters.append("trade_date <= ?")
+            params.append(end)
         frame = self._query(
             f"""
             select trade_date, open, high, low, close, volume, amount
             from read_parquet('{self._bars_path()}')
-            where stock_code = ? and trade_date between ? and ?
+            where {' and '.join(filters)}
             order by trade_date
             """,
-            [str(code).strip(), start, end],
+            params,
         )
         _ = adjust  # 本 provider 一律给不复权价；复权由调用方用 adj_factor 处理
         bars = [

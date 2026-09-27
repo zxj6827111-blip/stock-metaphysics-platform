@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from src.core.schemas.calendar import GanZhi
 from src.core.schemas.common import (
@@ -152,6 +152,31 @@ class TemporalPillar(SMBaseModel):
     branch_is: str = Field(default="")
 
     note: str = ""
+
+
+class BaziLuckCyclePeriod(SMBaseModel):
+    """BaziEngine 从锁定的排运 Adapter 产生的十年大运区间。"""
+
+    index: int = Field(ge=1)
+    start_year: int
+    end_year: int
+    start_age: int
+    end_age: int
+    ganzhi: str = Field(min_length=2, max_length=2)
+    start_at: datetime
+    end_at: datetime
+
+    @model_validator(mode="after")
+    def validate_period(self) -> BaziLuckCyclePeriod:
+        if self.start_at.tzinfo is None or self.start_at.utcoffset() is None:
+            raise ValueError("大运 start_at 必须带时区")
+        if self.end_at.tzinfo is None or self.end_at.utcoffset() is None:
+            raise ValueError("大运 end_at 必须带时区")
+        if self.end_at <= self.start_at:
+            raise ValueError("大运区间必须满足 start_at < end_at")
+        if self.end_year < self.start_year or self.end_age < self.start_age:
+            raise ValueError("大运结束年/年龄不得早于开始年/年龄")
+        return self
 
 
 class BaziChart(SMBaseModel):

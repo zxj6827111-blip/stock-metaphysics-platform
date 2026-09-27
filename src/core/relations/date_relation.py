@@ -292,6 +292,33 @@ def _triple_events(
                     ))
 
 
+def relation_events_for_external_pillar(
+    source: GanZhi,
+    source_pillar: str,
+    natal: Mapping[str, GanZhi],
+    *,
+    day_master: str,
+) -> list[RelationEvent]:
+    """计算一个有名字的外部柱与原局年/月/日柱的关系事件。
+
+    该入口复用 Date Scan 的同一组 stem/branch/compound/triple helpers，
+    供 Fortune 的大运等非日历外部柱使用；不改变既有 3×3 扫描范围。
+    """
+
+    missing = [position for position in NATAL_POSITIONS if position not in natal]
+    if missing:
+        raise ValueError(f"natal 缺少必要柱位: {missing}（关系目标范围为年/月/日三柱）")
+    by_target: dict[str, list[RelationEvent]] = {}
+    for target_pillar in NATAL_POSITIONS:
+        target = natal[target_pillar]
+        events = _stem_events(source, target, source_pillar, target_pillar, day_master)
+        events.extend(_branch_events(source, target, source_pillar, target_pillar, day_master))
+        _compound_for_cell(source, target, source_pillar, target_pillar, events, day_master)
+        by_target[target_pillar] = events
+    _triple_events(source, source_pillar, natal, by_target)
+    return [event for target_pillar in NATAL_POSITIONS for event in by_target[target_pillar]]
+
+
 def build_relation_matrix(
     external: Mapping[str, GanZhi],
     natal: Mapping[str, GanZhi],

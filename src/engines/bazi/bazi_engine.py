@@ -29,6 +29,7 @@ from src.core.constants import (
     twelve_stage,
 )
 from src.core.schemas.bazi import (
+    BaziLuckCyclePeriod,
     BaziChart,
     DayMasterAnalysis,
     HiddenStem,
@@ -39,7 +40,7 @@ from src.core.schemas.bazi import (
     WuxingStrength,
     YongShenAnalysis,
 )
-from src.core.schemas.calendar import GanZhi
+from src.core.schemas.calendar import CalendarSnapshot, GanZhi
 from src.core.schemas.common import (
     Assumption,
     Availability,
@@ -80,6 +81,8 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
         as_of: datetime | None = None,
         variant_mode: VariantMode = VariantMode.NOT_APPLICABLE,
         stock_code: str | None = None,
+        natal_snapshot: CalendarSnapshot | None = None,
+        reference_snapshot: CalendarSnapshot | None = None,
         **_: Any,
     ) -> BaziChart:
         """排八字盘。
@@ -98,6 +101,8 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
             as_of=reference,
             variant_mode=variant_mode,
             stock_code=stock_code or context.stock_code or None,
+            natal_snapshot=natal_snapshot,
+            reference_snapshot=reference_snapshot,
         )
 
     # ------------------------------------------------------------------
@@ -108,12 +113,14 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
         as_of: datetime,
         variant_mode: VariantMode = VariantMode.NOT_APPLICABLE,
         stock_code: str | None = None,
+        natal_snapshot: CalendarSnapshot | None = None,
+        reference_snapshot: CalendarSnapshot | None = None,
     ) -> BaziChart:
         warnings: list[Warning_] = []
         assumptions: list[Assumption] = []
 
-        natal = self._calendar.snapshot(birth_datetime)
-        reference = self._calendar.snapshot(as_of)
+        natal = natal_snapshot or self._calendar.snapshot(birth_datetime)
+        reference = reference_snapshot or self._calendar.snapshot(as_of)
 
         stems = {
             "year": natal.year_ganzhi.stem,
@@ -413,15 +420,8 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
         注意：Phase 1 默认不启用（股票无性别）。此处只在显式传入
         forward/reverse 时计算，用于 Phase 2 的历史对比实验。
         """
-        gender_flag = 1 if variant_mode == VariantMode.FORWARD else 0
         try:
-            from lunar_python import Solar
-
-            lunar = Solar.fromYmdHms(
-                birth_datetime.year, birth_datetime.month, birth_datetime.day,
-                birth_datetime.hour, birth_datetime.minute, birth_datetime.second or 0,
-            ).getLunar()
-            yun = lunar.getEightChar().getYun(gender_flag)
+            yun = self._build_yun_adapter(birth_datetime, variant_mode)
             return [
                 {
                     "start_year": d.getStartYear(),
@@ -433,6 +433,71 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
             ]
         except Exception:  # noqa: BLE001 - 大运为可选研究字段
             return []
+
+    def build_luck_cycle_periods(
+        self,
+        birth_datetime: datetime,
+        variant_mode: VariantMode,
+        *,
+        count: int = 12,
+    ) -> list[BaziLuckCyclePeriod]:
+        """把同一 lunar-python 排运结果扩展为可比较的左闭右开时间区间。
+
+        ``getStartSolar`` 与 ``Solar.nextYear`` 负责处理起运锚点和年界，
+        这里不再复制起运年龄换算。只有明确的兼容参数才允许调用。
+        """
+
+        if birth_datetime.tzinfo is None or birth_datetime.utcoffset() is None:
+            raise ValueError("大运出生时刻必须带时区")
+        if variant_mode not in {VariantMode.FORWARD, VariantMode.REVERSE}:
+            return []
+        if count < 1:
+            raise ValueError("大运周期数量必须大于零")
+
+        yun = self._build_yun_adapter(birth_datetime, variant_mode)
+        first_start = yun.getStartSolar()
+        tzinfo = birth_datetime.tzinfo
+        periods: list[BaziLuckCyclePeriod] = []
+        for dayun in yun.getDaYun(count + 1):
+            index = int(dayun.getIndex())
+            if index < 1:
+                continue
+            start_solar = first_start.nextYear((index - 1) * 10)
+            end_solar = first_start.nextYear(index * 10)
+            periods.append(
+                BaziLuckCyclePeriod(
+                    index=index,
+                    start_year=int(dayun.getStartYear()),
+                    end_year=int(dayun.getEndYear()),
+                    start_age=int(dayun.getStartAge()),
+                    end_age=int(dayun.getEndAge()),
+                    ganzhi=str(dayun.getGanZhi()),
+                    start_at=self._solar_to_aware_datetime(start_solar, tzinfo),
+                    end_at=self._solar_to_aware_datetime(end_solar, tzinfo),
+                )
+            )
+        return periods
+
+    @staticmethod
+    def _build_yun_adapter(birth_datetime: datetime, variant_mode: VariantMode):
+        """唯一的 lunar-python 大运 Adapter 入口。"""
+
+        gender_flag = 1 if variant_mode == VariantMode.FORWARD else 0
+        from lunar_python import Solar
+
+        lunar = Solar.fromYmdHms(
+            birth_datetime.year, birth_datetime.month, birth_datetime.day,
+            birth_datetime.hour, birth_datetime.minute, birth_datetime.second or 0,
+        ).getLunar()
+        return lunar.getEightChar().getYun(gender_flag)
+
+    @staticmethod
+    def _solar_to_aware_datetime(solar: Any, tzinfo) -> datetime:
+        return datetime(
+            int(solar.getYear()), int(solar.getMonth()), int(solar.getDay()),
+            int(solar.getHour()), int(solar.getMinute()), int(solar.getSecond()),
+            tzinfo=tzinfo,
+        )
 
     def _auxiliary(self, birth_datetime: datetime, which: str) -> str:
         """胎元 / 命宫 / 身宫 / 胎息。"""
