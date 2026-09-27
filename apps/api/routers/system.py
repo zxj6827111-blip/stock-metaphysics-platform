@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from apps.api.deps import db_session, get_market
 from src.core.config import PROJECT_ROOT, settings
-from src.core.schemas.common import Availability
 from src.engines.bazi.bazi_engine import BaziEngine
 from src.engines.calendar.calendar_engine import CalendarEngine
 from src.engines.huangli.huangli_engine import HuangliEngine
@@ -23,6 +22,14 @@ from src.market.status import describe_market_data
 
 router = APIRouter(prefix="/api/v1/system", tags=["system"])
 readiness_router = APIRouter(prefix="/api/v2/system", tags=["system"])
+
+
+def _ziwei_runtime_health(engine: ZiweiEngine) -> tuple[bool, str]:
+    try:
+        available, reason = engine.runtime_health()
+    except Exception as exc:  # noqa: BLE001 - optional service failures remain isolated
+        return False, f"{type(exc).__name__}: {exc}"
+    return bool(available), "" if available else (reason or engine.unavailable_reason())
 
 
 @router.get("/health", summary="健康检查")
@@ -48,6 +55,7 @@ def engines(market=Depends(get_market)) -> dict:
     huangli = HuangliEngine()
     bazi = BaziEngine()
     ziwei = ZiweiEngine()
+    ziwei_available, ziwei_reason = _ziwei_runtime_health(ziwei)
 
     def _entry(engine, available: bool, reason: str = "") -> dict:
         meta = engine.metadata
@@ -71,9 +79,9 @@ def engines(market=Depends(get_market)) -> dict:
             _entry(bazi, True),
             _entry(
                 ziwei,
-                ziwei.availability == Availability.OK,
-                "" if ziwei.availability == Availability.OK else (
-                    f"{ziwei.unavailable_reason()}。紫微相关字段返回 unavailable，"
+                ziwei_available,
+                "" if ziwei_available else (
+                    f"{ziwei_reason}。紫微相关字段返回 unavailable，"
                     "其余引擎不受影响，也不会以 0 分参与任何聚合。"
                 ),
             ),
@@ -326,13 +334,13 @@ def readiness(response: Response, db: Session = Depends(db_session)) -> dict:
 
     try:
         ziwei = ZiweiEngine()
-        ziwei_available = ziwei.availability == Availability.OK
+        ziwei_available, ziwei_reason = _ziwei_runtime_health(ziwei)
         ziwei_component = {
             "status": "ready" if ziwei_available else "degraded",
             "required": False,
             "available": ziwei_available,
             "transport": ziwei.transport_name,
-            "reason": "" if ziwei_available else ziwei.unavailable_reason(),
+            "reason": ziwei_reason,
         }
     except Exception as exc:  # noqa: BLE001
         ziwei_component = {

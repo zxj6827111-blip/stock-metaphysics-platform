@@ -34,6 +34,7 @@ CLI_ENTRY = SERVICE_DIR / "dist" / "cli.js"
 #: 单次批量调用的超时（秒）。研究批量排盘可能较大，给足余量。
 _SUBPROCESS_TIMEOUT = 120
 _HTTP_TIMEOUT = 30
+_HEALTH_TIMEOUT = 1.0
 
 
 class ZiweiTransportError(RuntimeError):
@@ -52,6 +53,16 @@ class ZiweiTransport(ABC):
     @abstractmethod
     def available(self) -> bool:
         """当前环境是否可用（不做真实调用）。"""
+
+    def health_check(self) -> tuple[bool, str]:
+        """返回运行状态端点使用的轻量健康结果。
+
+        默认 transport 的 ``available`` 是本地能力检查；HTTP transport 会覆盖此方法，
+        实际探测常驻服务，避免把已配置的 URL 当成服务在线。
+        """
+        if not self.available():
+            return False, self.describe()
+        return True, self.describe()
 
     @abstractmethod
     def describe(self) -> str:
@@ -289,7 +300,29 @@ class HttpZiweiTransport(ZiweiTransport):
         self.timeout = timeout
 
     def available(self) -> bool:
+        """HTTP 地址是否已配置；真实可达性由 ``health_check`` 判断。"""
         return bool(self.base_url)
+
+    def health_check(self) -> tuple[bool, str]:
+        if not self.available():
+            return False, self.describe()
+
+        import httpx
+
+        try:
+            response = httpx.get(f"{self.base_url}/health", timeout=_HEALTH_TIMEOUT)
+        except Exception as exc:  # noqa: BLE001 - 健康端点必须 fail closed
+            # 不复制异常文本，避免带凭据的服务 URL 经异常内容进入状态响应。
+            return False, f"紫微服务健康检查失败：{type(exc).__name__}"
+        if response.status_code != 200:
+            return False, f"紫微服务健康检查返回 HTTP {response.status_code}。"
+        try:
+            payload = response.json()
+        except ValueError:
+            return False, "紫微服务健康检查未返回有效 JSON。"
+        if not isinstance(payload, dict) or payload.get("status") != "ok":
+            return False, "紫微服务健康检查未返回 status=ok。"
+        return True, self.describe()
 
     def describe(self) -> str:
         return f"http: {self.base_url}/internal/ziwei/batch"

@@ -113,6 +113,10 @@ class ZiweiEngine(MetaphysicsEngine[ZiweiChart]):
     def unavailable_reason(self) -> str:
         return "" if self._transport.available() else self._transport.describe()
 
+    def runtime_health(self) -> tuple[bool, str]:
+        """供状态端点核验运行中服务；排盘路径仍使用无网络探测的 ``availability``。"""
+        return self._transport.health_check()
+
     def collect_warnings(self) -> list[Warning_]:
         out = list(self._last_warnings)
         if not self._transport.available():
