@@ -15,7 +15,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.errors import install_exception_handlers
-from apps.api.routers import analysis, knowledge, research, stock_fortune, stocks, system, ten_gods
+from apps.api.routers import (
+    analysis,
+    knowledge,
+    research,
+    research_v2,
+    stock_fortune,
+    stocks,
+    system,
+    ten_gods,
+)
 from src.core.config import settings
 
 logging.basicConfig(
@@ -91,6 +100,7 @@ install_exception_handlers(app)
 app.include_router(stocks.router)
 app.include_router(analysis.router)
 app.include_router(research.router)
+app.include_router(research_v2.router)
 app.include_router(ten_gods.router)
 app.include_router(stock_fortune.router)
 app.include_router(knowledge.router)
