@@ -50,6 +50,7 @@
 | [0019](../../docs/ADR/ADR-0019-stock-fortune-snapshot-contract.md) | Stock Fortune Snapshot 聚合契约及语义边界 | 改 Snapshot、十神分层、大运 Context 或关系事件归属 |
 | [0021](../../docs/ADR/ADR-0021-runtime-readiness-and-fail-closed-calendar.md) | 核心历法失败关闭与实例就绪状态 | 改历法失败传播、v2 readiness 或 Provider 质量状态 |
 | [0022](../../docs/ADR/ADR-0022-versioned-research-v2-api.md) | 版本化研究 v2 API、PIT 扫描与 manifest 驱动事件查询 | 改 W5 v2 研究接口、版本选择或查询资格边界 |
+| [0023](../../docs/ADR/ADR-0023-f5-preregistered-experiments.md) | F5 首批冻结实验、族内校正、连续日期块与负对照 | 改 F5-EXP-001/002 定义、检验族、重采样或报告资格 |
 
 ---
 

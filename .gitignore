@@ -18,6 +18,7 @@ data/normalized/
 data/factors/
 data/backtests/
 data/research_datasets/
+data/research_experiments/
 
 # ---- 前端 ----
 apps/web/node_modules/
