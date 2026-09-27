@@ -1158,6 +1158,11 @@ export const endpoints = {
   relationStudy: () => "/api/v1/research/relation-study",
   relationCatalog: () => "/api/v1/research/relation-catalog",
   researchExperiment: (id: string) => `/api/v1/research/experiments/${encodeURIComponent(id)}`,
+  systemVersions: () => "/api/v1/system/versions",
+  historicalDatasetV2: (id: string) => `/api/v2/research/datasets/${encodeURIComponent(id)}`,
+  historicalEventStudyV2: () => "/api/v2/research/event-study",
+  experimentReportV2: (id: string) => `/api/v2/research/experiments/${encodeURIComponent(id)}`,
+  fortuneTimelineV2: () => "/api/v2/research/fortune/timeline",
   dateRelations: (date: string, hour?: number | null) => {
     const suffix = hour === undefined || hour === null ? "" : `?hour=${hour}`;
     return `/api/v1/research/date-relations/${encodeURIComponent(date)}${suffix}`;

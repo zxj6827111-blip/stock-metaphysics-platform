@@ -16,6 +16,7 @@ import { Card, CardHeader, Chip } from "@/components/cards/Card";
 import { Medallion, type MedallionTone } from "@/components/cards/Medallion";
 import { MiniTrend } from "@/components/charts/Charts";
 import { StockSearch } from "@/components/stock/StockSearch";
+import { ResearchDataCoverageCard } from "@/components/research/ResearchDataCoverageCard";
 import { Astrolabe, MountainSilhouette, SealStamp } from "@/components/shell/Decorations";
 import {
   IconChart,
@@ -445,6 +446,8 @@ function HomeInner() {
           </div>
         </Card>
       </div>
+
+      <ResearchDataCoverageCard fixture={fixture} />
 
       {/* 平台能力 */}
       <Card className="mt-3" testId="capabilities">

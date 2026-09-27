@@ -42,6 +42,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 import { Card, CardHeader } from "@/components/cards/Card";
 import { TimelineStepChart } from "@/components/charts/Charts";
+import { FortuneTimelineV2Panel } from "@/components/research/FortuneTimelineV2Panel";
 import { ResearchPage, SectionNote } from "@/components/shell/ResearchPage";
 import { PageLoading, ResearchStatusBadge, researchStatusLabel } from "@/components/shell/PageState";
 import { SectionEmpty, SectionError, SectionLoading } from "@/components/shell/SectionState";
@@ -771,6 +772,7 @@ function TimelineInner() {
           ) : null}
         </div>
       </Card>
+      <FortuneTimelineV2Panel stockCode={code} startDate={asOfDate || analysis?.as_of || ""} />
     </ResearchPage>
   );
 }

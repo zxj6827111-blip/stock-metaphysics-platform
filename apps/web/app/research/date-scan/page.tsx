@@ -18,6 +18,11 @@ import { RelationStockTable } from "@/components/research/RelationStockTable";
 import { api, endpoints, type ApiDateScanDetail, type ApiDateScanResponse, type ApiRelationCatalog, type ApiRelationStockResult } from "@/lib/api";
 
 const DEFAULT_DATE = "2026-09-22";
+const V2_HISTORICAL_FACTOR: Record<string, string> = {
+  六合: "B_DAY_003",
+  六冲: "B_DAY_002",
+  相害: "B_DAY_008",
+};
 
 function DateScanInner() {
   const search = useSearchParams();
@@ -178,7 +183,16 @@ function DateScanInner() {
       {detailLoading ? <PageLoading label="正在读取股票关系矩阵…" /> : null}
       {detailError ? <Card><UnavailableBlock what="股票详情" reason={detailError} /></Card> : null}
       {selected ? <RelationMatrix row={selected} onClose={() => setSelected(null)} /> : null}
-      <div className="pt-2 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>需要逐日研究同一只股票？<Link href="/research/relation-study" className="underline" style={{ color: "var(--color-gold-strong)" }}>前往关系历史研究</Link></div>
+      <div className="pt-2 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
+        需要逐日研究同一只股票？<Link href="/research/relation-study" className="underline" style={{ color: "var(--color-gold-strong)" }}>前往关系历史研究</Link>
+        {appliedRelation ? (() => {
+          const params = new URLSearchParams({ scope_mode: "dates", date_from: data?.target_date ?? date, date_to: data?.target_date ?? date, relation_type: appliedRelation });
+          const factorId = V2_HISTORICAL_FACTOR[appliedRelation];
+          if (factorId) params.set("factor_id", factorId);
+          if (search?.get("fixture")) params.set("fixture", search.get("fixture")!);
+          return <span> · <Link href={`/research/history?${params.toString()}`} className="underline" style={{ color: "var(--color-gold-strong)" }} data-testid="date-scan-v2-study-link">用 W4 数据核验 {appliedRelation}{factorId ? `（${factorId}）` : "（需选择匹配因子）"}</Link></span>;
+        })() : null}
+      </div>
     </AppShell>
   );
 }
