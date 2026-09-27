@@ -249,6 +249,11 @@ def _business_days(start: date, count: int) -> list[date]:
     return out
 
 
+def _identity_adj_factors(days: list[date]) -> pd.DataFrame:
+    """无公司行动的数学样例显式提供因子，不把缺失证据当作 1.0。"""
+    return pd.DataFrame({"trade_date": days, "factor": [1.0] * len(days)})
+
+
 def test_price_exposures_frozen_against_future_bars() -> None:
     """核心防泄漏断言：改写 as_of 之后的 bar，暴露值必须**逐位不变**。"""
     days = _business_days(date(2020, 1, 1), 300)
@@ -261,8 +266,13 @@ def test_price_exposures_frozen_against_future_bars() -> None:
     future = tampered["trade_date"] > as_of
     tampered.loc[future, "close"] = tampered.loc[future, "close"] * 1000.0
 
-    base = compute_price_exposures(original, [as_of], stock_code="X")
-    changed = compute_price_exposures(tampered, [as_of], stock_code="X")
+    adj_factors = _identity_adj_factors(days)
+    base = compute_price_exposures(
+        original, [as_of], adj_factors=adj_factors, stock_code="X",
+    )
+    changed = compute_price_exposures(
+        tampered, [as_of], adj_factors=adj_factors, stock_code="X",
+    )
     assert base == changed
     assert base[0]["momentum_60d"] is not None
     assert base[0]["volatility_20d"] is not None
@@ -270,7 +280,10 @@ def test_price_exposures_frozen_against_future_bars() -> None:
 
 def test_price_exposures_none_when_history_short() -> None:
     days = _business_days(date(2020, 1, 1), 30)
-    rows = compute_price_exposures(_bars(days, [10.0] * 30), [days[-1]], stock_code="X")
+    rows = compute_price_exposures(
+        _bars(days, [10.0] * 30), [days[-1]],
+        adj_factors=_identity_adj_factors(days), stock_code="X",
+    )
     assert rows[0]["momentum_60d"] is None
     assert rows[0]["momentum_120d"] is None
 
@@ -278,7 +291,8 @@ def test_price_exposures_none_when_history_short() -> None:
 def test_price_exposures_as_of_before_first_bar_are_skipped() -> None:
     days = _business_days(date(2020, 1, 1), 100)
     rows = compute_price_exposures(
-        _bars(days, [10.0] * 100), [date(2019, 1, 1), days[-1]], stock_code="X",
+        _bars(days, [10.0] * 100), [date(2019, 1, 1), days[-1]],
+        adj_factors=_identity_adj_factors(days), stock_code="X",
     )
     assert len(rows) == 1, "as_of 早于第一根 bar 时不应产出该行"
 

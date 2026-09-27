@@ -19,6 +19,7 @@ data/factors/
 data/backtests/
 data/research_datasets/
 data/research_experiments/
+data/w8-local-runtime/
 
 # ---- 前端 ----
 apps/web/node_modules/
@@ -27,6 +28,8 @@ apps/web/.next/
 apps/web/.next-e2e/
 # ui-visual-parity 验收实例的构建目录（生产 build + next start 用）
 apps/web/.next-visual/
+# W8 本机验收实例的隔离生产构建目录
+apps/web/.next-w8/
 apps/web/out/
 apps/web/next-env.d.ts
 apps/web/test-results/
