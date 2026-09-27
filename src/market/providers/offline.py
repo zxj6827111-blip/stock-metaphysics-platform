@@ -80,6 +80,30 @@ class OfflineMarketDataProvider(MarketDataProvider):
             )
         self._stocks = self._load_stocks()
 
+    def status_descriptor(self) -> dict:
+        fetched_at = self._meta.fetched_at or None
+        provider_name = self._meta.source_label
+        quality_problems = self._meta.payload.get("quality_problems") or []
+        requested_end = (self._meta.payload.get("request_window") or {}).get("end")
+        # request_window.end 是请求边界，不代表目录中实际行情确实覆盖到该日。
+        return {
+            "provider_id": self.provider_id,
+            "data_version": f"{provider_name}@{fetched_at}" if fetched_at else None,
+            "snapshot_at": fetched_at,
+            "cutoff_date": None,
+            "cutoff_basis": "observed_max_not_declared",
+            "requested_end_date": requested_end,
+            # 快照尚未经过逐证券物理认证；即使清单暂未记录问题也不能评为 B。
+            "data_quality_grade": "C" if self._meta.available else "D",
+            "is_degraded": False if self._meta.available else None,
+            "research_eligible": False,
+            "status": "configured" if self._meta.available else "unavailable",
+            "notes": [
+                f"快照来源={provider_name or 'unknown'}；已记录质量问题 {len(quality_problems)} 项。",
+                "尚无逐证券物理认证，不能作为已认证研究范围。",
+            ],
+        }
+
     # ------------------------------------------------------------------
     def _load_stocks(self) -> dict[str, dict]:
         path = self._dir / "stocks.csv"

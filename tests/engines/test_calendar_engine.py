@@ -139,3 +139,64 @@ class TestRobustness:
 
         with pytest.raises(ValueError):
             calendar_engine.calculate_chart(EngineContext())
+
+    def test_core_ganzhi_error_is_not_replaced_with_jiazi(self, monkeypatch):
+        from types import SimpleNamespace
+
+        from src.engines.calendar import calendar_engine as calendar_module
+        from src.engines.calendar.calendar_engine import CalendarCalculationError, CalendarEngine
+
+        class BrokenLunar:
+            def getYear(self):
+                return 2024
+
+            def getMonth(self):
+                return 1
+
+            def getDay(self):
+                return 1
+
+            def toString(self):
+                return ""
+
+            def getMonthInChinese(self):
+                return ""
+
+            def getDayInChinese(self):
+                return ""
+
+            def getYearShengXiao(self):
+                return ""
+
+            def getEightChar(self):
+                return SimpleNamespace(getTime=lambda: "甲子")
+
+            def getYearInGanZhiExact(self):
+                raise RuntimeError("year pillar unavailable")
+
+        class FakeSolar:
+            def getLunar(self):
+                return BrokenLunar()
+
+            def getXingZuo(self):
+                return ""
+
+        monkeypatch.setattr(
+            calendar_module, "Solar", SimpleNamespace(fromYmdHms=lambda *_args: FakeSolar())
+        )
+
+        with pytest.raises(CalendarCalculationError, match="year_ganzhi"):
+            CalendarEngine().snapshot(datetime(2024, 1, 1, 12, 0))
+
+    def test_missing_solar_term_boundary_fails_closed(self):
+        from types import SimpleNamespace
+
+        from src.engines.calendar.calendar_engine import CalendarCalculationError, CalendarEngine
+
+        def unavailable():
+            raise RuntimeError("jieqi source unavailable")
+
+        with pytest.raises(CalendarCalculationError, match="jieqi.previous"):
+            CalendarEngine()._build_jieqi(
+                SimpleNamespace(getPrevJieQi=unavailable), datetime(2024, 3, 1, 12, 0)
+            )

@@ -95,6 +95,7 @@ app.include_router(ten_gods.router)
 app.include_router(stock_fortune.router)
 app.include_router(knowledge.router)
 app.include_router(system.router)
+app.include_router(system.readiness_router)
 
 
 @app.get("/", include_in_schema=False)

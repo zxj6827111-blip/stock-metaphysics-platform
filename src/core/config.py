@@ -56,9 +56,9 @@ class Settings(BaseSettings):
     # （原局天干 / 原局藏干 / 流年 / 流月 / 流日）。刻意独立于 relation_rule_version，
     # 因为 3×3 日期×股票关系矩阵与十神时间轴是两条独立轴（合同 §5）。
     ten_god_rule_version: str = "ten-god-v1"
-    calendar_engine_version: str = "lunar-python-1.4.8"
+    calendar_engine_version: str = "smx-calendar-1.0.1+lunar-python-1.4.8"
     huangli_engine_version: str = "huangli-engine-1.0.0"
-    bazi_engine_version: str = "smx-bazi-native-1.0.0"
+    bazi_engine_version: str = "smx-bazi-native-1.0.1"
     # Phase 2：紫微斗数（iztro 2.6.1 经 services/ziwei-service adapter 接入）
     ziwei_engine_version: str = "iztro-2.6.1+smx-1.0.0"
     # v1.1: 修正 B_YEAR_005/007/008 的关系类型接线错误（原：005≡010 三合重复、刑冲错位、害未计算）
@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     # 紫微股票的宫位→金融含义映射不是传统定论，必须版本化并可回测
     ziwei_stock_mapping_version: str = "ziwei_stock_mapping_v1"
     knowledge_version: str = "kb-1.1.0"
-    config_version: str = "cfg-2026.09"
+    config_version: str = "cfg-2026.09.1"
     market_data_version: str = "akshare-1.18.96"
 
     # --- 紫微服务 ---
@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     market_retry_backoff_seconds: float = 1.5
     market_request_timeout: int = 20
     # 网络不可用时是否允许降级到确定性合成行情（会显式标注 data_quality 降级）
-    allow_synthetic_market_fallback: bool = True
+    allow_synthetic_market_fallback: bool = False
     benchmark_index_code: str = "000300"      # 沪深300
     market_history_start: str = "2016-01-01"
 

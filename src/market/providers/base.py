@@ -55,3 +55,18 @@ class MarketDataProvider(ABC):
 
     def close(self) -> None:  # noqa: B027  # 刻意空方法：有资源的子类自行覆盖
         """释放资源。默认无操作。"""
+
+    def status_descriptor(self) -> dict:
+        """返回可审计的数据源状态，不从记录数量推断来源或认证等级。"""
+        return {
+            "provider_id": self.provider_id,
+            "data_version": None,
+            "snapshot_at": None,
+            "cutoff_date": None,
+            "cutoff_basis": "unknown",
+            "data_quality_grade": "unavailable",
+            "is_degraded": None,
+            "research_eligible": False,
+            "status": "unknown",
+            "notes": ["该 Provider 未提供来源版本、快照边界或认证状态。"],
+        }
