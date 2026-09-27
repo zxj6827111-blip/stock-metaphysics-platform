@@ -69,12 +69,16 @@ def relation_factor_id(relation_type: str) -> str:
         raise ValueError(f"不支持的关系类型: {relation_type}") from exc
 
 
-def relation_snapshot(calendar: CalendarEngine, as_of_date: date) -> CalendarSnapshot:
-    """按 v3 标准采样时点（12:00 Asia/Shanghai）构造日期快照。
+def relation_snapshot(
+    calendar: CalendarEngine, as_of_date: date, *, evaluation_time: str = EVALUATION_TIME,
+) -> CalendarSnapshot:
+    """按调用路径指定的 Asia/Shanghai 采样时点构造日期快照。
 
     研究运行器对同一 ``as_of_date`` 只调用一次并缓存，避免每只股票重复排历。
+    v1 / Date Scan 默认仍是 12:00；新研究契约必须显式传入 15:00。
     """
-    return calendar.snapshot(datetime.combine(as_of_date, datetime.min.time()).replace(hour=EVALUATION_HOUR))
+    parsed_time = datetime.strptime(evaluation_time, "%H:%M:%S").time()
+    return calendar.snapshot(datetime.combine(as_of_date, parsed_time))
 
 
 def build_relation_observations(
@@ -87,6 +91,7 @@ def build_relation_observations(
     calendar: CalendarEngine,
     use_static_natal: Any | None = None,
     snapshot: CalendarSnapshot | None = None,
+    evaluation_time: str = EVALUATION_TIME,
 ) -> list[FactorObservation]:
     """为一个 ``(股票, as_of)`` 构造一条关系因子观测。
 
@@ -97,9 +102,10 @@ def build_relation_observations(
     factor_id = relation_factor_id(relation_type)
     # 原局年/月/日与喜忌只由出生档案决定，as_of 不参与（有测试锁定）；
     # 但仍取与 Date Scan 相同的声明采样时点，避免两个模块各用一个"标准时刻"。
-    as_of = datetime.combine(as_of_date, datetime.min.time()).replace(hour=EVALUATION_HOUR)
+    parsed_time = datetime.strptime(evaluation_time, "%H:%M:%S").time()
+    as_of = datetime.combine(as_of_date, parsed_time)
     if snapshot is None:
-        snapshot = relation_snapshot(calendar, as_of_date)
+        snapshot = relation_snapshot(calendar, as_of_date, evaluation_time=evaluation_time)
 
     if use_static_natal is not None:
         natal = {
@@ -150,7 +156,7 @@ def build_relation_observations(
             "events": explanations,
             "aggregate_scope": "external_day_row",
             "matrix_target_scope": list(NATAL_POSITIONS),
-            "evaluation_time": EVALUATION_TIME,
+            "evaluation_time": evaluation_time,
         },
         normalized_value=float(count),
         direction=Direction.NEUTRAL,
@@ -159,6 +165,7 @@ def build_relation_observations(
         availability="ok",
         rule_version=settings.relation_rule_version,
         engine_version=engine_version,
+        config_version=settings.config_version,
         explanation=(
             f"指定 as_of 的流日柱与股票年/月/日三柱，在 3×3 矩阵流日行中命中「{relation_type}」"
             f"的事件次数为 {count}；关系因子不赋予涨跌方向，历史信息量需由 Event Study 与负对照检验。"

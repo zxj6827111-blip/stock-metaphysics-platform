@@ -33,9 +33,11 @@ from src.core.schemas.relation_study import (
     RelationStudyResponse,
     RelationStudySplit,
 )
+from src.core.stock.trading_calendar import TradingCalendarProvider
 from src.engines.bazi.bazi_engine import BaziEngine
 from src.engines.calendar.calendar_engine import CalendarEngine
 from src.research.event_study.engine import apply_activation, apply_request_filters, extract_event_keys
+from src.research.labels.research_date import ResearchDateResolution, resolve_research_date
 from src.research.multipletesting.fdr import benjamini_hochberg
 from src.research.oos.diagnostics import welch_ttest
 from src.research.pipeline import ResearchPipeline, month_starts, new_experiment_id
@@ -131,6 +133,17 @@ def run_relation_study(db, market, payload: RelationStudyRequest) -> RelationStu
     full_universe = not payload.stock_codes
     all_codes = list(payload.stock_codes) if payload.stock_codes else [r.stock_code for r in universe.list_all_members()]
     all_codes = sorted(set(all_codes))
+    exchanges: dict[str, set[str]] = {}
+    for record in universe.list_all_members():
+        if record.stock_code in all_codes:
+            exchanges.setdefault(record.stock_code, set()).add(record.exchange.upper())
+    calendar_provider = TradingCalendarProvider()
+
+    def research_date_resolver(code: str, anchor: date) -> ResearchDateResolution:
+        observed_exchanges = exchanges.get(code, set())
+        exchange = next(iter(observed_exchanges)) if len(observed_exchanges) == 1 else "UNKNOWN"
+        return resolve_research_date(anchor, exchange, provider=calendar_provider)
+
     profiles = _load_profiles(db, tuple(all_codes), scan_request)
     static_cache = _load_static_natal_cache()
     bazi = BaziEngine()
@@ -202,6 +215,7 @@ def run_relation_study(db, market, payload: RelationStudyRequest) -> RelationStu
         factor_builder=factor_builder,
         label_builder=label_builder,
         birth_profile_provider=birth_provider,
+        research_date_resolver=research_date_resolver,
     )
     warnings.extend(panel_warnings)
 
@@ -219,6 +233,7 @@ def run_relation_study(db, market, payload: RelationStudyRequest) -> RelationStu
                 label_builder=label_builder,
                 birth_profile_provider=birth_provider,
                 birth_transform=ResearchPipeline.make_birth_transform(kind),
+                research_date_resolver=research_date_resolver,
                 variant=kind.value,
             )[:2]
 
