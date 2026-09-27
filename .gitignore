@@ -17,6 +17,7 @@ data/raw/
 data/normalized/
 data/factors/
 data/backtests/
+data/research_datasets/
 
 # ---- 前端 ----
 apps/web/node_modules/
