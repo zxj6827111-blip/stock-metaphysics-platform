@@ -20,8 +20,11 @@ from src.core.schemas.research_v2 import (
     HistoricalEventStudyV2Request,
     HistoricalEventStudyV2Response,
     HistoricalEventV2,
+    MetricSummary,
 )
+from src.research.certified_scopes import CertifiedDatasetPin, certified_scope_state
 from src.research.historical_dataset import (
+    SUPPORTED_W4_SCHEMA_VERSIONS,
     W4_SCHEMA_VERSION,
     _canonical_json,
     _sha256_bytes,
@@ -54,7 +57,7 @@ def _read_manifest(root: Path, dataset_id: str) -> tuple[dict[str, Any], list[Pa
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if (
         manifest.get("dataset_id") != dataset_id
-        or manifest.get("schema_version") != W4_SCHEMA_VERSION
+        or manifest.get("schema_version") not in SUPPORTED_W4_SCHEMA_VERSIONS
         or manifest.get("status") not in {"COMPLETE", "PARTIAL"}
     ):
         raise ValueError("数据集 manifest 身份、schema 或状态无效")
@@ -67,7 +70,7 @@ def _read_manifest(root: Path, dataset_id: str) -> tuple[dict[str, Any], list[Pa
         for item in sorted(entries, key=lambda item: str(item.get("shard_key", "")))
     ]
     calculated_digest = _sha256_bytes(_canonical_json({
-        "schema_version": W4_SCHEMA_VERSION,
+        "schema_version": manifest["schema_version"],
         "dataset_id": dataset_id,
         "metadata": manifest.get("metadata", {}),
         "shards": digest_rows,
@@ -201,6 +204,7 @@ def get_historical_dataset_v2(root: Path, dataset_id: str) -> HistoricalDatasetV
     metadata = manifest.get("metadata")
     if not isinstance(metadata, dict):
         raise ValueError("dataset metadata 必须是 JSON 对象")
+    certification_status, certification_reason, pin = certified_scope_state(manifest)
     return HistoricalDatasetV2Response(
         dataset_id=manifest["dataset_id"],
         dataset_digest=manifest["dataset_digest"],
@@ -215,6 +219,14 @@ def get_historical_dataset_v2(root: Path, dataset_id: str) -> HistoricalDatasetV
         available_versions=_version_catalog(feature_paths, outcome_paths),
         research_eligible=bool(metadata.get("research_eligible", False)),
         confirmatory_research_eligible=bool(metadata.get("confirmatory_research_eligible", False)),
+        certification_status=certification_status,
+        certification_reason=certification_reason,
+        certified_stock_code=pin.stock_code if pin else None,
+        certified_security_id=pin.security_id if pin else None,
+        certified_date_from=pin.date_from if pin else None,
+        certified_date_to=pin.date_to if pin else None,
+        scope_certificate_id=pin.scope_certificate_id if pin else None,
+        scope_certificate_sha256=pin.scope_certificate_sha256 if pin else None,
     )
 
 
@@ -233,6 +245,12 @@ def _version_key(versions: HistoricalDatasetVersions) -> tuple[str, ...]:
 
 def _stats(
     *, count: int, missing: int, mean: float | None, median: float | None, positive: int,
+    mean_positive: float | None = None,
+    mean_negative: float | None = None,
+    payoff_ratio: float | None = None,
+    max_return: float | None = None,
+    max_loss: float | None = None,
+    metric_summaries: dict[str, MetricSummary] | None = None,
 ) -> DescriptiveStatistics:
     return DescriptiveStatistics(
         sample_count=count,
@@ -240,6 +258,69 @@ def _stats(
         mean_return=mean,
         median_return=median,
         win_rate=(positive / count) if count else None,
+        mean_positive_return=mean_positive,
+        mean_negative_return=mean_negative,
+        payoff_ratio=payoff_ratio,
+        max_return=max_return,
+        max_loss=max_loss,
+        metric_summaries=metric_summaries or {},
+    )
+
+
+def _empty_statistics() -> DescriptiveStatistics:
+    return _stats(count=0, missing=0, mean=None, median=None, positive=0)
+
+
+def _empty_scope_response(
+    manifest: dict[str, Any],
+    request: HistoricalEventStudyV2Request,
+    *,
+    status: str,
+    reason: str,
+    pin: CertifiedDatasetPin | None,
+) -> HistoricalEventStudyV2Response:
+    return HistoricalEventStudyV2Response(
+        dataset_id=request.dataset_id,
+        dataset_digest=str(manifest.get("dataset_digest", "")),
+        scope_mode=request.scope_mode,
+        date_from=request.date_from,
+        date_to=request.date_to,
+        target_date=request.target_date,
+        factor_ids=request.factor_ids,
+        activation=request.activation,
+        ten_god_category=request.ten_god_category,
+        ten_god_layer=request.ten_god_layer,
+        ten_god_position=request.ten_god_position,
+        relation_type=request.relation_type,
+        relation_source_context=request.relation_source_context,
+        relation_source_pillar=request.relation_source_pillar,
+        relation_target_context=request.relation_target_context,
+        relation_target_pillar=request.relation_target_pillar,
+        relation_source_component=request.relation_source_component,
+        relation_target_component=request.relation_target_component,
+        certified_stock_code=pin.stock_code if pin else None,
+        certified_date_from=pin.date_from if pin else None,
+        certified_date_to=pin.date_to if pin else None,
+        horizon=request.horizon,
+        versions=request.versions,
+        research_status=status,
+        research_status_reasons=[reason],
+        candidate_observation_count=0,
+        matched_observation_count=0,
+        candidate_security_date_count=0,
+        matched_security_date_count=0,
+        matched_date_count=0,
+        missing_observation_count=0,
+        missing_by_reason={},
+        matched=_empty_statistics(),
+        complement=_empty_statistics(),
+        overall=_empty_statistics(),
+        matched_date_equal_weighted=_empty_statistics(),
+        returned_count=0,
+        limit=request.limit,
+        offset=request.offset,
+        events=[],
+        warnings=[reason, "未执行统计；没有对请求范围进行裁剪。"],
     )
 
 
@@ -265,13 +346,55 @@ def run_historical_event_study_v2(
     minimum_sample: int = 8,
 ) -> HistoricalEventStudyV2Response:
     manifest, feature_paths, outcome_paths = _read_manifest(root, request.dataset_id)
-    catalog = _version_catalog(feature_paths, outcome_paths)
-    if _version_key(request.versions) not in {_version_key(item) for item in catalog}:
-        raise ValueError("请求版本不在该数据集的 manifest 分片版本目录中")
+    certification_status, certification_reason, pin = certified_scope_state(manifest)
+    if certification_status != "CERTIFIED_LIMITED_SCOPE":
+        status = certification_status if certification_status != "DATA_MISSING" else "DATA_MISSING"
+        return _empty_scope_response(
+            manifest, request, status=status, reason=certification_reason, pin=pin,
+        )
+    assert pin is not None
 
-    if not feature_paths:
-        raise ValueError("数据集没有可查询的完整分片")
+    if request.scope_mode == "stock" and request.stock_code != pin.stock_code:
+        return _empty_scope_response(
+            manifest, request, status="SECURITY_NOT_CERTIFIED",
+            reason=f"本数据集仅认证证券 {pin.stock_code}（{pin.security_id}）；{request.stock_code} 未获认证。",
+            pin=pin,
+        )
+    if request.date_from < pin.date_from or request.date_to > pin.date_to:
+        return _empty_scope_response(
+            manifest, request, status="OUTSIDE_CERTIFIED_SCOPE",
+            reason=(
+                f"请求范围 {request.date_from} 至 {request.date_to} 超出证书范围 "
+                f"{pin.date_from} 至 {pin.date_to}；未裁剪请求或计算子集统计。"
+            ),
+            pin=pin,
+        )
+    catalog = _version_catalog(feature_paths, outcome_paths)
+    if (
+        not feature_paths or not outcome_paths
+        or request.versions.pit_version != pin.pit_version
+        or request.versions.birth_profile_source_version != pin.birth_profile_source_version
+        or request.versions.label_version != pin.label_version
+        or _version_key(request.versions) not in {_version_key(item) for item in catalog}
+    ):
+        return _empty_scope_response(
+            manifest, request, status="VERSION_MISMATCH",
+            reason="请求版本与证书绑定的数据集版本目录不一致。",
+            pin=pin,
+        )
+
     versions = request.versions
+    scope_dates = manifest["metadata"]["scope"]["research_dates"]
+    expected_dates = [
+        date.fromisoformat(value) for value in scope_dates
+        if request.date_from <= date.fromisoformat(value) <= request.date_to
+    ]
+    if not expected_dates:
+        return _empty_scope_response(
+            manifest, request, status="DATA_MISSING",
+            reason="所选日期范围内没有认证观察日期；没有将空覆盖解释为无事件。",
+            pin=pin,
+        )
     version_json_pairs = _stored_version_json_pairs(feature_paths, outcome_paths, versions)
     json_version_filter = " OR ".join(
         "(f.engine_versions_json = ? AND f.rule_versions_json = ?)"
@@ -280,6 +403,15 @@ def run_historical_event_study_v2(
     horizon = request.horizon
     label_column = f"ret_{horizon}d"
     available_column = f"horizon_available_{horizon}d"
+    path_metric_columns = []
+    for metric in ("max_favorable_move", "max_adverse_move", "max_drawdown"):
+        column = f"{metric}_{horizon}d"
+        if manifest["schema_version"] == W4_SCHEMA_VERSION or horizon == 20:
+            path_metric_columns.append(f"o.{column} AS {column}")
+        else:
+            # W4 v1只存了20日路径统计；历史数据保持可读，但不可用周期不补值。
+            path_metric_columns.append(f"NULL AS {column}")
+
     parameters: list[Any] = [
         *request.factor_ids,
         request.date_from,
@@ -298,10 +430,40 @@ def run_historical_event_study_v2(
     ]
     if request.scope_mode == "stock":
         parameters.append(request.stock_code)
+
+    relation_required = request.relation_type is not None
+    if relation_required:
+        parameters.extend([
+            request.relation_type,
+            request.relation_source_context,
+            request.relation_source_pillar,
+            request.relation_target_context,
+            request.relation_target_pillar,
+            request.relation_source_component,
+            request.relation_target_component,
+        ])
+        relation_json = """(
+            SELECT j.value
+            FROM json_each(s.features_json, '$.fortune_snapshot.relation_context.events') j
+            WHERE json_extract_string(j.value, '$.relation_type') = ?
+              AND json_extract_string(j.value, '$.source.context') = ?
+              AND json_extract_string(j.value, '$.source.pillar') = ?
+              AND json_extract_string(j.value, '$.target.context') = ?
+              AND json_extract_string(j.value, '$.target.pillar') = ?
+              AND json_extract_string(j.value, '$.source.component') = ?
+              AND json_extract_string(j.value, '$.target.component') = ?
+            LIMIT 1
+        )"""
+        relation_match = "relation_json IS NOT NULL"
+    else:
+        relation_json = "NULL::JSON"
+        relation_match = "TRUE"
     if request.direction_filter is not None:
         parameters.append(request.direction_filter)
     if request.min_rule_score is not None:
         parameters.append(request.min_rule_score)
+    if request.ten_god_category is not None:
+        parameters.append(request.ten_god_category)
 
     activation_filter = {
         "any": "TRUE",
@@ -309,6 +471,11 @@ def run_historical_event_study_v2(
         "positive": "normalized_value IS NOT NULL AND normalized_value > 0",
         "negative": "normalized_value IS NOT NULL AND normalized_value < 0",
     }[request.activation]
+    ten_god_filter = ""
+    if request.ten_god_category is not None:
+        ten_god_filter = "AND raw_value = ?"
+    relation_missing = "OR NOT relation_data_present" if relation_required else ""
+    category_missing = "OR raw_value IS NULL" if request.ten_god_category is not None else ""
     query = f"""
         WITH requested_factors AS (
             SELECT * FROM (VALUES {','.join('( ? )' for _ in request.factor_ids)}) AS v(factor_id)
@@ -320,6 +487,7 @@ def run_historical_event_study_v2(
                    o.{label_column} AS return_value,
                    o.bench_ret_{horizon}d AS benchmark_return,
                    o.excess_return_{horizon}d AS excess_return,
+                   {', '.join(path_metric_columns)},
                    COALESCE(o.{available_column}, FALSE) AS horizon_available,
                    COALESCE(o.is_degraded, TRUE) AS is_degraded
             FROM read_parquet({_sql_paths(feature_paths)}) f
@@ -351,7 +519,11 @@ def run_historical_event_study_v2(
                    json_extract_string(feature.value, '$.availability') AS feature_availability,
                    TRY_CAST(json_extract_string(feature.value, '$.direction') AS INTEGER) AS direction,
                    TRY_CAST(json_extract_string(feature.value, '$.rule_score') AS DOUBLE) AS rule_score,
-                   TRY_CAST(json_extract_string(feature.value, '$.normalized_value') AS DOUBLE) AS normalized_value
+                   TRY_CAST(json_extract_string(feature.value, '$.normalized_value') AS DOUBLE) AS normalized_value,
+                   json_extract_string(feature.value, '$.raw_value') AS raw_value,
+                   json_type(s.features_json, '$.fortune_snapshot.relation_context.events') = 'ARRAY'
+                       AS relation_data_present,
+                   {relation_json} AS relation_json
             FROM scoped s
             CROSS JOIN requested_factors rf
             LEFT JOIN LATERAL (
@@ -367,19 +539,26 @@ def run_historical_event_study_v2(
                   AND ({activation_filter})
                   {('AND direction = ?' if request.direction_filter is not None else '')}
                   {('AND rule_score >= ?' if request.min_rule_score is not None else '')}
+                  AND ({relation_match})
+                  {ten_god_filter}
                   AS matched,
                 CASE
                     WHEN feature_json IS NULL THEN 'factor_missing'
                     WHEN COALESCE(feature_availability, '') <> 'ok' THEN 'feature_unavailable'
                     WHEN is_degraded THEN 'degraded_data'
+                    WHEN ({'TRUE' if relation_required or request.ten_god_category is not None else 'FALSE'})
+                         AND (FALSE {relation_missing} {category_missing})
+                         THEN 'condition_data_missing'
                     WHEN NOT horizon_available OR return_value IS NULL THEN 'horizon_unavailable'
                     ELSE NULL
                 END AS missing_reason
             FROM selected
         )
         SELECT security_id, stock_code, research_date, factor_id, direction, rule_score,
-               normalized_value, return_value, benchmark_return, excess_return,
-               horizon_available, is_degraded, feature_valid, matched, missing_reason
+               normalized_value, raw_value, relation_json, return_value, benchmark_return,
+               excess_return, max_favorable_move_{horizon}d, max_adverse_move_{horizon}d,
+               max_drawdown_{horizon}d, horizon_available, is_degraded, feature_valid,
+               matched, missing_reason
         FROM classified
         ORDER BY stock_code, research_date, factor_id
     """
@@ -400,7 +579,10 @@ def run_historical_event_study_v2(
     rows = frame.to_dict(orient="records")
     if len(rows) != candidate_count:
         raise ValueError("历史事件查询行数在计数与读取之间发生变化")
-    if candidate_count != len(frame.drop_duplicates(["security_id", "research_date"])) * len(request.factor_ids):
+    unique_security_dates = {
+        (str(row["security_id"]), row["research_date"]) for row in rows
+    }
+    if candidate_count != len(unique_security_dates) * len(request.factor_ids):
         raise ValueError("W4 分片中证券/日期/因子存在重复或缺少预期观察")
 
     missing_by_reason = Counter(
@@ -420,6 +602,14 @@ def run_historical_event_study_v2(
             and bool(item["horizon_available"])
         ]
 
+    metric_definitions = {
+        "benchmark_return": "同一持有期起止日期的沪深300不复权收盘收益。",
+        "excess_return": "同一持有期个股收益减同区间基准收益；任一端点缺失则不可用。",
+        "max_favorable_move": "事件日收盘后至第N根个股日线最高价相对事件日调整收盘价的最大变动。",
+        "max_adverse_move": "事件日收盘后至第N根个股日线最低价相对事件日调整收盘价的最大变动。",
+        "max_drawdown": "事件日调整收盘价及其后N根调整收盘价路径中，峰值至后续谷值的最大非负跌幅。",
+    }
+
     def group_stats(items: list[dict[str, Any]]) -> DescriptiveStatistics:
         values = returns_for(items)
         values_sorted = sorted(values)
@@ -428,17 +618,52 @@ def run_historical_event_study_v2(
             mid = count // 2
             median = values_sorted[mid] if count % 2 else (values_sorted[mid - 1] + values_sorted[mid]) / 2
             mean = sum(values_sorted) / count
-            positive = sum(value > 0 for value in values_sorted)
+            positive_values = [value for value in values_sorted if value > 0]
+            negative_values = [value for value in values_sorted if value < 0]
+            positive_count = len(positive_values)
+            mean_positive = sum(positive_values) / positive_count if positive_count else None
+            mean_negative = sum(negative_values) / len(negative_values) if negative_values else None
+            payoff = mean_positive / abs(mean_negative) if mean_positive is not None and mean_negative else None
+            maximum_return = max(values_sorted)
+            maximum_loss = min(negative_values) if negative_values else None
         else:
-            median = mean = None
-            positive = 0
+            median = mean = mean_positive = mean_negative = payoff = maximum_return = maximum_loss = None
+            positive_count = 0
         eligible = sum(bool(item["feature_valid"]) for item in items)
+
+        metric_summaries: dict[str, MetricSummary] = {}
+        for field, definition in metric_definitions.items():
+            data_field = (
+                f"{field}_{horizon}d"
+                if field in {"max_favorable_move", "max_adverse_move", "max_drawdown"}
+                else field
+            )
+            metric_values = [
+                value for item in items
+                if not bool(item["is_degraded"])
+                and bool(item["horizon_available"])
+                and (value := _finite_float(item.get(data_field))) is not None
+            ]
+            metric_summaries[field] = MetricSummary(
+                sample_count=len(metric_values),
+                missing_count=max(0, eligible - len(metric_values)),
+                mean=sum(metric_values) / len(metric_values) if metric_values else None,
+                minimum=min(metric_values) if metric_values else None,
+                maximum=max(metric_values) if metric_values else None,
+                definition=definition,
+            )
         return _stats(
             count=count,
             missing=max(0, eligible - count),
             mean=mean,
             median=median,
-            positive=positive,
+            positive=positive_count,
+            mean_positive=mean_positive,
+            mean_negative=mean_negative,
+            payoff_ratio=payoff,
+            max_return=maximum_return,
+            max_loss=maximum_loss,
+            metric_summaries=metric_summaries,
         )
 
     date_returns: dict[date, list[float]] = defaultdict(list)
@@ -466,13 +691,17 @@ def run_historical_event_study_v2(
     )
 
     page = matched_rows[request.offset:request.offset + request.limit]
-    events = []
+    events: list[HistoricalEventV2] = []
     for row in page:
         reason = row["missing_reason"]
         if reason is None and not bool(row["horizon_available"]):
             reason = "horizon_unavailable"
         if bool(row["is_degraded"]):
             reason = "degraded_data"
+        relation_evidence = row.get("relation_json")
+        if isinstance(relation_evidence, str):
+            relation_evidence = json.loads(relation_evidence)
+        raw_value = row.get("raw_value")
         events.append(HistoricalEventV2(
             security_id=str(row["security_id"]),
             stock_code=str(row["stock_code"]),
@@ -481,6 +710,8 @@ def run_historical_event_study_v2(
             direction=_optional_int(row["direction"]),
             rule_score=_finite_float(row["rule_score"]),
             normalized_value=_finite_float(row["normalized_value"]),
+            ten_god_category=(str(raw_value) if str(row["factor_id"]) == "B_DAY_005" and raw_value is not None else None),
+            relation_evidence=relation_evidence,
             horizon=horizon,
             return_value=(
                 None if bool(row["is_degraded"]) or not bool(row["horizon_available"])
@@ -494,45 +725,86 @@ def run_historical_event_study_v2(
                 None if bool(row["is_degraded"]) or not bool(row["horizon_available"])
                 else _finite_float(row["excess_return"])
             ),
+            max_favorable_move=_finite_float(row.get("max_favorable_move_" + str(horizon) + "d")),
+            max_adverse_move=_finite_float(row.get("max_adverse_move_" + str(horizon) + "d")),
+            max_drawdown=_finite_float(row.get("max_drawdown_" + str(horizon) + "d")),
             label_available=bool(row["horizon_available"]) and not bool(row["is_degraded"]),
             missing_reason=reason,
         ))
 
-    metadata = manifest.get("metadata", {})
     degraded_rows = any(bool(row["is_degraded"]) for row in rows)
-    research_eligible = bool(metadata.get("research_eligible", False))
+    expected_candidate_count = len(expected_dates) * len(request.factor_ids)
+    coverage_missing = candidate_count != expected_candidate_count or len(unique_security_dates) != len(expected_dates)
+    data_missing_reasons = {
+        "factor_missing", "feature_unavailable", "condition_data_missing", "horizon_unavailable",
+    }
+    has_missing_data = coverage_missing or any(missing_by_reason[key] for key in data_missing_reasons)
+    matched_returns = returns_for(matched_rows)
     if degraded_rows:
         status = "NO_REAL_DATA"
         reasons = ["所选范围包含 synthetic/degraded 行情；不输出其收益统计。"]
-    elif not matched_rows:
-        status = "INSUFFICIENT_SAMPLE"
-        reasons = ["显式条件在所选数据范围内没有匹配观察。"]
-    elif not research_eligible:
-        status = "EXPLORATORY_NOT_GATED"
-        reasons = list(metadata.get("known_limitations", [])) or [
-            "数据集未声明 research_eligible；描述统计不能视作确认性研究。"
+    elif has_missing_data:
+        status = "DATA_MISSING"
+        reasons = [
+            f"认证范围预期 {expected_candidate_count} 条证券-日期-因子观察，实际读取 {candidate_count} 条；"
+            "缺失标签或条件输入保留为不可用。"
         ]
-    elif len(returns_for(matched_rows)) < minimum_sample:
+    elif not matched_rows:
+        status = "NO_MATCHING_EVENTS"
+        reasons = ["认证范围内没有符合所选因子、激活条件和结构条件的事件。"]
+    elif not matched_returns:
+        status = "DATA_MISSING"
+        reasons = ["命中事件存在，但所选周期没有可用收益标签；收益保持 null。"]
+    elif len(matched_returns) < minimum_sample:
         status = "INSUFFICIENT_SAMPLE"
         reasons = [f"可用匹配标签少于最低描述样本数 {minimum_sample}。"]
     else:
         status = "EXPLORATORY_NOT_GATED"
         reasons = ["此接口仅计算描述统计；确认性检验与负对照由预注册实验工作包执行。"]
+        limitations = manifest.get("metadata", {}).get("known_limitations", [])
+        if isinstance(limitations, list):
+            reasons.extend(
+                f"数据集限制：{limitation}"
+                for limitation in limitations
+                if isinstance(limitation, str) and limitation.strip()
+            )
 
+    candidate_security_dates = unique_security_dates
+    matched_security_dates = {
+        (str(row["security_id"]), row["research_date"]) for row in matched_rows
+    }
     return HistoricalEventStudyV2Response(
         dataset_id=request.dataset_id,
         dataset_digest=manifest["dataset_digest"],
         scope_mode=request.scope_mode,
         date_from=request.date_from,
         date_to=request.date_to,
+        target_date=request.target_date,
         factor_ids=request.factor_ids,
         activation=request.activation,
+        ten_god_category=request.ten_god_category,
+        ten_god_layer=request.ten_god_layer,
+        ten_god_position=request.ten_god_position,
+        relation_type=request.relation_type,
+        relation_source_context=request.relation_source_context,
+        relation_source_pillar=request.relation_source_pillar,
+        relation_target_context=request.relation_target_context,
+        relation_target_pillar=request.relation_target_pillar,
+        relation_source_component=request.relation_source_component,
+        relation_target_component=request.relation_target_component,
+        condition_logic="AND",
+        factor_selection_semantics="per_factor_observation",
+        certified_stock_code=pin.stock_code,
+        certified_date_from=pin.date_from,
+        certified_date_to=pin.date_to,
         horizon=horizon,
         versions=versions,
         research_status=status,
         research_status_reasons=reasons,
         candidate_observation_count=candidate_count,
         matched_observation_count=len(matched_rows),
+        candidate_security_date_count=len(candidate_security_dates),
+        matched_security_date_count=len(matched_security_dates),
         matched_date_count=len(matched_dates),
         missing_observation_count=sum(missing_by_reason.values()),
         missing_by_reason=dict(sorted(missing_by_reason.items())),
@@ -544,9 +816,13 @@ def run_historical_event_study_v2(
         limit=request.limit,
         offset=request.offset,
         events=events,
-        warnings=["描述统计不代表预期收益率、上涨概率或交易建议。"],
+        warnings=[
+            "统计单位为证券-日期-因子观察；候选股票日期数与因子观察数分别报告。",
+            "研究条件之间使用 AND；不同 factor_id 按独立因子观察统计，不合并为日期去重数。",
+            "收益按比例存储，例如 0.05 表示 5%；样本收益极值、路径变动和回撤分别统计。",
+            "描述统计不代表预期收益率、上涨概率或交易建议。",
+        ],
     )
-
 
 def read_experiment_report(root: Path, experiment_id: str) -> tuple[dict[str, Any], str]:
     experiment_id = _safe_id(experiment_id, "experiment_id")

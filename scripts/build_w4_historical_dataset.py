@@ -556,6 +556,8 @@ def _outcome_row(
         "max_drawdown_20d": _json_scalar(label.get("max_drawdown_20d")),
     })
     for horizon in HORIZONS:
+        for metric in ("max_favorable_move", "max_adverse_move", "max_drawdown"):
+            outcome[f"{metric}_{horizon}d"] = _json_scalar(label.get(f"{metric}_{horizon}d"))
         outcome[f"ret_{horizon}d"] = _json_scalar(label.get(f"ret_{horizon}d"))
         outcome[f"bench_ret_{horizon}d"] = _json_scalar(label.get(f"bench_ret_{horizon}d"))
         outcome[f"excess_return_{horizon}d"] = _json_scalar(label.get(f"excess_return_{horizon}d"))
@@ -607,7 +609,7 @@ def build_engineering_dataset(
         HistoricalResearchDatasetStore,
         query_historical_dataset,
     )
-    from src.research.labels.horizon_returns import compute_forward_returns
+    from src.research.labels.horizon_returns import LABEL_VERSION, compute_forward_returns
 
     w2_root = w2_root.resolve(strict=True)
     market_root = market_root.resolve(strict=True)
@@ -887,7 +889,7 @@ def build_engineering_dataset(
         "birth_profile_row": source_profile,
         "feature_version": FEATURE_VERSION,
         "label_versions": {
-            "label_version": "w3-hfq-adjfactor-v2",
+            "label_version": LABEL_VERSION,
             "price_basis": "raw_times_factor",
             "horizons": list(HORIZONS),
             "end_date_method": "exact_stock_bar_at_trade_index_plus_horizon",

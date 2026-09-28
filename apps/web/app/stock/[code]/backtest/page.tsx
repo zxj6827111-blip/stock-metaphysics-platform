@@ -34,6 +34,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardBody, CardHeader, Chip, SectionTag } from "@/components/cards/Card";
 import { HorizonComparisonChart } from "@/components/charts/Charts";
 import { ResearchPage, SectionNote } from "@/components/shell/ResearchPage";
+import { StockHistoricalV2Panel } from "@/components/research/StockHistoricalV2Panel";
 import {
   PageLoading,
   ResearchStatusBadge,
@@ -226,6 +227,13 @@ function BacktestInner() {
       onReload={reload}
       loadingLabel="正在读取历史验证结果…"
     >
+      <StockHistoricalV2Panel stockCode={code} />
+      <Card testId="stock-history-v1-legacy">
+        <CardBody className="flex flex-wrap items-center gap-2 !py-1.5 text-[11.5px]">
+          <Chip tone="warn">Legacy · v1 兼容结果</Chip>
+          <span style={{ color: "var(--color-ink-muted)" }}>以下既有逐标的 EventStudy 与实验展示继续读取 v1 兼容接口；统一认证范围的主研究结果见上方 v2 面板。</span>
+        </CardBody>
+      </Card>
       {/* ============ 参考图 05 的「研究条件/筛选条」：① + ② 两行紧凑卡 ============ */}
       {/* 分区语义（AGENTS.md §9.6 / §16.1）由 ① / ② 两行各自的身份标签承载，
           不再额外挂一条整宽 rule-strength 横条 —— 独立横条每行 ≈36px，

@@ -31,7 +31,7 @@ import numpy as np
 import pandas as pd
 
 #: 新研究标签口径版本；旧 Phase 3D/F5 产物继续保留各自写入的 v1 版本。
-LABEL_VERSION = "w3-hfq-adjfactor-v2"
+LABEL_VERSION = "w3-hfq-adjfactor-v3"
 #: Phase 3D 研究的所有持有期（GOAL §12）
 HORIZONS: tuple[int, ...] = (1, 5, 10, 20, 60)
 #: 预注册的**主**持有期；其它持有期只作稳健性报告，不参与 gate
@@ -255,9 +255,15 @@ def compute_forward_returns(
             "is_degraded": bool(is_degraded),
             "horizon_available": {},
             "horizons_requested": tuple(horizons),
-            "max_favorable_move_20d": None,
-            "max_adverse_move_20d": None,
-            "max_drawdown_20d": None,
+            **{
+                metric: None
+                for horizon in HORIZONS
+                for metric in (
+                    f"max_favorable_move_{horizon}d",
+                    f"max_adverse_move_{horizon}d",
+                    f"max_drawdown_{horizon}d",
+                )
+            },
         }
         for h in horizons:
             idx = base_idx + h
@@ -285,17 +291,29 @@ def compute_forward_returns(
             row[f"excess_return_{h}d"] = (
                 None if bench_ret is None else round(ret - bench_ret, 6)
             )
-            if h == 20:
-                future_highs = highs[base_idx + 1:idx + 1]
-                future_lows = lows[base_idx + 1:idx + 1]
-                if (len(future_highs) == h and len(future_lows) == h
-                        and np.isfinite(future_highs).all() and np.isfinite(future_lows).all()):
-                    row["max_favorable_move_20d"] = round(float(future_highs.max() / base_close - 1), 6)
-                    row["max_adverse_move_20d"] = round(float(future_lows.min() / base_close - 1), 6)
-                path = window
-                peaks = np.maximum.accumulate(path)
-                drawdowns = 1.0 - (path / peaks)
-                row["max_drawdown_20d"] = round(float(drawdowns.max()), 6)
+            # 路径指标从事件日收盘之后开始；回撤路径包含事件日收盘作为初始峰值。
+            # 任一 OHLC 缺失时，该路径指标保持 unavailable，不用收盘收益替代。
+            future_highs = highs[base_idx + 1:idx + 1]
+            future_lows = lows[base_idx + 1:idx + 1]
+            if (
+                len(future_highs) == h
+                and len(future_lows) == h
+                and np.isfinite(future_highs).all()
+                and np.isfinite(future_lows).all()
+                and np.all(future_highs > 0)
+                and np.all(future_lows > 0)
+                and np.isfinite(base_close)
+                and base_close > 0
+            ):
+                row[f"max_favorable_move_{h}d"] = round(
+                    float(future_highs.max() / base_close - 1), 6,
+                )
+                row[f"max_adverse_move_{h}d"] = round(
+                    float(future_lows.min() / base_close - 1), 6,
+                )
+            peaks = np.maximum.accumulate(window)
+            drawdowns = 1.0 - (window / peaks)
+            row[f"max_drawdown_{h}d"] = round(float(drawdowns.max()), 6)
         rows.append(row)
     return rows
 
@@ -309,7 +327,15 @@ def label_frame(rows: list[dict]) -> pd.DataFrame:
         *[f"bench_ret_{h}d" for h in HORIZONS],
         *[f"horizon_available_{h}d" for h in HORIZONS],
         *[f"horizon_requested_{h}d" for h in HORIZONS],
-        "max_favorable_move_20d", "max_adverse_move_20d", "max_drawdown_20d",
+        *[
+            metric
+            for horizon in HORIZONS
+            for metric in (
+                f"max_favorable_move_{horizon}d",
+                f"max_adverse_move_{horizon}d",
+                f"max_drawdown_{horizon}d",
+            )
+        ],
         "label_version", "bar_version", "factor_version", "benchmark_code", "is_degraded",
         "price_basis",
     ]

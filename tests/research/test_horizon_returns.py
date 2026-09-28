@@ -234,6 +234,44 @@ class TestLabelFrame:
         assert row["max_adverse_move_20d"] == pytest.approx(-0.1)
         assert row["max_drawdown_20d"] == pytest.approx(1 - 100 / 110, abs=1e-6)
 
+    def test_v3_path_metrics_cover_one_five_and_twenty_day_horizons(self):
+        bars = pd.DataFrame({
+            "trade_date": pd.date_range("2020-01-01", periods=21, freq="B"),
+            "close": [100.0, 110.0, 90.0, 120.0, 80.0, 100.0, *([100.0] * 15)],
+            "high": [100.0, 115.0, 112.0, 125.0, 90.0, 105.0, *([105.0] * 15)],
+            "low": [100.0, 108.0, 85.0, 115.0, 70.0, 95.0, *([95.0] * 15)],
+        })
+        row = compute_forward_returns(
+            bars, [date(2020, 1, 1)], stock_code="T", horizons=(1, 5, 20),
+            adj_factors=_factors(bars),
+        )[0]
+
+        assert row["label_version"] == "w3-hfq-adjfactor-v3"
+        assert row["max_favorable_move_1d"] == pytest.approx(0.15)
+        assert row["max_adverse_move_1d"] == pytest.approx(0.08)
+        assert row["max_drawdown_1d"] == 0.0
+        assert row["max_favorable_move_5d"] == pytest.approx(0.25)
+        assert row["max_adverse_move_5d"] == pytest.approx(-0.3)
+        assert row["max_drawdown_5d"] == pytest.approx(1 - 80 / 120, abs=1e-6)
+        assert row["max_favorable_move_20d"] == pytest.approx(0.25)
+        assert row["max_adverse_move_20d"] == pytest.approx(-0.3)
+        assert row["max_drawdown_20d"] == pytest.approx(1 - 80 / 120, abs=1e-6)
+
+    def test_path_excursion_missing_high_low_is_unavailable_not_zero(self):
+        bars = pd.DataFrame({
+            "trade_date": pd.date_range("2020-01-01", periods=3, freq="B"),
+            "close": [100.0, 101.0, 99.0],
+            "high": [100.0, np.nan, 100.0],
+            "low": [100.0, 100.0, 98.0],
+        })
+        row = compute_forward_returns(
+            bars, [date(2020, 1, 1)], stock_code="T", horizons=(1,),
+            adj_factors=_factors(bars),
+        )[0]
+        assert row["max_favorable_move_1d"] is None
+        assert row["max_adverse_move_1d"] is None
+        assert row["max_drawdown_1d"] == 0.0
+
     def test_benchmark_requires_exact_shared_calendar_endpoints(self):
         bars = _bars([100.0 + i for i in range(8)])
         bench = BenchmarkSeries.from_frame(pd.DataFrame({

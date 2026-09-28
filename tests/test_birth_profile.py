@@ -103,6 +103,8 @@ class TestExchangeSessionCalendar:
         allowed = {
             pathlib.Path("src/core/stock/exchange_sessions.py"),
             pathlib.Path("src/db/models.py"),
+            # 原始证书文字只作溯源说明；不参与开盘时刻计算，且需保持已发布摘要稳定。
+            pathlib.Path("src/research/scoped_data_certificate_evidence.py"),
         }
         root = pathlib.Path("src")
         offenders: list[str] = []

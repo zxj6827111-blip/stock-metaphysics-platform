@@ -95,6 +95,9 @@ def _outcome(
         row[f"excess_return_{horizon}d"] = None
         row[f"horizon_available_{horizon}d"] = False
         row[f"horizon_requested_{horizon}d"] = True
+    for horizon in (1, 5, 10, 20, 60):
+        for metric in ("max_favorable_move", "max_adverse_move", "max_drawdown"):
+            row[f"{metric}_{horizon}d"] = None
     return row
 
 

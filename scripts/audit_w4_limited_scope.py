@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import sqlite3
+import sys
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -15,16 +16,24 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DATASET_ID = "w4-certified-002561-20120223-20180514-v2-label-ends"
+DEFAULT_DATASET_ID = "w4-certified-002561-20120223-20180514-v3-path-risk"
 DEFAULT_W2_ROOT = ROOT / "artifacts" / "w2-data-certification-20260927-full-06"
 DEFAULT_CERTIFICATE = ROOT / "artifacts" / "w2-limited-scope-002561-2012-2018" / "scope_certificate.json"
-DEFAULT_DATABASE = ROOT / "data" / "w8-local-runtime" / "smp.sqlite3"
+DEFAULT_DATABASE = ROOT / "data" / "research-closure-runtime" / "runtime" / "smp.sqlite3"
 DEFAULT_DATASET_ROOT = ROOT / "data" / "research_datasets"
 DEFAULT_MARKET_ROOT = Path("E:/AStockData/datasets/market_data")
 DEFAULT_BENCHMARK = ROOT / "data" / "import" / "bars" / "IDX000300.csv"
 DEFAULT_BENCHMARK_META = ROOT / "data" / "import" / "_meta.json"
 SAMPLE_DATES = ("2012-02-23", "2015-04-29", "2018-05-14")
-HORIZONS = (1, 5, 20)
+HORIZONS = (1, 5, 10, 20, 60)
+MANIFEST_DIGEST_FIELDS = (
+    "shard_key", "status", "input_digest", "source_digest", "row_count",
+    "features_sha256", "outcomes_sha256", "error_code", "error_type",
+)
+
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from src.research.certified_scopes import CERTIFIED_DATASET_PINS, certified_scope_state
 
 
 def _sha256(path: Path) -> str:
@@ -155,10 +164,15 @@ def _load_raw_and_factor(market_root: Path, w2_root: Path, certificate: dict[str
     with np.load(raw_path, allow_pickle=False) as raw, np.load(factor_path, allow_pickle=False) as factor:
         raw_dates = raw["trade_date"].astype(np.int64)
         raw_closes = raw["close"].astype(np.float64)
+        raw_highs = raw["high"].astype(np.float64)
+        raw_lows = raw["low"].astype(np.float64)
         factor_dates = factor["trade_date"].astype(np.int64)
         factors = factor["adj_factor"].astype(np.float64)
-    return dict(zip(raw_dates.tolist(), raw_closes.tolist(), strict=True)), dict(
-        zip(factor_dates.tolist(), factors.tolist(), strict=True)
+    return (
+        dict(zip(raw_dates.tolist(), raw_closes.tolist(), strict=True)),
+        dict(zip(raw_dates.tolist(), raw_highs.tolist(), strict=True)),
+        dict(zip(raw_dates.tolist(), raw_lows.tolist(), strict=True)),
+        dict(zip(factor_dates.tolist(), factors.tolist(), strict=True)),
     )
 
 
@@ -168,11 +182,11 @@ def _audit_returns(
     market_root: Path,
     w2_root: Path,
     benchmark_file: Path,
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
     input_versions = certificate["input_versions"]
     if _sha256(benchmark_file) != input_versions["benchmark_file_sha256"]:
         raise ValueError("benchmark CSV SHA-256 与证书不一致")
-    raw_close, factor = _load_raw_and_factor(market_root, w2_root, certificate)
+    raw_close, _raw_high, _raw_low, factor = _load_raw_and_factor(market_root, w2_root, certificate)
     benchmark = pd.read_csv(benchmark_file)
     benchmark["trade_date"] = pd.to_datetime(benchmark["trade_date"], format="%Y-%m-%d", errors="raise")
     if benchmark["trade_date"].duplicated().any() or not benchmark["adjust"].astype(str).str.lower().eq("none").all():
@@ -183,43 +197,149 @@ def _audit_returns(
     }
     dates = sorted(raw_close)
     indexes = {value: index for index, value in enumerate(dates)}
-    outcome_by_date = {str(row["research_date"]): row for _, row in outcomes.iterrows()}
-    results: list[dict[str, Any]] = []
-    for sample_date in SAMPLE_DATES:
+    valid_windows = 0
+    benchmark_windows = 0
+    samples: list[dict[str, Any]] = []
+    for _, row in outcomes.iterrows():
+        sample_date = str(row["research_date"])
         start_day = date.fromisoformat(sample_date)
         start_key = int(start_day.strftime("%Y%m%d"))
-        if start_key not in indexes or sample_date not in outcome_by_date:
-            raise ValueError(f"独立复算样本日期未进入 raw 与 W4：{sample_date}")
+        if start_key not in indexes:
+            raise ValueError(f"独立复算日期未进入 raw 与 W4：{sample_date}")
         start_index = indexes[start_key]
-        row = outcome_by_date[sample_date]
         for horizon in HORIZONS:
             end_index = start_index + horizon
-            end_key = dates[end_index]
+            stock_available = end_index < len(dates)
+            end_key = dates[end_index] if stock_available else None
             start_factor = factor.get(start_key)
-            end_factor = factor.get(end_key)
-            if start_factor is None or end_factor is None:
-                raise ValueError(f"复算端点缺少同日因子：{sample_date}/{horizon}D")
-            stock_return = (raw_close[end_key] * end_factor) / (raw_close[start_key] * start_factor) - 1.0
-            benchmark_return = benchmark_close[end_key] / benchmark_close[start_key] - 1.0
-            stock_value = round(stock_return, 6)
-            benchmark_value = round(benchmark_return, 6)
-            excess_value = round(stock_return - benchmark_return, 6)
+            end_factor = factor.get(end_key) if end_key is not None else None
+            stock_available = stock_available and start_factor is not None and end_factor is not None
+            if stock_available:
+                stock_available = all(
+                    np.isfinite(value) and value > 0
+                    for value in (raw_close[start_key], raw_close[end_key], start_factor, end_factor)
+                )
+            stock_return = (
+                (raw_close[end_key] * end_factor) / (raw_close[start_key] * start_factor) - 1.0
+                if stock_available else None
+            )
+            benchmark_available = (
+                end_key is not None and start_key in benchmark_close and end_key in benchmark_close
+                and benchmark_close[start_key] > 0 and benchmark_close[end_key] > 0
+            )
+            benchmark_return = (
+                benchmark_close[end_key] / benchmark_close[start_key] - 1.0
+                if benchmark_available else None
+            )
+            stock_value = None if stock_return is None else round(stock_return, 6)
+            benchmark_value = None if benchmark_return is None else round(benchmark_return, 6)
+            excess_value = (
+                None if stock_return is None or benchmark_return is None
+                else round(stock_return - benchmark_return, 6)
+            )
+            label_end_date = (
+                date(end_key // 10000, (end_key // 100) % 100, end_key % 100)
+                if stock_available and end_key is not None else None
+            )
             expected_values = {
+                f"horizon_available_{horizon}d": stock_available,
                 f"ret_{horizon}d": stock_value,
                 f"bench_ret_{horizon}d": benchmark_value,
                 f"excess_return_{horizon}d": excess_value,
-                f"label_end_date_{horizon}d": date(
-                    end_key // 10000, (end_key // 100) % 100, end_key % 100
-                ),
+                f"label_end_date_{horizon}d": label_end_date,
             }
             for field, expected in expected_values.items():
                 actual = row[field]
-                if actual != expected:
+                if isinstance(expected, bool):
+                    matches = bool(actual) == expected
+                elif expected is None:
+                    matches = pd.isna(actual)
+                else:
+                    matches = not pd.isna(actual) and actual == expected
+                if not matches:
                     raise ValueError(
                         f"独立复算不一致：{sample_date} {field} stored={actual!r} calculated={expected!r}"
                     )
-            results.append({"research_date": sample_date, "horizon": horizon, **expected_values})
-    return results
+            valid_windows += int(stock_available)
+            benchmark_windows += int(benchmark_available)
+            if sample_date in SAMPLE_DATES:
+                samples.append({"research_date": sample_date, "horizon": horizon, **expected_values})
+    return {
+        "valid_return_windows_checked": valid_windows,
+        "benchmark_windows_checked": benchmark_windows,
+        "samples": samples,
+    }
+
+
+def _audit_path_metrics(
+    outcomes: pd.DataFrame,
+    raw_close: dict[int, float],
+    raw_high: dict[int, float],
+    raw_low: dict[int, float],
+    factor: dict[int, float],
+) -> dict[str, Any]:
+    dates = sorted(raw_close)
+    indexes = {value: index for index, value in enumerate(dates)}
+    checked = {
+        str(horizon): {"max_favorable_move": 0, "max_adverse_move": 0, "max_drawdown": 0}
+        for horizon in HORIZONS
+    }
+    samples: list[dict[str, Any]] = []
+    for _, row in outcomes.iterrows():
+        research_date = str(row["research_date"])
+        start_key = int(date.fromisoformat(research_date).strftime("%Y%m%d"))
+        if start_key not in indexes:
+            raise ValueError(f"独立路径复算日期未进入 raw：{research_date}")
+        start_index = indexes[start_key]
+        for horizon in HORIZONS:
+            end_index = start_index + horizon
+            if end_index >= len(dates):
+                raise ValueError(f"认证标签窗口超出 raw bars：{research_date}/{horizon}D")
+            window_keys = dates[start_index:end_index + 1]
+            future_keys = window_keys[1:]
+            adjusted_closes = [
+                raw_close.get(day, np.nan) * (factor.get(day) if factor.get(day) is not None else np.nan)
+                for day in window_keys
+            ]
+            adjusted_highs = [
+                raw_high.get(day, np.nan) * (factor.get(day) if factor.get(day) is not None else np.nan)
+                for day in future_keys
+            ]
+            adjusted_lows = [
+                raw_low.get(day, np.nan) * (factor.get(day) if factor.get(day) is not None else np.nan)
+                for day in future_keys
+            ]
+            if not np.isfinite(adjusted_closes).all() or min(adjusted_closes) <= 0:
+                raise ValueError(f"认证收盘路径包含无效值：{research_date}/{horizon}D")
+            base_close = adjusted_closes[0]
+            expected = {
+                f"max_favorable_move_{horizon}d": (
+                    round(max(adjusted_highs) / base_close - 1, 6)
+                    if len(adjusted_highs) == horizon and np.isfinite(adjusted_highs).all() and min(adjusted_highs) > 0
+                    else None
+                ),
+                f"max_adverse_move_{horizon}d": (
+                    round(min(adjusted_lows) / base_close - 1, 6)
+                    if len(adjusted_lows) == horizon and np.isfinite(adjusted_lows).all() and min(adjusted_lows) > 0
+                    else None
+                ),
+                f"max_drawdown_{horizon}d": round(max(
+                    1.0 - value / peak
+                    for peak, value in zip(np.maximum.accumulate(adjusted_closes), adjusted_closes, strict=True)
+                ), 6),
+            }
+            for field, expected_value in expected.items():
+                actual = row[field]
+                matches = pd.isna(actual) if expected_value is None else not pd.isna(actual) and actual == expected_value
+                if not matches:
+                    raise ValueError(
+                        f"独立路径复算不一致：{research_date} {field} stored={actual!r} calculated={expected_value!r}"
+                    )
+                if expected_value is not None:
+                    checked[str(horizon)][field.removesuffix(f"_{horizon}d")] += 1
+            if research_date in SAMPLE_DATES:
+                samples.append({"research_date": research_date, **expected})
+    return {"metric_values_checked": checked, "sample_rows": samples}
 
 
 def main() -> int:
@@ -236,11 +356,30 @@ def main() -> int:
     dataset_dir = (args.dataset_root / args.dataset_id).resolve(strict=True)
     manifest = _read_json(dataset_dir / "manifest.json")
     certificate = _read_json(args.certificate.resolve(strict=True))
-    if manifest["dataset_id"] != args.dataset_id or manifest["dataset_digest"] != (
-        "d024ef9e2084563ce1dd3d1ce61f9dcf48daf15d49f93f2c96eb95d58156ac99"
+    pin = CERTIFIED_DATASET_PINS.get(args.dataset_id)
+    if pin is None or manifest.get("dataset_id") != args.dataset_id:
+        raise ValueError("W4 dataset 身份没有本地证书登记")
+    digest_rows = [
+        {key: shard.get(key) for key in MANIFEST_DIGEST_FIELDS}
+        for shard in sorted(manifest.get("shards", []), key=lambda item: str(item.get("shard_key", "")))
+    ]
+    calculated_digest = _canonical_sha256({
+        "schema_version": manifest.get("schema_version"),
+        "dataset_id": args.dataset_id,
+        "metadata": manifest.get("metadata", {}),
+        "shards": digest_rows,
+        "missing_shards": manifest.get("missing_shards", []),
+    })
+    if manifest.get("dataset_digest") != calculated_digest:
+        raise ValueError("W4 manifest digest 复算不一致")
+    certification_status, certification_reason, checked_pin = certified_scope_state(manifest)
+    if certification_status != "CERTIFIED_LIMITED_SCOPE" or checked_pin != pin:
+        raise ValueError(f"W4 证书绑定检查失败：{certification_status} {certification_reason}")
+    if (
+        certificate.get("certificate_id") != pin.scope_certificate_id
+        or certificate.get("certificate_sha256") != pin.scope_certificate_sha256
+        or manifest["metadata"].get("input_versions", {}).get("scope_certificate_sha256") != certificate.get("certificate_sha256")
     ):
-        raise ValueError("W4 dataset identity/digest 与冻结限域版本不一致")
-    if manifest["metadata"].get("input_versions", {}).get("scope_certificate_sha256") != certificate.get("certificate_sha256"):
         raise ValueError("W4 manifest 未绑定当前 W2 scope certificate")
     if manifest["metadata"].get("research_eligible") is not True or manifest["metadata"].get("confirmatory_research_eligible") is not False:
         raise ValueError("W4 exploratory eligibility flags 与已审阅口径不一致")
@@ -269,15 +408,31 @@ def main() -> int:
         outcomes, certificate, args.market_root.resolve(strict=True), args.w2_root.resolve(strict=True),
         args.benchmark_file.resolve(strict=True),
     )
+    raw_close, raw_high, raw_low, factor = _load_raw_and_factor(
+        args.market_root.resolve(strict=True), args.w2_root.resolve(strict=True), certificate,
+    )
+    path_audit = _audit_path_metrics(outcomes, raw_close, raw_high, raw_low, factor)
     print(json.dumps({
         "dataset_id": manifest["dataset_id"],
         "dataset_digest": manifest["dataset_digest"],
+        "schema_version": manifest["schema_version"],
         "row_count": len(features),
         "feature_shards": manifest["complete_shard_count"],
         "outcome_shards": manifest["complete_shard_count"],
+        "certification_status": certification_status,
+        "certification_reason": certification_reason,
+        "scope_certificate_id": pin.scope_certificate_id,
+        "scope_certificate_sha256": pin.scope_certificate_sha256,
+        "research_scope": {
+            "stock_code": pin.stock_code,
+            "exchange": pin.exchange,
+            "date_from": pin.date_from,
+            "date_to": pin.date_to,
+        },
         "horizon_coverage": horizon_coverage,
         "chart_artifact_audit": artifact_audit,
-        "independent_return_audit": {"rows_checked": len(return_audit), "tolerance": 0, "results": return_audit},
+        "independent_return_audit": {"tolerance": 0, **return_audit},
+        "independent_path_metric_audit": {"tolerance": 0, **path_audit},
     }, ensure_ascii=False, indent=2, default=str))
     return 0
 

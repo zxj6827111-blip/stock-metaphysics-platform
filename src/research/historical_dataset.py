@@ -15,7 +15,9 @@ from typing import Any
 import duckdb
 import pandas as pd
 
-W4_SCHEMA_VERSION = "w4-historical-panel-v1"
+LEGACY_W4_SCHEMA_VERSION = "w4-historical-panel-v1"
+W4_SCHEMA_VERSION = "w4-historical-panel-v2"
+SUPPORTED_W4_SCHEMA_VERSIONS = frozenset({LEGACY_W4_SCHEMA_VERSION, W4_SCHEMA_VERSION})
 FEATURE_KEY = ("security_id", "research_date")
 FEATURE_VERSION_FIELDS = (
     "feature_version",
@@ -45,14 +47,18 @@ OUTCOME_REQUIRED = {
     "dataset_id", "security_id", "stock_code", "research_date", "research_time",
     "research_timezone", *FEATURE_VERSION_FIELDS, *LABEL_VERSION_FIELDS,
     "bar_manifest_sha256", "factor_manifest_sha256", "trade_date", "trade_index",
-    "benchmark_code", "is_degraded", "max_favorable_move_20d",
-    "max_adverse_move_20d", "max_drawdown_20d",
+    "benchmark_code", "is_degraded",
     *{
         f"{prefix}_{horizon}d"
         for prefix in (
             "ret", "bench_ret", "excess_return", "horizon_available",
             "horizon_requested",
         )
+        for horizon in (1, 5, 10, 20, 60)
+    },
+    *{
+        f"{metric}_{horizon}d"
+        for metric in ("max_favorable_move", "max_adverse_move", "max_drawdown")
         for horizon in (1, 5, 10, 20, 60)
     },
 }
@@ -487,7 +493,10 @@ def query_historical_dataset(
     if not manifest_path.is_file():
         raise FileNotFoundError(f"研究数据集不存在：{dataset_id}")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("dataset_id") != dataset_id or manifest.get("schema_version") != W4_SCHEMA_VERSION:
+    if (
+        manifest.get("dataset_id") != dataset_id
+        or manifest.get("schema_version") not in SUPPORTED_W4_SCHEMA_VERSIONS
+    ):
         raise ValueError("数据集 manifest 身份或版本无效")
     complete_shards = [item for item in manifest.get("shards", []) if item.get("status") == "COMPLETE"]
     if not complete_shards:
@@ -525,6 +534,14 @@ def query_historical_dataset(
     if date_from is not None and date_to is not None and date_from > date_to:
         raise ValueError("date_from 不能晚于 date_to")
     predicate = " WHERE " + " AND ".join(clauses) if clauses else ""
+    path_metric_columns = []
+    for horizon in (1, 5, 10, 20, 60):
+        for metric in ("max_favorable_move", "max_adverse_move", "max_drawdown"):
+            column = f"{metric}_{horizon}d"
+            if manifest["schema_version"] == W4_SCHEMA_VERSION or horizon == 20:
+                path_metric_columns.append(f"o.{column}")
+            else:
+                path_metric_columns.append(f"NULL AS {column}")
     query = f"""
         SELECT f.*, o.label_version, o.bar_version, o.factor_version, o.price_basis,
                o.bar_manifest_sha256, o.factor_manifest_sha256,
@@ -537,7 +554,7 @@ def query_historical_dataset(
                o.horizon_available_20d, o.horizon_available_60d,
                o.horizon_requested_1d, o.horizon_requested_5d, o.horizon_requested_10d,
                o.horizon_requested_20d, o.horizon_requested_60d,
-               o.max_favorable_move_20d, o.max_adverse_move_20d, o.max_drawdown_20d
+               {", ".join(path_metric_columns)}
         FROM read_parquet({_sql_paths(feature_paths)}) f
         INNER JOIN read_parquet({_sql_paths(outcome_paths)}) o
           ON f.dataset_id=o.dataset_id
@@ -560,6 +577,8 @@ def query_historical_dataset(
 __all__ = [
     "FEATURE_KEY",
     "HistoricalResearchDatasetStore",
+    "LEGACY_W4_SCHEMA_VERSION",
+    "SUPPORTED_W4_SCHEMA_VERSIONS",
     "W4_SCHEMA_VERSION",
     "query_historical_dataset",
     "validate_feature_outcome_frames",

@@ -85,6 +85,13 @@ def _feature(security_id: str, stock_code: str, day: str, *, direction: int, val
         "engine_version": "bazi-v2-test",
         "rule_version": "factor-v2-test",
     }
+    ten_god = "正财" if day.endswith("02") else "正印"
+    relation_pillar = "year" if day.endswith("02") else "month"
+    relation_event = {
+        "relation_type": "六合",
+        "source": {"context": "day", "pillar": "day", "component": "branch"},
+        "target": {"context": "natal", "pillar": relation_pillar, "component": "branch"},
+    }
     return {
         "dataset_id": "w5-api-dataset",
         "security_id": security_id,
@@ -100,7 +107,24 @@ def _feature(security_id: str, stock_code: str, day: str, *, direction: int, val
         "birth_evidence_asof_status": "NOT_PROVEN",
         "chart_artifact_ids_json": json.dumps([f"chart-{stock_code}-{day}"]),
         "chart_artifact_digests_json": json.dumps({f"chart-{stock_code}-{day}": _HASH_C}),
-        "features_json": json.dumps({"factor_set": {"observations": [observation]}}),
+        "features_json": json.dumps({
+            "factor_set": {"observations": [
+                observation,
+                {
+                    **observation,
+                    "factor_id": "B_DAY_003",
+                    "raw_value": "六合",
+                    "normalized_value": 1.0,
+                },
+                {
+                    **observation,
+                    "factor_id": "B_DAY_005",
+                    "raw_value": ten_god,
+                    "normalized_value": 1.0,
+                },
+            ]},
+            "fortune_snapshot": {"relation_context": {"events": [relation_event]}},
+        }),
         "research_use_status": "ENGINEERING_ONLY",
         "research_eligible": False,
     }
@@ -123,13 +147,13 @@ def _outcome(stock_code: str, day: str, value: float | None) -> dict:
         "benchmark_code": None,
         "is_degraded": False,
         "ret_1d": value,
-        "bench_ret_1d": None,
-        "excess_return_1d": None,
+        "bench_ret_1d": 0.02 if value is not None and value > 0 else 0.01 if value is not None else None,
+        "excess_return_1d": 0.03 if value is not None and value > 0 else -0.03 if value is not None else None,
         "horizon_available_1d": value is not None,
         "horizon_requested_1d": True,
-        "max_favorable_move_20d": None,
-        "max_adverse_move_20d": None,
-        "max_drawdown_20d": None,
+        "max_favorable_move_20d": 0.20 if value is not None else None,
+        "max_adverse_move_20d": -0.10 if value is not None else None,
+        "max_drawdown_20d": 0.08 if value is not None else None,
     }
     for horizon in (5, 10, 20, 60):
         row[f"ret_{horizon}d"] = None
@@ -137,14 +161,21 @@ def _outcome(stock_code: str, day: str, value: float | None) -> dict:
         row[f"excess_return_{horizon}d"] = None
         row[f"horizon_available_{horizon}d"] = False
         row[f"horizon_requested_{horizon}d"] = True
+    for horizon in (1, 5, 10, 20, 60):
+        for metric in ("max_favorable_move", "max_adverse_move", "max_drawdown"):
+            row[f"{metric}_{horizon}d"] = {
+                "max_favorable_move": (0.08 if value is not None and value > 0 else 0.01 if value is not None else None),
+                "max_adverse_move": (-0.02 if value is not None and value > 0 else -0.06 if value is not None else None),
+                "max_drawdown": (0.01 if value is not None and value > 0 else 0.05 if value is not None else None),
+            }[metric]
     return row
 
 
-def _dataset_store(tmp_path):
+def _dataset_store(tmp_path, *, metadata=None):
     store = HistoricalResearchDatasetStore(
         tmp_path / "research_datasets",
         dataset_id="w5-api-dataset",
-        metadata={
+        metadata=metadata or {
             "research_eligible": False,
             "confirmatory_research_eligible": False,
             "known_limitations": ["W2 物理覆盖不完整", "仅工程样本"],
@@ -165,6 +196,59 @@ def _dataset_store(tmp_path):
     return store
 
 
+def _certified_test_dataset(tmp_path, monkeypatch, *, certificate_sha256=_HASH_C):
+    import json
+
+    from src.research.certified_scopes import CERTIFIED_DATASET_PINS, CertifiedDatasetPin
+
+    certificate_id = "w5-api-test-certificate"
+    metadata = {
+        "status": "CERTIFIED_LIMITED_SCOPE_EXPLORATORY",
+        "research_eligible": True,
+        "confirmatory_research_eligible": False,
+        "known_limitations": ["W2 物理覆盖不完整；仅用于 API contract test"],
+        "scope": {
+            "security_id": "sec-w5",
+            "stock_code": "000001",
+            "exchange": "SSE",
+            "research_dates": ["2020-01-02", "2020-01-03"],
+        },
+        "input_versions": {
+            "scope_certificate_id": certificate_id,
+            "scope_certificate_sha256": certificate_sha256,
+            "w2_manifest_sha256": _HASH_B,
+            "pit_dataset_version": _FEATURE_VERSIONS["pit_version"],
+            "source_birth_profile_version": _FEATURE_VERSIONS["birth_profile_source_version"],
+            "scope_certificate_input_versions": {"w2_manifest_sha256": _HASH_B},
+        },
+        "scope_certificate": {
+            "certificate_id": certificate_id,
+            "certificate_sha256": certificate_sha256,
+            "status": "CERTIFIED_LIMITED_OBSERVATION_RANGE",
+        },
+    }
+    store = _dataset_store(tmp_path, metadata=metadata)
+    manifest = json.loads((store.root / "manifest.json").read_text(encoding="utf-8"))
+    pin = CertifiedDatasetPin(
+        dataset_id="w5-api-dataset",
+        dataset_digest=manifest["dataset_digest"],
+        scope_certificate_id=certificate_id,
+        scope_certificate_sha256=_HASH_C,
+        w2_manifest_sha256=_HASH_B,
+        security_id="sec-w5",
+        stock_code="000001",
+        exchange="SSE",
+        date_from=date(2020, 1, 2),
+        date_to=date(2020, 1, 3),
+        row_count=2,
+        pit_version=_FEATURE_VERSIONS["pit_version"],
+        birth_profile_source_version=_FEATURE_VERSIONS["birth_profile_source_version"],
+        label_version=_LABEL_VERSIONS["label_version"],
+    )
+    monkeypatch.setitem(CERTIFIED_DATASET_PINS, "w5-api-dataset", pin)
+    return store
+
+
 def _versions() -> HistoricalDatasetVersions:
     return HistoricalDatasetVersions(
         feature_version=_FEATURE_VERSIONS["feature_version"],
@@ -180,6 +264,24 @@ def _versions() -> HistoricalDatasetVersions:
         factor_version=_LABEL_VERSIONS["factor_version"],
         price_basis="raw_times_factor",
     )
+
+
+def _event_request(**overrides) -> dict:
+    request = {
+        "dataset_id": "w5-api-dataset",
+        "scope_mode": "stock",
+        "stock_code": "000001",
+        "date_from": "2020-01-02",
+        "date_to": "2020-01-03",
+        "factor_ids": ["B_NATAL_001"],
+        "activation": "any",
+        "horizon": 1,
+        "versions": _versions().model_dump(mode="json"),
+        "limit": 10,
+        "offset": 0,
+    }
+    request.update(overrides)
+    return request
 
 
 def _monkeypatch_profile_resolver(monkeypatch):
@@ -312,14 +414,15 @@ def test_v2_scan_rejects_oversized_pit_universe_before_profile_resolution(
 
 
 def test_v2_event_study_uses_explicit_versions_and_marks_engineering_data(client, tmp_path, monkeypatch) -> None:
-    _dataset_store(tmp_path)
+    _certified_test_dataset(tmp_path, monkeypatch)
     monkeypatch.setattr(settings, "data_dir", tmp_path)
+    monkeypatch.setattr(settings, "min_event_sample_size", 1)
     request = {
         "dataset_id": "w5-api-dataset",
         "scope_mode": "stock",
         "stock_code": "000001",
-        "date_from": "2020-01-01",
-        "date_to": "2020-12-31",
+        "date_from": "2020-01-02",
+        "date_to": "2020-01-03",
         "factor_ids": ["B_NATAL_001"],
         "activation": "positive",
         "horizon": 1,
@@ -333,16 +436,193 @@ def test_v2_event_study_uses_explicit_versions_and_marks_engineering_data(client
     assert body["candidate_observation_count"] == 2, body
     assert body["matched_observation_count"] == 1
     assert body["matched_date_count"] == 1
+    assert body["candidate_security_date_count"] == 2
+    assert body["matched_security_date_count"] == 1
+    assert body["observation_unit"] == "security_date_factor"
     assert body["matched"]["mean_return"] == pytest.approx(0.05)
     assert body["complement"]["mean_return"] == pytest.approx(-0.02)
+    assert body["overall"]["max_return"] == pytest.approx(0.05)
+    assert body["overall"]["max_loss"] == pytest.approx(-0.02)
+    assert body["overall"]["payoff_ratio"] == pytest.approx(2.5)
+    assert body["overall"]["metric_summaries"]["benchmark_return"]["sample_count"] == 2
+    assert body["overall"]["metric_summaries"]["benchmark_return"]["mean"] == pytest.approx(0.015)
+    assert body["overall"]["metric_summaries"]["excess_return"]["mean"] == pytest.approx(0.0)
+    assert body["overall"]["metric_summaries"]["max_favorable_move"]["mean"] == pytest.approx(0.045)
+    assert body["overall"]["metric_summaries"]["max_adverse_move"]["mean"] == pytest.approx(-0.04)
+    assert body["overall"]["metric_summaries"]["max_drawdown"]["mean"] == pytest.approx(0.03)
     assert body["matched_date_equal_weighted"]["sample_count"] == 1
     assert body["research_status"] == "EXPLORATORY_NOT_GATED"
-    assert "W2 物理覆盖不完整" in body["research_status_reasons"]
+    assert "W2 物理覆盖不完整" in " ".join(body["research_status_reasons"])
     assert body["events"][0]["factor_id"] == "B_NATAL_001"
+    assert body["events"][0]["max_drawdown"] == pytest.approx(0.01)
+
+
+def test_v2_event_study_rejects_partial_and_full_out_of_scope_without_clipping(client, tmp_path, monkeypatch) -> None:
+    _certified_test_dataset(tmp_path, monkeypatch)
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
+    monkeypatch.setattr(settings, "min_event_sample_size", 1)
+
+    partial = client.post(
+        "/api/v2/research/event-study",
+        json=_event_request(date_from="2019-12-31", date_to="2020-01-02"),
+    )
+    assert partial.status_code == 200, partial.text
+    partial_body = partial.json()
+    assert partial_body["research_status"] == "OUTSIDE_CERTIFIED_SCOPE"
+    assert partial_body["date_from"] == "2019-12-31"
+    assert partial_body["date_to"] == "2020-01-02"
+    assert partial_body["candidate_observation_count"] == 0
+    assert "未裁剪" in " ".join(partial_body["research_status_reasons"])
+
+    outside = client.post(
+        "/api/v2/research/event-study",
+        json=_event_request(date_from="2021-01-01", date_to="2021-01-02"),
+    )
+    assert outside.status_code == 200, outside.text
+    assert outside.json()["research_status"] == "OUTSIDE_CERTIFIED_SCOPE"
+    assert outside.json()["candidate_observation_count"] == 0
+
+    wide_request = client.post(
+        "/api/v2/research/event-study",
+        json=_event_request(date_from="2010-01-01", date_to="2020-12-31"),
+    )
+    assert wide_request.status_code == 200, wide_request.text
+    wide_body = wide_request.json()
+    assert wide_body["research_status"] == "OUTSIDE_CERTIFIED_SCOPE"
+    assert wide_body["date_from"] == "2010-01-01"
+    assert wide_body["date_to"] == "2020-12-31"
+    assert wide_body["candidate_observation_count"] == 0
+    assert "未裁剪" in " ".join(wide_body["research_status_reasons"])
+
+
+def test_v2_event_study_distinguishes_wrong_security_from_insufficient_sample(client, tmp_path, monkeypatch) -> None:
+    _certified_test_dataset(tmp_path, monkeypatch)
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
+    monkeypatch.setattr(settings, "min_event_sample_size", 2)
+
+    wrong_security = client.post(
+        "/api/v2/research/event-study",
+        json=_event_request(stock_code="600519"),
+    )
+    assert wrong_security.status_code == 200, wrong_security.text
+    assert wrong_security.json()["research_status"] == "SECURITY_NOT_CERTIFIED"
+    assert "000001" in " ".join(wrong_security.json()["research_status_reasons"])
+    assert wrong_security.json()["candidate_observation_count"] == 0
+
+    insufficient = client.post(
+        "/api/v2/research/event-study",
+        json=_event_request(activation="positive"),
+    )
+    assert insufficient.status_code == 200, insufficient.text
+    body = insufficient.json()
+    assert body["research_status"] == "INSUFFICIENT_SAMPLE"
+    assert body["matched"]["sample_count"] == 1
+    assert body["matched"]["max_loss"] is None
+    assert body["matched"]["payoff_ratio"] is None
+
+
+def test_v2_event_study_reports_certificate_and_version_mismatch(client, tmp_path, monkeypatch) -> None:
+    certificate_root = tmp_path / "certificate"
+    _certified_test_dataset(certificate_root, monkeypatch, certificate_sha256=_HASH_A)
+    monkeypatch.setattr(settings, "data_dir", certificate_root)
+    certificate = client.post("/api/v2/research/event-study", json=_event_request())
+    assert certificate.status_code == 200, certificate.text
+    assert certificate.json()["research_status"] == "CERTIFICATE_MISMATCH"
+    assert certificate.json()["candidate_observation_count"] == 0
+
+    version_root = tmp_path / "version"
+    _certified_test_dataset(version_root, monkeypatch)
+    monkeypatch.setattr(settings, "data_dir", version_root)
+    versions = _versions().model_dump(mode="json")
+    versions["feature_version"] = "unregistered-version"
+    mismatch = client.post(
+        "/api/v2/research/event-study",
+        json=_event_request(versions=versions),
+    )
+    assert mismatch.status_code == 200, mismatch.text
+    assert mismatch.json()["research_status"] == "VERSION_MISMATCH"
+    assert mismatch.json()["candidate_observation_count"] == 0
+
+
+def test_v2_event_study_matches_relation_and_ten_god_categories_exactly(client, tmp_path, monkeypatch) -> None:
+    _certified_test_dataset(tmp_path, monkeypatch)
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
+    monkeypatch.setattr(settings, "min_event_sample_size", 1)
+    relation = client.post(
+        "/api/v2/research/event-study",
+        json=_event_request(
+            factor_ids=["B_DAY_003"],
+            activation="nonzero",
+            relation_type="六合",
+            relation_source_context="day",
+            relation_source_pillar="day",
+            relation_target_context="natal",
+            relation_target_pillar="year",
+            relation_source_component="branch",
+            relation_target_component="branch",
+        ),
+    )
+    assert relation.status_code == 200, relation.text
+    relation_body = relation.json()
+    assert relation_body["relation_type"] == "六合"
+    assert relation_body["matched_observation_count"] == 1
+    assert [event["research_date"] for event in relation_body["events"]] == ["2020-01-02"]
+    assert relation_body["events"][0]["relation_evidence"]["target"]["pillar"] == "year"
+
+    ten_god = client.post(
+        "/api/v2/research/event-study",
+        json=_event_request(
+            factor_ids=["B_DAY_005"],
+            activation="nonzero",
+            ten_god_category="正财",
+            ten_god_layer="DAILY",
+            ten_god_position="day",
+        ),
+    )
+    assert ten_god.status_code == 200, ten_god.text
+    ten_god_body = ten_god.json()
+    assert ten_god_body["ten_god_category"] == "正财"
+    assert ten_god_body["matched_observation_count"] == 1
+    assert [(event["research_date"], event["ten_god_category"]) for event in ten_god_body["events"]] == [("2020-01-02", "正财")]
+
+    no_event = client.post(
+        "/api/v2/research/event-study",
+        json=_event_request(direction_filter=0),
+    )
+    assert no_event.status_code == 200, no_event.text
+    assert no_event.json()["research_status"] == "NO_MATCHING_EVENTS"
+    assert no_event.json()["candidate_observation_count"] == 2
+    assert no_event.json()["matched_observation_count"] == 0
+
+
+def test_v2_event_study_distinguishes_missing_horizon_labels(client, tmp_path, monkeypatch) -> None:
+    _certified_test_dataset(tmp_path, monkeypatch)
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
+    missing = client.post(
+        "/api/v2/research/event-study",
+        json=_event_request(horizon=5),
+    )
+    assert missing.status_code == 200, missing.text
+    body = missing.json()
+    assert body["research_status"] == "DATA_MISSING"
+    assert body["matched_observation_count"] == 2
+    assert body["missing_by_reason"] == {"horizon_unavailable": 2}
+    assert all(event["return_value"] is None for event in body["events"])
+
+
+def test_v2_event_study_rejects_dataset_without_registered_certificate(client, tmp_path, monkeypatch) -> None:
+    _dataset_store(tmp_path)
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
+    response = client.post("/api/v2/research/event-study", json=_event_request())
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["research_status"] == "NOT_CERTIFIED"
+    assert body["candidate_observation_count"] == 0
+    assert body["matched"]["mean_return"] is None
 
 
 def test_v2_event_study_rejects_version_mismatch(client, tmp_path, monkeypatch) -> None:
-    _dataset_store(tmp_path)
+    _certified_test_dataset(tmp_path, monkeypatch)
     monkeypatch.setattr(settings, "data_dir", tmp_path)
     versions = _versions().model_dump(mode="json")
     versions["feature_version"] = "unregistered-version"
@@ -352,16 +632,17 @@ def test_v2_event_study_rejects_version_mismatch(client, tmp_path, monkeypatch) 
             "dataset_id": "w5-api-dataset",
             "scope_mode": "stock",
             "stock_code": "000001",
-            "date_from": "2020-01-01",
-            "date_to": "2020-12-31",
+            "date_from": "2020-01-02",
+            "date_to": "2020-01-03",
             "factor_ids": ["B_NATAL_001"],
             "activation": "any",
             "horizon": 1,
             "versions": versions,
         },
     )
-    assert response.status_code == 422
-    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+    assert response.status_code == 200
+    assert response.json()["research_status"] == "VERSION_MISMATCH"
+    assert response.json()["candidate_observation_count"] == 0
 
 
 def test_v2_event_study_rejects_oversized_candidate_set_before_materializing(
@@ -369,7 +650,7 @@ def test_v2_event_study_rejects_oversized_candidate_set_before_materializing(
 ) -> None:
     from src.research import historical_dataset_event_study
 
-    _dataset_store(tmp_path)
+    _certified_test_dataset(tmp_path, monkeypatch)
     monkeypatch.setattr(settings, "data_dir", tmp_path)
     monkeypatch.setattr(historical_dataset_event_study, "MAX_EVENT_STUDY_CANDIDATES", 1)
     response = client.post(
@@ -378,8 +659,8 @@ def test_v2_event_study_rejects_oversized_candidate_set_before_materializing(
             "dataset_id": "w5-api-dataset",
             "scope_mode": "stock",
             "stock_code": "000001",
-            "date_from": "2020-01-01",
-            "date_to": "2020-12-31",
+            "date_from": "2020-01-02",
+            "date_to": "2020-01-03",
             "factor_ids": ["B_NATAL_001"],
             "activation": "any",
             "horizon": 1,
@@ -400,6 +681,8 @@ def test_v2_dataset_and_experiment_endpoints_are_scoped_to_fixed_roots(client, t
     assert body["dataset_digest"]
     assert body["research_eligible"] is False
     assert body["confirmatory_research_eligible"] is False
+    assert body["certification_status"] == "NOT_CERTIFIED"
+    assert body["certification_reason"]
     assert len(body["available_versions"]) == 1
     assert body["available_versions"][0]["feature_version"] == "w4-v2-test-features"
 

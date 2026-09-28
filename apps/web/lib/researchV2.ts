@@ -2,7 +2,9 @@
 
 export const DEFAULT_RESEARCH_DATASET_ID =
   process.env.NEXT_PUBLIC_SMP_RESEARCH_DATASET_ID?.trim() ||
-  "w4-engineering-002561-20120223-asof-v2";
+  "w4-certified-002561-20120223-20180514-v3-path-risk";
+
+export const TEN_GOD_CATEGORIES = ["比肩", "劫财", "食神", "伤官", "偏财", "正财", "七杀", "正官", "偏印", "正印"] as const;
 
 export interface ApiSystemVersions {
   config_version: string;
@@ -38,6 +40,7 @@ export interface ApiHistoricalDatasetV2 {
   failed_shards: string[];
   missing_shards: string[];
   metadata: {
+    status?: string;
     research_eligible?: boolean;
     confirmatory_research_eligible?: boolean;
     scope?: {
@@ -55,6 +58,14 @@ export interface ApiHistoricalDatasetV2 {
   available_versions: ApiHistoricalDatasetVersions[];
   research_eligible: boolean;
   confirmatory_research_eligible: boolean;
+  certification_status: "CERTIFIED_LIMITED_SCOPE" | "NOT_CERTIFIED" | "CERTIFICATE_MISMATCH" | "DATA_MISSING";
+  certification_reason: string;
+  certified_stock_code: string | null;
+  certified_security_id: string | null;
+  certified_date_from: string | null;
+  certified_date_to: string | null;
+  scope_certificate_id: string | null;
+  scope_certificate_sha256: string | null;
 }
 
 export interface ApiHistoricalEventStudyRequest {
@@ -63,10 +74,21 @@ export interface ApiHistoricalEventStudyRequest {
   stock_code: string | null;
   date_from: string;
   date_to: string;
+  target_date: string | null;
   factor_ids: string[];
   activation: "any" | "nonzero" | "positive" | "negative";
   direction_filter: -1 | 0 | 1 | null;
   min_rule_score: number | null;
+  ten_god_category: string | null;
+  ten_god_layer: "DAILY" | null;
+  ten_god_position: "day" | null;
+  relation_type: string | null;
+  relation_source_context: "year" | "month" | "day" | "dayun" | null;
+  relation_source_pillar: "year" | "month" | "day" | "dayun" | null;
+  relation_target_context: "natal" | null;
+  relation_target_pillar: "year" | "month" | "day" | null;
+  relation_source_component: "stem" | "branch" | null;
+  relation_target_component: "stem" | "branch" | null;
   horizon: 1 | 5 | 20;
   versions: ApiHistoricalDatasetVersions;
   limit: number;
@@ -79,6 +101,23 @@ export interface ApiHistoricalStatistics {
   mean_return: number | null;
   median_return: number | null;
   win_rate: number | null;
+  mean_positive_return: number | null;
+  mean_negative_return: number | null;
+  payoff_ratio: number | null;
+  max_return: number | null;
+  max_loss: number | null;
+  return_unit: "fraction";
+  metric_summaries: Record<string, ApiHistoricalMetricSummary>;
+}
+
+export interface ApiHistoricalMetricSummary {
+  sample_count: number;
+  missing_count: number;
+  mean: number | null;
+  minimum: number | null;
+  maximum: number | null;
+  unit: "fraction";
+  definition: string;
 }
 
 export interface ApiHistoricalEvent {
@@ -89,10 +128,15 @@ export interface ApiHistoricalEvent {
   direction: number | null;
   rule_score: number | null;
   normalized_value: number | null;
+  ten_god_category: string | null;
+  relation_evidence: Record<string, unknown> | null;
   horizon: number;
   return_value: number | null;
   benchmark_return: number | null;
   excess_return: number | null;
+  max_favorable_move: number | null;
+  max_adverse_move: number | null;
+  max_drawdown: number | null;
   label_available: boolean;
   missing_reason: string | null;
 }
@@ -104,14 +148,33 @@ export interface ApiHistoricalEventStudyV2 {
   scope_mode: "stock" | "dates";
   date_from: string;
   date_to: string;
+  target_date: string | null;
   factor_ids: string[];
   activation: string;
+  ten_god_category: string | null;
+  ten_god_layer: "DAILY" | null;
+  ten_god_position: "day" | null;
+  relation_type: string | null;
+  relation_source_context: string | null;
+  relation_source_pillar: string | null;
+  relation_target_context: string | null;
+  relation_target_pillar: string | null;
+  relation_source_component: string | null;
+  relation_target_component: string | null;
+  condition_logic: "AND";
+  factor_selection_semantics: "per_factor_observation";
+  certified_stock_code: string | null;
+  certified_date_from: string | null;
+  certified_date_to: string | null;
   horizon: number;
   versions: ApiHistoricalDatasetVersions;
   research_status: string;
   research_status_reasons: string[];
   candidate_observation_count: number;
   matched_observation_count: number;
+  observation_unit: "security_date_factor";
+  candidate_security_date_count: number;
+  matched_security_date_count: number;
   matched_date_count: number;
   missing_observation_count: number;
   missing_by_reason: Record<string, number>;
@@ -167,12 +230,36 @@ export interface ApiFortuneTimelinePointV2 {
   availability: string;
 }
 
+export interface ApiFortuneTenGodFilter {
+  layer: string;
+  ten_god: string;
+  position?: string | null;
+  hidden_stem?: string | null;
+}
+
+export interface ApiFortuneRelationFilter {
+  relation_type: string;
+  source_context: string;
+  source_pillar: string;
+  target_context: string;
+  target_pillar: string;
+  source_component?: string | null;
+  target_component?: string | null;
+}
+
 export interface ApiFortuneTimelineV2 {
   stock_identity: { symbol: string; exchange: string; name: string; source_version: string };
   birth_context: ApiFortuneBirthProfileV2;
   start_date: string;
   end_date: string;
+  date_mode: "ALL_CALENDAR_DAYS" | "TRADING_DAYS_ONLY";
+  anchor_mode: string;
   timezone: string;
+  ten_god_filters: ApiFortuneTenGodFilter[];
+  relation_filters: ApiFortuneRelationFilter[];
+  include_relation_events: boolean;
+  include_month_segments: boolean;
+  include_ten_god_index: boolean;
   points: ApiFortuneTimelinePointV2[];
   availability: string;
   rule_versions: Record<string, unknown>;

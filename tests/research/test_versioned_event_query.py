@@ -9,7 +9,7 @@ from src.research.event_study.versioned_query import (
     VersionedEventQuery,
     join_versioned_event_frames,
 )
-from src.research.labels.horizon_returns import compute_forward_returns, label_frame
+from src.research.labels.horizon_returns import LABEL_VERSION, compute_forward_returns, label_frame
 
 
 def _bars(code: str, closes: list[float]) -> pd.DataFrame:
@@ -33,7 +33,7 @@ def _query(**updates) -> VersionedEventQuery:
         "engine_version": "engine-v2",
         "rule_version": "rule-v3",
         "config_version": "config-v1",
-        "label_version": "w3-hfq-adjfactor-v2",
+        "label_version": LABEL_VERSION,
         "bar_version": "bars-v2",
         "factor_data_version": "factors-v2",
         "price_basis": "raw_times_factor",
@@ -116,7 +116,7 @@ def test_duplicate_label_key_fails_closed():
     ])
     labels = pd.DataFrame([{
         "stock_code": "A", "trade_date": date(2020, 1, 1),
-        "label_version": "w3-hfq-adjfactor-v2", "bar_version": "bars-v2",
+        "label_version": LABEL_VERSION, "bar_version": "bars-v2",
         "factor_version": "factors-v2", "price_basis": "raw_times_factor",
     }] * 2)
     with pytest.raises(ValueError, match="重复股票/日期键"):

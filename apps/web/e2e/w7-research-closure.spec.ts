@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-const DATASET_ID = "w4-engineering-002561-20120223-asof-v2";
+const DATASET_ID = "w4-certified-002561-20120223-20180514-v3-path-risk";
 const DIGEST = "5c1537d8ddea505f854ca78e3d01932740d7768a9f90ff19bd7bf7b96cf771cb";
 
 function datasetResponse() {
@@ -44,10 +44,40 @@ function datasetResponse() {
     }],
     research_eligible: false,
     confirmatory_research_eligible: false,
+    certification_status: "NOT_CERTIFIED",
+    certification_reason: "此测试夹具没有证书绑定。",
+    certified_stock_code: null,
+    certified_security_id: null,
+    certified_date_from: null,
+    certified_date_to: null,
+    scope_certificate_id: null,
+    scope_certificate_sha256: null,
   };
 }
 
-function historicalResult(horizon: number) {
+function historicalResult(request: Record<string, unknown>) {
+  const horizon = request.horizon as number;
+  const unavailableMetric = (definition: string) => ({ sample_count: 0, missing_count: 1, mean: null, minimum: null, maximum: null, unit: "fraction", definition });
+  const stats = {
+    sample_count: 1,
+    missing_count: 0,
+    mean_return: null,
+    median_return: null,
+    win_rate: null,
+    mean_positive_return: null,
+    mean_negative_return: null,
+    payoff_ratio: null,
+    max_return: null,
+    max_loss: null,
+    return_unit: "fraction",
+    metric_summaries: {
+      benchmark_return: unavailableMetric("同持有期基准收益"),
+      excess_return: unavailableMetric("个股收益减同持有期基准收益"),
+      max_favorable_move: unavailableMetric("事件日收盘后至周期末最高价相对事件日收盘价的最大涨幅"),
+      max_adverse_move: unavailableMetric("事件日收盘后至周期末最低价相对事件日收盘价的最大跌幅"),
+      max_drawdown: unavailableMetric("事件日收盘起峰值至后续谷值的最大非负回撤"),
+    },
+  };
   return {
     contract_version: "research-api-v2",
     dataset_id: DATASET_ID,
@@ -55,21 +85,40 @@ function historicalResult(horizon: number) {
     scope_mode: "dates",
     date_from: "2012-02-23",
     date_to: "2012-02-27",
-    factor_ids: ["B_DAY_003"],
-    activation: "nonzero",
+    target_date: request.target_date ?? null,
+    factor_ids: request.factor_ids ?? ["B_DAY_003"],
+    activation: request.activation ?? "nonzero",
+    ten_god_category: request.ten_god_category ?? null,
+    ten_god_layer: request.ten_god_layer ?? null,
+    ten_god_position: request.ten_god_position ?? null,
+    relation_type: request.relation_type ?? null,
+    relation_source_context: request.relation_source_context ?? null,
+    relation_source_pillar: request.relation_source_pillar ?? null,
+    relation_target_context: request.relation_target_context ?? null,
+    relation_target_pillar: request.relation_target_pillar ?? null,
+    relation_source_component: request.relation_source_component ?? null,
+    relation_target_component: request.relation_target_component ?? null,
+    condition_logic: "AND",
+    factor_selection_semantics: "per_factor_observation",
+    certified_stock_code: "002561",
+    certified_date_from: "2012-02-23",
+    certified_date_to: "2012-03-21",
     horizon,
     versions: datasetResponse().available_versions[0],
     research_status: "EXPLORATORY_NOT_GATED",
     research_status_reasons: ["数据集未认证；仅返回描述统计。"],
     candidate_observation_count: 3,
     matched_observation_count: 1,
+    observation_unit: "security_date_factor",
+    candidate_security_date_count: 3,
+    matched_security_date_count: 1,
     matched_date_count: 1,
     missing_observation_count: 1,
     missing_by_reason: { benchmark_missing: 1 },
-    matched: { sample_count: 1, missing_count: 0, mean_return: null, median_return: null, win_rate: null },
-    complement: { sample_count: 2, missing_count: 1, mean_return: null, median_return: null, win_rate: null },
-    overall: { sample_count: 3, missing_count: 1, mean_return: null, median_return: null, win_rate: null },
-    matched_date_equal_weighted: { sample_count: 1, missing_count: 0, mean_return: null, median_return: null, win_rate: null },
+    matched: stats,
+    complement: { ...stats, sample_count: 2, missing_count: 1 },
+    overall: { ...stats, sample_count: 3, missing_count: 1 },
+    matched_date_equal_weighted: stats,
     returned_count: 1,
     limit: 100,
     offset: 0,
@@ -85,6 +134,11 @@ function historicalResult(horizon: number) {
       return_value: null,
       benchmark_return: null,
       excess_return: null,
+      max_favorable_move: null,
+      max_adverse_move: null,
+      max_drawdown: null,
+      ten_god_category: request.ten_god_category ?? null,
+      relation_evidence: request.relation_type ? { relation_type: request.relation_type, source: { context: "day", pillar: "day", component: "branch" }, target: { context: "natal", pillar: request.relation_target_pillar, component: "branch" } } : null,
       label_available: false,
       missing_reason: "benchmark_missing",
     }],
@@ -182,26 +236,73 @@ test("日期扫描上下文进入 v2 历史验证，三周期结果可导出原�
     body: JSON.stringify(datasetResponse()),
   }));
   const requestedHorizons: number[] = [];
+  const executedRequests: Record<string, unknown>[] = [];
   await page.route("**/api/backend/api/v2/research/event-study", async (route) => {
-    const body = route.request().postDataJSON() as { horizon: number };
-    requestedHorizons.push(body.horizon);
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(historicalResult(body.horizon)) });
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    executedRequests.push(body);
+    requestedHorizons.push(body.horizon as number);
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(historicalResult(body)) });
   });
 
-  await page.goto("/research/history?scope_mode=dates&date_from=2012-02-23&date_to=2012-02-27&factor_id=B_DAY_003&activation=nonzero&relation_type=%E5%85%AD%E5%90%88", { waitUntil: "load" });
+  await page.goto("/research/history?scope_mode=dates&target_date=2026-09-29&factor_id=B_DAY_003&activation=nonzero&relation_type=%E5%85%AD%E5%90%88&relation_source_context=day&relation_source_pillar=day&relation_target_context=natal&relation_target_pillar=year&relation_source_component=branch&relation_target_component=branch", { waitUntil: "load" });
   await expect(page.getByTestId("historical-relation-prefill")).toContainText("六合");
   await expect(page.getByTestId("historical-factor-id")).toHaveValue("B_DAY_003");
+  await expect(page.getByTestId("historical-target-date")).toHaveValue("2026-09-29");
+  await expect(page.getByTestId("historical-date-from")).toHaveValue("2012-02-23");
+  await expect(page.getByTestId("historical-date-to")).toHaveValue("2012-02-27");
   await page.getByTestId("historical-run").click();
   await expect(page.getByTestId("historical-result-1")).toContainText("EXPLORATORY_NOT_GATED");
   await expect(page.getByTestId("historical-result-5")).toBeVisible();
   await expect(page.getByTestId("historical-result-20")).toBeVisible();
   await expect(page.getByTestId("historical-events-5")).toContainText("benchmark_missing");
   await expect.poll(() => Array.from(new Set(requestedHorizons)).sort((left, right) => left - right).join(",")).toBe("1,5,20");
+  await expect(page.getByTestId("historical-executed-conditions-1")).toContainText("day/day/branch → natal/year/branch");
+  expect(executedRequests).toHaveLength(3);
+  for (const request of executedRequests) {
+    expect(request).toMatchObject({
+      date_from: "2012-02-23",
+      date_to: "2012-02-27",
+      target_date: "2026-09-29",
+      relation_type: "六合",
+      relation_source_context: "day",
+      relation_source_pillar: "day",
+      relation_target_context: "natal",
+      relation_target_pillar: "year",
+      relation_source_component: "branch",
+      relation_target_component: "branch",
+      activation: "nonzero",
+    });
+  }
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByTestId("historical-export-json").click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^historical-research-.*\.json$/);
+  const exportPath = await download.path();
+  if (!exportPath) throw new Error("JSON 报告没有可读取的下载文件");
+  const exported = JSON.parse(readFileSync(exportPath, "utf-8")) as {
+    requests: Record<string, unknown>[];
+    results: Record<string, unknown>[];
+  };
+  expect(exported.requests[0]).toMatchObject(executedRequests[0]);
+  expect(exported.results[0]).toMatchObject({
+    target_date: "2026-09-29",
+    relation_type: "六合",
+    relation_source_pillar: "day",
+    relation_target_pillar: "year",
+    condition_logic: "AND",
+    observation_unit: "security_date_factor",
+  });
+
+  const markdownPromise = page.waitForEvent("download");
+  await page.getByTestId("historical-export-markdown").click();
+  const markdown = await markdownPromise;
+  const markdownPath = await markdown.path();
+  if (!markdownPath) throw new Error("Markdown 报告没有可读取的下载文件");
+  const markdownBody = readFileSync(markdownPath, "utf-8");
+  expect(markdownBody).toContain("day/day/branch→natal/year/branch");
+  expect(markdownBody).toContain("样本最大收益");
+  expect(markdownBody).toContain("max_drawdown");
 });
 
 test("研究实验室读取冻结的 v2 报告并展示资格、负对照和逐项结果", async ({ page }) => {
@@ -242,6 +343,11 @@ test("个股时间窗口调用 Fortune v2 并保留出生时间精度与显式�
   await page.route("**/api/backend/api/v1/analysis/W7-STUB/timeline/weeks*", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(weeks) }));
   await page.route("**/api/backend/api/v1/analysis/W7-STUB/timeline/days*", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(days) }));
   await page.route("**/api/backend/api/v1/system/versions*", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ config_version: "cfg-test-v1", market_data_cutoff_date: null, market_data_source: "test-source", market_data_version: "bars-v1" }) }));
+  await page.route("**/api/backend/api/v1/research/relation-catalog", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ relation_rule_version: "relation-v1", relation_matrix_schema_version: "matrix-v1", aggregate_scope: "external_day_row", groups: [{ label: "地支", items: ["六合", "六冲"] }], factors: {} }),
+  }));
   let fortuneRequest: Record<string, unknown> | null = null;
   await page.route("**/api/backend/api/v2/research/fortune/timeline", async (route) => {
     fortuneRequest = route.request().postDataJSON() as Record<string, unknown>;
@@ -263,6 +369,8 @@ test("个股时间窗口调用 Fortune v2 并保留出生时间精度与显式�
             data_quality: { grade: "B", score: 0.7, notes: ["以日线收盘锚点推定"] },
           },
           start_date: "2026-09-28", end_date: "2026-10-18", timezone: "Asia/Shanghai",
+          date_mode: "ALL_CALENDAR_DAYS", anchor_mode: "EXACT_LOCAL_TIME", ten_god_filters: [], relation_filters: [],
+          include_relation_events: true, include_month_segments: true, include_ten_god_index: true,
           points: [{ date: "2026-09-28", evaluation_datetime: "2026-09-28T12:00:00+08:00", trading_day: null, trading_calendar_source: "unavailable", annual_pillar: { stem: "丙", branch: "午" }, monthly_pillar: null, daily_pillar: { stem: "甲", branch: "子" }, availability: "available" }],
           availability: "available", rule_versions: {}, provenance: [], warnings: [], assumptions: [], rule_version: "fortune-timeline-v1",
         },
@@ -275,4 +383,9 @@ test("个股时间窗口调用 Fortune v2 并保留出生时间精度与显式�
   await expect(page.getByTestId("fortune-assumptions")).toContainText("出生时刻为假设");
   await expect(page.getByTestId("fortune-v2-points")).toContainText("甲子");
   await expect.poll(() => fortuneRequest?.config_version).toBe("cfg-test-v1");
+  const expectedStart = String(months.as_of).slice(0, 10);
+  const [year, month, day] = expectedStart.split("-").map(Number);
+  const expectedEnd = new Date(Date.UTC(year, month - 1, day + 20)).toISOString().slice(0, 10);
+  await expect.poll(() => fortuneRequest?.start_date).toBe(expectedStart);
+  await expect.poll(() => fortuneRequest?.end_date).toBe(expectedEnd);
 });

@@ -12,7 +12,7 @@ import { SectionError, SectionUnavailable } from "@/components/shell/SectionStat
 import { PageHero } from "@/components/shell/TopBar";
 import { api, endpoints } from "@/lib/api";
 import { exportHistoricalResearchV2 } from "@/lib/reportExport";
-import { DEFAULT_RESEARCH_DATASET_ID } from "@/lib/researchV2";
+import { DEFAULT_RESEARCH_DATASET_ID, TEN_GOD_CATEGORIES } from "@/lib/researchV2";
 import type {
   ApiHistoricalDatasetV2,
   ApiHistoricalEventStudyRequest,
@@ -28,7 +28,8 @@ type Activation = "any" | "nonzero" | "positive" | "negative";
 function HistoricalResearchInner() {
   const search = useSearchParams();
   const fixture = search?.get("fixture") === "ui-reference";
-  const relationType = search?.get("relation_type") ?? "";
+  const [relationType, setRelationType] = useState(search?.get("relation_type") ?? "");
+  const [targetDate, setTargetDate] = useState(search?.get("target_date") ?? "");
   const [datasetId, setDatasetId] = useState(search?.get("dataset_id") || DEFAULT_RESEARCH_DATASET_ID);
   const [dataset, setDataset] = useState<ApiHistoricalDatasetV2 | null>(null);
   const [datasetLoading, setDatasetLoading] = useState(true);
@@ -38,7 +39,17 @@ function HistoricalResearchInner() {
   const [dateFrom, setDateFrom] = useState(search?.get("date_from") ?? "");
   const [dateTo, setDateTo] = useState(search?.get("date_to") ?? "");
   const [factorId, setFactorId] = useState(search?.get("factor_id") ?? (relationType ? "" : "B_DAY_005"));
-  const [activation, setActivation] = useState<Activation>(search?.get("activation") === "nonzero" ? "nonzero" : "any");
+  const activationParam = search?.get("activation");
+  const [activation, setActivation] = useState<Activation>(
+    activationParam === "any" || activationParam === "positive" || activationParam === "negative" || activationParam === "nonzero"
+      ? activationParam
+      : "nonzero",
+  );
+  const [tenGodCategory, setTenGodCategory] = useState(search?.get("ten_god_category") ?? "");
+  const [relationSourcePillar, setRelationSourcePillar] = useState(search?.get("relation_source_pillar") ?? "");
+  const [relationTargetPillar, setRelationTargetPillar] = useState(search?.get("relation_target_pillar") ?? "");
+  const [relationSourceComponent, setRelationSourceComponent] = useState(search?.get("relation_source_component") ?? "branch");
+  const [relationTargetComponent, setRelationTargetComponent] = useState(search?.get("relation_target_component") ?? "branch");
   const [direction, setDirection] = useState<"" | "-1" | "0" | "1">("");
   const [versionIndex, setVersionIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -82,7 +93,15 @@ function HistoricalResearchInner() {
     if (!dataset || !selectedVersions) return;
     const id = factorId.trim();
     if (!id || !dateFrom || !dateTo || (scopeMode === "stock" && !stockCode.trim())) {
-      setErrors({ 1: "请提供因子、日期范围；个股模式还必须填写证券代码。" });
+      setErrors({ 1: "请提供因子、历史日期范围；个股模式还必须填写证券代码。" });
+      return;
+    }
+    if (relationType && (!relationSourcePillar || !relationTargetPillar || !relationSourceComponent || !relationTargetComponent)) {
+      setErrors({ 1: "关系条件必须完整指定来源柱、目标原局柱及两端参与组件。" });
+      return;
+    }
+    if (tenGodCategory && !TEN_GOD_CATEGORIES.includes(tenGodCategory as (typeof TEN_GOD_CATEGORIES)[number])) {
+      setErrors({ 1: "请选择受支持的十神类别。" });
       return;
     }
     const base: Omit<ApiHistoricalEventStudyRequest, "horizon"> = {
@@ -91,10 +110,21 @@ function HistoricalResearchInner() {
       stock_code: scopeMode === "stock" ? stockCode.trim() : null,
       date_from: dateFrom,
       date_to: dateTo,
-      factor_ids: [id],
+      target_date: targetDate || null,
+      factor_ids: [tenGodCategory ? "B_DAY_005" : id],
       activation,
       direction_filter: direction ? (Number(direction) as -1 | 0 | 1) : null,
       min_rule_score: null,
+      ten_god_category: tenGodCategory || null,
+      ten_god_layer: tenGodCategory ? "DAILY" : null,
+      ten_god_position: tenGodCategory ? "day" : null,
+      relation_type: relationType || null,
+      relation_source_context: relationType ? relationSourcePillar as "year" | "month" | "day" | "dayun" : null,
+      relation_source_pillar: relationType ? relationSourcePillar as "year" | "month" | "day" | "dayun" : null,
+      relation_target_context: relationType ? "natal" : null,
+      relation_target_pillar: relationType ? relationTargetPillar as "year" | "month" | "day" : null,
+      relation_source_component: relationType ? relationSourceComponent as "stem" | "branch" : null,
+      relation_target_component: relationType ? relationTargetComponent as "stem" | "branch" : null,
       versions: selectedVersions,
       limit: 100,
       offset: 0,
@@ -138,10 +168,26 @@ function HistoricalResearchInner() {
                 <select className="smp-input mt-1 w-full" value={scopeMode} onChange={(event) => setScopeMode(event.target.value as ScopeMode)} data-testid="historical-scope-mode"><option value="dates">日期维度</option><option value="stock">单只股票</option></select>
               </label>
               {scopeMode === "stock" ? <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>股票代码<input className="smp-input mt-1 w-full" value={stockCode} onChange={(event) => setStockCode(event.target.value)} data-testid="historical-stock-code" /></label> : null}
-              <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>因子 ID<input className="smp-input mt-1 w-full" value={factorId} onChange={(event) => setFactorId(event.target.value)} placeholder="例如 B_DAY_005" data-testid="historical-factor-id" /></label>
+              <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>因子 ID<input className="smp-input mt-1 w-full" value={factorId} onChange={(event) => setFactorId(event.target.value)} placeholder="例如 B_DAY_005" data-testid="historical-factor-id" disabled={Boolean(tenGodCategory)} /></label>
+              <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>十神精确类别
+                <select className="smp-input mt-1 w-full" value={tenGodCategory} onChange={(event) => setTenGodCategory(event.target.value)} data-testid="historical-ten-god"><option value="">不筛选十神类别</option>{TEN_GOD_CATEGORIES.map((category) => <option key={category} value={category}>{category}（B_DAY_005 · DAILY/day）</option>)}</select>
+              </label>
               <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>激活条件
                 <select className="smp-input mt-1 w-full" value={activation} onChange={(event) => setActivation(event.target.value as Activation)} data-testid="historical-activation"><option value="any">全部可用值</option><option value="nonzero">非零</option><option value="positive">正值</option><option value="negative">负值</option></select>
               </label>
+              <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>关系类型（精确事件）<input className="smp-input mt-1 w-full" value={relationType} onChange={(event) => setRelationType(event.target.value.trim())} placeholder="例如 六合" data-testid="historical-relation-type" /></label>
+              {relationType ? <>
+                <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>来源柱
+                  <select className="smp-input mt-1 w-full" value={relationSourcePillar} onChange={(event) => setRelationSourcePillar(event.target.value)} data-testid="historical-relation-source-pillar"><option value="">选择来源柱</option><option value="year">流年</option><option value="month">流月</option><option value="day">流日</option><option value="dayun">大运假设</option></select>
+                </label>
+                <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>目标原局柱
+                  <select className="smp-input mt-1 w-full" value={relationTargetPillar} onChange={(event) => setRelationTargetPillar(event.target.value)} data-testid="historical-relation-target-pillar"><option value="">选择柱位</option><option value="year">年柱</option><option value="month">月柱</option><option value="day">日柱</option></select>
+                </label>
+                <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>来源组件<select className="smp-input mt-1 w-full" value={relationSourceComponent} onChange={(event) => setRelationSourceComponent(event.target.value)} data-testid="historical-relation-source-component"><option value="branch">地支</option><option value="stem">天干</option></select></label>
+                <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>目标组件<select className="smp-input mt-1 w-full" value={relationTargetComponent} onChange={(event) => setRelationTargetComponent(event.target.value)} data-testid="historical-relation-target-component"><option value="branch">地支</option><option value="stem">天干</option></select></label>
+              </> : null}
+              <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>扫描目标日期<input className="smp-input mt-1 w-full" type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)} data-testid="historical-target-date" /></label>
+              <div className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>目标日期保留扫描上下文；历史查询范围独立使用下方日期，不会把范围缩成目标日。</div>
               <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>开始日期<input className="smp-input mt-1 w-full" type="date" value={dateFrom} min={datasetDates[0]} max={datasetDates[datasetDates.length - 1]} onChange={(event) => setDateFrom(event.target.value)} data-testid="historical-date-from" /></label>
               <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>结束日期<input className="smp-input mt-1 w-full" type="date" value={dateTo} min={datasetDates[0]} max={datasetDates[datasetDates.length - 1]} onChange={(event) => setDateTo(event.target.value)} data-testid="historical-date-to" /></label>
               <label className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>方向筛选
@@ -155,13 +201,14 @@ function HistoricalResearchInner() {
               <button type="button" className="smp-btn smp-btn--primary self-end px-4" onClick={() => void runStudy()} disabled={loading || datasetLoading || !dataset || !selectedVersions || fixture} data-testid="historical-run">{loading ? "读取 1/5/20 日…" : "运行 v2 历史验证"}</button>
             </div>
               <div className="flex flex-wrap items-center gap-2 border-t px-3 py-2 text-[11px]" style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }}>
-              <Chip tone={dataset?.research_eligible ? "gold" : "warn"}>研究资格：{dataset?.research_eligible ? "可用" : "未认证"}</Chip>
+              <Chip tone={dataset?.certification_status === "CERTIFIED_LIMITED_SCOPE" ? "gold" : "warn"}>认证：{dataset?.certification_status ?? "读取中"}</Chip>
               <Chip tone="flat">范围：{datasetDates[0] ?? "不可用"} ～ {datasetDates[datasetDates.length - 1] ?? "不可用"}</Chip>
+              {dataset?.certified_stock_code ? <Chip tone="flat">认证证券：{dataset.certified_stock_code}</Chip> : null}
               <Chip tone="flat">数据行：{dataset?.row_count ?? "—"}</Chip>
-              <span>未认证数据仍只返回描述统计；`null`、缺失原因和样本不足状态按 API 原样保留。</span>
+              <span>{dataset?.certification_reason ?? "`null`、缺失原因和认证状态按 API 原样保留。"}</span>
               {dataset?.metadata.known_limitations?.length ? <span title={dataset.metadata.known_limitations.join("\n")}>已登记 {dataset.metadata.known_limitations.length} 项数据限制</span> : null}
             </div>
-            {relationType ? <div className="border-t px-3 py-2 text-[11.5px]" style={{ borderColor: "var(--color-border)", color: "var(--color-warn)" }} data-testid="historical-relation-prefill">来自日期扫描：{relationType}。关系与 W4 因子是不同契约；请确认已映射的因子 ID 后再运行。</div> : null}
+            {relationType ? <div className="border-t px-3 py-2 text-[11.5px]" style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }} data-testid="historical-relation-prefill">关系条件：{relationType} · 来源 {relationSourcePillar || "未指定"}/{relationSourceComponent === "branch" ? "地支" : "天干"} → 原局{relationTargetPillar || "未指定"}/{relationTargetComponent === "branch" ? "地支" : "天干"}；历史范围由独立日期字段控制。</div> : null}
           </Card>
 
           {datasetLoading ? <PageLoading label="正在核验数据集 manifest、分片摘要与可用版本…" /> : null}
@@ -195,9 +242,16 @@ function HorizonResult({ result }: { result: ApiHistoricalEventStudyV2 }) {
   return (
     <Card className="mt-2" testId={`historical-result-${result.horizon}`}>
       <CardHeader title={`${result.horizon} 日历史事件`} dense right={<ResearchStatusBadge status={result.research_status} reasons={result.research_status_reasons} showCode compact />} />
+      <div className="border-b px-3 py-2 text-[11px]" style={{ borderColor: "var(--color-border)", color: "var(--color-ink-muted)" }} data-testid={`historical-executed-conditions-${result.horizon}`}>
+        实际执行：{result.certified_stock_code ?? "未限定认证证券"} · {result.date_from} ～ {result.date_to}{result.target_date ? ` · 扫描目标日 ${result.target_date}` : ""} · {result.factor_ids.join(", ")} · activation={result.activation}
+        {result.relation_type ? ` · ${result.relation_type}：${result.relation_source_context}/${result.relation_source_pillar}/${result.relation_source_component} → ${result.relation_target_context}/${result.relation_target_pillar}/${result.relation_target_component}` : ""}
+        {result.ten_god_category ? ` · 十神=${result.ten_god_category}（${result.ten_god_layer}/${result.ten_god_position}）` : ""} · 条件逻辑 {result.condition_logic} · 单位 {result.observation_unit}
+      </div>
       <div className="grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-5">
         <Metric label="候选观察" value={String(result.candidate_observation_count)} />
         <Metric label="命中观察" value={String(result.matched_observation_count)} />
+        <Metric label="候选证券日期" value={String(result.candidate_security_date_count)} />
+        <Metric label="命中证券日期" value={String(result.matched_security_date_count)} />
         <Metric label="命中日期" value={String(result.matched_date_count)} />
         <Metric label="缺失观察" value={String(result.missing_observation_count)} />
         <Metric label="返回事件" value={`${result.returned_count} / ${result.matched_observation_count}`} />
@@ -218,13 +272,23 @@ function HorizonResult({ result }: { result: ApiHistoricalEventStudyV2 }) {
 }
 
 function Statistics({ title, stats }: { title: string; stats: ApiHistoricalEventStudyV2["matched"] }) {
-  return <div className="rounded border px-2.5 py-2" style={{ borderColor: "var(--color-border)" }}><div className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>{title} · n={stats.sample_count} · 缺失={stats.missing_count}</div><div className="mt-1 grid grid-cols-3 gap-1 text-[11.5px]"><span>均值 {formatPct(stats.mean_return)}</span><span>中位数 {formatPct(stats.median_return)}</span><span>胜率 {formatPct(stats.win_rate)}</span></div></div>;
+  return <div className="rounded border px-2.5 py-2" style={{ borderColor: "var(--color-border)" }}>
+    <div className="text-[11px]" style={{ color: "var(--color-ink-muted)" }}>{title} · n={stats.sample_count} · 缺失={stats.missing_count}</div>
+    <div className="mt-1 grid grid-cols-2 gap-1 text-[11.5px]"><span>均值 {formatPct(stats.mean_return)}</span><span>中位数 {formatPct(stats.median_return)}</span><span>胜率 {formatPct(stats.win_rate)}</span><span>盈亏比 {formatRatio(stats.payoff_ratio)}</span><span>样本最大收益 {formatPct(stats.max_return)}</span><span>样本最大亏损 {formatPct(stats.max_loss)}</span></div>
+    <div className="mt-1 border-t pt-1" style={{ borderColor: "var(--color-border)" }}>
+      {Object.entries(stats.metric_summaries).map(([name, metric]) => <details key={name} className="py-0.5 text-[10.5px]" style={{ color: "var(--color-ink-muted)" }}>
+        <summary className="cursor-pointer">{name} · n={metric.sample_count} · 缺失={metric.missing_count} · 均值 {formatPct(metric.mean)} · 最小/最大 {formatPct(metric.minimum)} / {formatPct(metric.maximum)}</summary>
+        <div className="pl-3">单位：{metric.unit === "fraction" ? "收益比例" : metric.unit}。{metric.definition}</div>
+      </details>)}
+    </div>
+  </div>;
 }
 
 function Metric({ label, value }: { label: string; value: string }) { return <div className="rounded border px-2 py-1.5" style={{ borderColor: "var(--color-border)" }}><div className="smp-metric-label">{label}</div><div className="mt-1 smp-num text-[12px]" style={{ color: "var(--color-ink)" }}>{value}</div></div>; }
 function TraceValue({ label, value }: { label: string; value: string }) { return <div className="rounded border px-2 py-1.5" style={{ borderColor: "var(--color-border)" }}><div className="smp-metric-label">{label}</div><div className="mt-1 break-all smp-num">{value}</div></div>; }
 function versionLabel(versions: ApiHistoricalDatasetVersions): string { return `${versions.feature_version} · ${versions.label_version} · ${versions.factor_version} · ${versions.config_version}`; }
 function formatPct(value: number | null): string { return value === null || value === undefined ? "不可用" : `${(value * 100).toFixed(2)}%`; }
+function formatRatio(value: number | null): string { return value === null || value === undefined ? "不可用" : value.toFixed(4); }
 function errorText(value: unknown): string { return value instanceof Error ? value.message : String(value); }
 
 export default function HistoricalResearchPage() {

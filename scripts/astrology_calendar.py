@@ -51,6 +51,7 @@ sys.path.insert(0, str(ROOT))
 
 from sqlalchemy import select  # noqa: E402
 
+from src.core.config import settings  # noqa: E402
 from src.core.stock.trading_calendar import get_trading_calendar_provider  # noqa: E402
 from src.db.base import get_session_factory  # noqa: E402
 from src.db.models import StockMasterRow, UniverseMembershipRow  # noqa: E402
@@ -58,7 +59,7 @@ from src.engines.bazi import rules  # noqa: E402
 from src.engines.bazi.bazi_engine import POSITIONS, BaziEngine  # noqa: E402
 from src.engines.calendar.calendar_engine import CalendarEngine  # noqa: E402
 
-CACHE_PATH = ROOT / "data" / "phase4_cache" / "astrology_natal_cache.pkl"
+CACHE_PATH = settings.data_dir / "phase4_cache" / "astrology_natal_cache.pkl"
 CACHE_VERSION = 2
 #: 原局缓存必须与出生档案版本绑定：档案一改（例如上市日修正），旧缓存立刻作废，
 #: 绝不允许继续用"上个月那套出生时刻"算出来的盘。
