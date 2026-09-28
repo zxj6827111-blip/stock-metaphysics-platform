@@ -81,6 +81,42 @@ def test_protocol_freezes_scope_horizons_family_sizes_and_unconfigured_exp003() 
     assert protocol["not_configured"][0]["experiment_id"] == "F5-EXP-003"
 
 
+def test_limited_protocol_requires_explicit_exploratory_scope_and_versioned_report_ids(tmp_path) -> None:
+    protocol, _ = load_f5_protocol(PROTOCOL_PATH)
+    protocol["protocol_version"] = "f5-preregistered-limited-v1"
+    protocol["dataset"]["use"] = "limited_scope_exploratory_only"
+    protocol["dataset"]["confirmatory_research_eligible"] = False
+    protocol["dataset"]["scope_certificate_sha256"] = "a" * 64
+    protocol["experiments"][0]["report_id"] = "F5-EXP-001-002561-LIMITED-V1"
+    protocol["experiments"][1]["report_id"] = "F5-EXP-002-002561-LIMITED-V1"
+    protocol["not_configured"][0]["report_id"] = "F5-EXP-003-002561-LIMITED-V1"
+    config = tmp_path / "limited-protocol.yaml"
+    import yaml
+
+    config.write_text(yaml.safe_dump(protocol, allow_unicode=True, sort_keys=False), encoding="utf-8")
+
+    loaded, digest = load_f5_protocol(config)
+
+    assert loaded["protocol_version"] == "f5-preregistered-limited-v1"
+    assert loaded["dataset"]["confirmatory_research_eligible"] is False
+    assert len(digest) == 64
+
+
+def test_limited_protocol_rejects_missing_certificate_digest(tmp_path) -> None:
+    protocol, _ = load_f5_protocol(PROTOCOL_PATH)
+    protocol["protocol_version"] = "f5-preregistered-limited-v1"
+    protocol["dataset"]["use"] = "limited_scope_exploratory_only"
+    protocol["dataset"]["confirmatory_research_eligible"] = False
+    protocol["dataset"].pop("scope_certificate_sha256", None)
+    config = tmp_path / "invalid-limited-protocol.yaml"
+    import yaml
+
+    config.write_text(yaml.safe_dump(protocol, allow_unicode=True, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="scope certificate SHA-256"):
+        load_f5_protocol(config)
+
+
 def test_unregistered_factor_values_fail_closed() -> None:
     protocol, _ = load_f5_protocol()
     experiment = protocol["experiments"][0]
@@ -212,6 +248,24 @@ def test_report_writer_is_idempotent_and_refuses_different_overwrite(tmp_path) -
             tmp_path,
             [{"experiment_id": "F5-EXP-001", "research_status": "INSUFFICIENT_SAMPLE"}],
         )
+
+
+def test_versioned_report_ids_preserve_the_base_experiment_identity(tmp_path) -> None:
+    from src.research.historical_dataset_event_study import read_experiment_report
+
+    report = {
+        "schema_version": "w6-research-experiment-v1",
+        "experiment_id": "F5-EXP-001",
+        "report_id": "F5-EXP-001-002561-LIMITED-V1",
+        "research_status": "EXPLORATORY_NOT_GATED",
+    }
+
+    digests = write_f5_experiment_reports(tmp_path / "research_experiments", [report])
+    loaded, digest = read_experiment_report(tmp_path, report["report_id"])
+
+    assert digests[report["report_id"]] == digest
+    assert loaded["experiment_id"] == "F5-EXP-001"
+    assert loaded["report_id"] == report["report_id"]
 
 
 def test_manifest_loader_checks_versioned_feature_outcome_join(tmp_path, monkeypatch) -> None:

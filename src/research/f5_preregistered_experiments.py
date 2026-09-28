@@ -28,6 +28,7 @@ from src.research.validation.negative_controls import random_factor_control
 PROTOCOL_PATH = Path(__file__).resolve().parents[2] / "config" / "f5_preregistered_experiments.yaml"
 MAX_DATASET_ROWS = 250_000
 _SAFE_EXPERIMENT_ID = re.compile(r"^F5-EXP-00[1-3]$")
+_SAFE_REPORT_ID = re.compile(r"^F5-EXP-00[1-3](?:-[A-Z0-9]+(?:-[A-Z0-9]+)*)?$")
 _VERSION_JOIN_FIELDS = (
     "feature_version", "pit_version", "birth_profile_version",
     "birth_profile_source_version", "calendar_version", "engine_versions_json",
@@ -53,10 +54,11 @@ def _seed_for(base_seed: int, *parts: object) -> int:
 def load_f5_protocol(path: Path = PROTOCOL_PATH) -> tuple[dict[str, Any], str]:
     raw = path.read_bytes()
     protocol = yaml.safe_load(raw.decode("utf-8"))
-    if not isinstance(protocol, dict) or protocol.get("protocol_version") != "f5-preregistered-v1":
+    supported = {"f5-preregistered-v1", "f5-preregistered-limited-v1"}
+    if not isinstance(protocol, dict) or protocol.get("protocol_version") not in supported:
         raise ValueError("F5 预注册协议版本无效")
     if protocol.get("confirmatory_eligible") is not False:
-        raise ValueError("当前 W6 工程数据协议不得声明确认性研究资格")
+        raise ValueError("W6 协议不得声明确认性研究资格")
     if protocol.get("pilot_labels_previously_seen") is not True:
         raise ValueError("预注册必须披露此前已查看的 W4 工程样本标签摘要")
     experiments = protocol.get("experiments")
@@ -82,9 +84,25 @@ def load_f5_protocol(path: Path = PROTOCOL_PATH) -> tuple[dict[str, Any], str]:
         if experiment.get("expected_direction") != "none" or experiment.get("tails") != "two_sided":
             raise ValueError(f"{experiment_id} 不允许事后指定有利方向")
         if experiment.get("registered_family_size") != expected_sizes[experiment_id]:
-            raise ValueError(f"{experiment_id} 检验族大小与预注册定义不一致")
-    return protocol, _sha256(raw)
+            raise ValueError(f"{experiment_id} 检验族大小与冻结检验族不一致")
+        if not _SAFE_REPORT_ID.fullmatch(str(experiment.get("report_id", experiment_id))):
+            raise ValueError(f"{experiment_id} report_id 不安全")
+    for item in not_configured:
+        if not _SAFE_REPORT_ID.fullmatch(str(item.get("report_id", item["experiment_id"]))):
+            raise ValueError("未配置实验 report_id 不安全")
 
+    if protocol["protocol_version"] == "f5-preregistered-v1":
+        if protocol.get("dataset", {}).get("use") != "engineering_replay_only":
+            raise ValueError("冻结 W6 v1 必须继续绑定原工程回放数据集")
+    else:
+        dataset = protocol.get("dataset", {})
+        if dataset.get("use") != "limited_scope_exploratory_only":
+            raise ValueError("限域 W6 协议必须明确为 limited_scope_exploratory_only")
+        if dataset.get("confirmatory_research_eligible") is not False:
+            raise ValueError("限域 W6 协议不得声明确认性研究资格")
+        if not dataset.get("scope_certificate_sha256"):
+            raise ValueError("限域 W6 协议必须绑定 scope certificate SHA-256")
+    return protocol, _sha256(raw)
 
 def _sql_paths(paths: list[Path]) -> str:
     if not paths:
@@ -103,6 +121,17 @@ def _load_w4_panel(
         raise ValueError("W4 数据集 digest 与冻结预注册版本不一致")
     if manifest.get("status") != "COMPLETE":
         raise ValueError("W6 不读取 PARTIAL 数据集")
+    if protocol.get("protocol_version") == "f5-preregistered-limited-v1":
+        metadata = manifest.get("metadata", {})
+        certificate = metadata.get("scope_certificate", {})
+        if metadata.get("research_eligible") is not True:
+            raise ValueError("限域 W6 输入数据集没有声明限域 research eligibility")
+        if metadata.get("confirmatory_research_eligible") is not False:
+            raise ValueError("限域 W6 输入数据集确认性资格必须保持 false")
+        if metadata.get("full_pit_universe_status") != "COVERAGE_INCOMPLETE":
+            raise ValueError("限域 W6 不得把局部认证覆盖到完整 W2 PIT 状态")
+        if certificate.get("certificate_sha256") != dataset.get("scope_certificate_sha256"):
+            raise ValueError("W6 协议与 W4 scope certificate digest 不一致")
     if len(feature_paths) != len(outcome_paths):
         raise ValueError("W4 features/outcomes 分片数量不一致")
 
@@ -146,6 +175,10 @@ def _load_w4_panel(
         result = con.execute(query).fetchall()
     finally:
         con.close()
+    if protocol.get("protocol_version") == "f5-preregistered-limited-v1":
+        required_end_dates = {"label_end_date_5d", "label_end_date_20d"}
+        if not required_end_dates.issubset(outcome_columns):
+            raise ValueError("限域 W6 需要 W4 保存精确的 5/20 日 label_end_date")
 
     columns = [
         "dataset_id", "security_id", "stock_code", "research_date", "features_json",
@@ -658,7 +691,7 @@ def analyze_f5_panel(
         )
         per_family_tests[experiment_id] = tests
         research_eligible = bool(manifest.get("metadata", {}).get("research_eligible", False))
-        reports.append({
+        report = {
             "schema_version": "w6-research-experiment-v1",
             "experiment_id": experiment_id,
             "title": experiment["title"],
@@ -709,14 +742,17 @@ def analyze_f5_panel(
             "family_correction": correction,
             "registered_tests": tests,
             "research_status": "EXPLORATORY_NOT_GATED",
-            "research_status_reasons": [
+            "research_status_reasons": protocol.get("research_status_reasons", [
                 "此协议固定于 W4 工程样本；该样本及完整 W2 物理范围均未认证。",
                 "研究状态不升级为显著、有效、可预测或交易建议。",
-            ],
-        })
+            ]),
+        }
+        if experiment.get("report_id"):
+            report["report_id"] = str(experiment["report_id"])
+        reports.append(report)
 
     for item in protocol["not_configured"]:
-        reports.append({
+        report = {
             "schema_version": "w6-research-experiment-v1",
             "experiment_id": item["experiment_id"],
             "title": "未配置实验",
@@ -731,7 +767,10 @@ def analyze_f5_panel(
                 "dataset_id": manifest["dataset_id"],
                 "dataset_digest": manifest["dataset_digest"],
             },
-        })
+        }
+        if item.get("report_id"):
+            report["report_id"] = str(item["report_id"])
+        reports.append(report)
     return reports
 
 
@@ -774,10 +813,13 @@ def write_f5_experiment_reports(root: Path, reports: list[dict[str, Any]]) -> di
         experiment_id = str(report.get("experiment_id") or "")
         if not _SAFE_EXPERIMENT_ID.fullmatch(experiment_id):
             raise ValueError("W6 输出包含不安全 experiment_id")
+        report_id = str(report.get("report_id", experiment_id))
+        if not _SAFE_REPORT_ID.fullmatch(report_id):
+            raise ValueError("W6 输出包含不安全 report_id")
         payload = {key: value for key, value in report.items() if key != "result_digest"}
         payload["result_digest"] = _sha256(_canonical_json(payload))
         encoded = _canonical_json(payload) + b"\n"
-        target = root / f"{experiment_id}.json"
+        target = root / f"{report_id}.json"
         digest = _sha256(encoded)
         if target.exists():
             existing = target.read_bytes()
@@ -785,7 +827,7 @@ def write_f5_experiment_reports(root: Path, reports: list[dict[str, Any]]) -> di
                 raise FileExistsError(
                     f"现有 W6 报告与本次重放不一致，拒绝覆盖：{target.name}；请提升协议版本创建新 ID。"
                 )
-            digests[experiment_id] = digest
+            digests[report_id] = digest
             continue
         temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
         try:
@@ -797,7 +839,7 @@ def write_f5_experiment_reports(root: Path, reports: list[dict[str, Any]]) -> di
         finally:
             if temporary.exists():
                 temporary.unlink()
-        digests[experiment_id] = digest
+        digests[report_id] = digest
     return digests
 
 

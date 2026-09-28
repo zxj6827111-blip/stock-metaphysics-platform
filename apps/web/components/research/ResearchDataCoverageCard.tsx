@@ -49,6 +49,9 @@ export function ResearchDataCoverageCard({ fixture }: { fixture: boolean }) {
   const dateRange = orderedDates.length
     ? `${orderedDates[0]} ～ ${orderedDates[orderedDates.length - 1]}`
     : "不可用";
+  const scopeNote = dataset?.research_eligible
+    ? "当前资格只适用于清单中的限域探索范围；不代表确认性研究资格。"
+    : "行情快照截止日与历史数据集范围是两个独立口径；展示数据集范围不代表该范围已认证。";
 
   return (
     <Card className="mt-3" testId="research-data-coverage">
@@ -76,7 +79,7 @@ export function ResearchDataCoverageCard({ fixture }: { fixture: boolean }) {
           </div>
         ) : null}
         <div className="mt-2 text-[10.5px]" style={{ color: "var(--color-ink-faint)" }}>
-          行情快照截止日与历史数据集范围是两个独立口径；展示数据集范围不代表该范围已认证。
+          {scopeNote}
         </div>
       </CardBody>
     </Card>

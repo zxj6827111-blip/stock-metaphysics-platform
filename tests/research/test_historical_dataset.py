@@ -301,3 +301,19 @@ def test_future_market_changes_affect_labels_but_not_feature_replay():
         bars_b, [date(2012, 2, 23)], stock_code="002561", adj_factors=factors,
     )
     assert labels_a[0]["ret_1d"] != labels_b[0]["ret_1d"]
+
+
+def test_w4_label_end_dates_match_the_exact_horizon_bar_and_preserve_unavailable():
+    from scripts.build_w4_historical_dataset import _label_end_date
+
+    bars = pd.DataFrame({
+        "trade_date": pd.date_range("2020-01-02", periods=6, freq="B"),
+    })
+    label = {
+        "trade_index": 0,
+        "horizon_available": {"1d": True, "5d": True, "6d": False},
+    }
+
+    assert _label_end_date(bars, label, 1) == date(2020, 1, 3)
+    assert _label_end_date(bars, label, 5) == date(2020, 1, 9)
+    assert _label_end_date(bars, label, 6) is None

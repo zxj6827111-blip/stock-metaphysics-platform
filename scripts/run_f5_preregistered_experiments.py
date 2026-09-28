@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -15,11 +16,21 @@ from src.research.f5_preregistered_experiments import run_f5_preregistered_exper
 
 
 def main() -> int:
-    reports = run_f5_preregistered_experiments(settings.data_dir)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--protocol", type=Path, default=None)
+    args = parser.parse_args()
+    reports = run_f5_preregistered_experiments(
+        settings.data_dir,
+        protocol_path=args.protocol or Path(__file__).resolve().parents[1]
+        / "config" / "f5_preregistered_experiments.yaml",
+    )
     summary = [
         {
             "experiment_id": item["experiment_id"],
+            "report_id": item.get("report_id", item["experiment_id"]),
+            "protocol_version": item.get("protocol_version"),
             "research_status": item.get("research_status"),
+            "status": item.get("status"),
             "registered_tests": len(item.get("registered_tests", [])),
             "result_digest": item.get("result_digest"),
         }

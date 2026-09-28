@@ -75,6 +75,9 @@ const FROZEN_EXPERIMENTS = [
   { id: "F5-EXP-001", title: "流日十神十类" },
   { id: "F5-EXP-002", title: "六合、六冲、相害" },
   { id: "F5-EXP-003", title: "组合实验（未配置）" },
+  { id: "F5-EXP-001-002561-LIMITED-V1", title: "流日十神十类 · 002561 限域 v1" },
+  { id: "F5-EXP-002-002561-LIMITED-V1", title: "六合、六冲、相害 · 002561 限域 v1" },
+  { id: "F5-EXP-003-002561-LIMITED-V1", title: "组合实验（限域版仍未配置）" },
 ] as const;
 
 function FrozenExperimentReports({ fixture }: { fixture: boolean }) {

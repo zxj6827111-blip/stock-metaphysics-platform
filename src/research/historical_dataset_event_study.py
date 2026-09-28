@@ -558,7 +558,8 @@ def read_experiment_report(root: Path, experiment_id: str) -> tuple[dict[str, An
         raise FileNotFoundError(f"版本化实验报告不存在：{experiment_id}")
     payload = path.read_bytes()
     report = json.loads(payload.decode("utf-8"))
-    if not isinstance(report, dict) or report.get("experiment_id") != experiment_id:
+    report_identity = report.get("report_id", report.get("experiment_id")) if isinstance(report, dict) else None
+    if not isinstance(report, dict) or report_identity != experiment_id:
         raise ValueError("实验报告身份与请求 ID 不一致")
     if report.get("schema_version") != "w6-research-experiment-v1":
         raise ValueError("实验报告 schema_version 无效")

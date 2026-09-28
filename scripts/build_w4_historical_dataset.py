@@ -309,6 +309,7 @@ def _build_feature_payload(
     first_observed_bar_date: date,
     source_birth_profile_version: str,
     as_of: datetime,
+    birth_evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """只接收出生档案、研究日和确定性引擎，不接收行情或未来标签。"""
     from src.core.config import settings
@@ -329,15 +330,19 @@ def _build_feature_payload(
     from src.factors.registry.compute import compute_factor_set
 
     exchange_enum = Exchange(exchange)
-    raw_source = SourceRef(
-        source="w2_pinned_raw_overlay",
-        extra={
-            "observation_basis": "earliest_observed_daily_bar_date",
-            "source_type": "composite_raw_daily_bar",
-            "canonical_birth_profile_version": source_birth_profile_version,
-            "historical_publication_status": "NOT_PROVEN",
-        },
-    )
+    raw_source_extra = {
+        "observation_basis": "earliest_observed_daily_bar_date",
+        "source_type": "composite_raw_daily_bar",
+        "canonical_birth_profile_version": source_birth_profile_version,
+        "historical_publication_status": "NOT_PROVEN",
+    }
+    if birth_evidence is not None:
+        raw_source_extra.update({
+            "historical_publication_status": "PUBLIC_LISTING_DATE_NOTICE_PRECEDES_RESEARCH_RANGE",
+            "official_listing_notice": birth_evidence,
+            "time_precision": "listing date corroborated; exact first trade time not observed",
+        })
+    raw_source = SourceRef(source="w2_pinned_raw_overlay", extra=raw_source_extra)
     observation = FirstTradeObservation(
         status=FirstTradeObservationStatus.OBSERVED_TRADING_DATE,
         first_trade_date=first_observed_bar_date,
@@ -346,7 +351,10 @@ def _build_feature_payload(
         source_version="w2-observed-daily-bar-date-v1",
         timezone=RESEARCH_TIMEZONE,
         reason=(
-            "冻结 raw overlay 最早可观测日线日期；它不是首笔成交时刻，且不能证明该证据在历史研究日已公开。"
+            "冻结 raw overlay 最早可观测日线日期；官方上市公告交叉支持上市日期。"
+            "该日线不是首笔成交时刻；09:30 仍是 listing_open 假设。"
+            if birth_evidence is not None
+            else "冻结 raw overlay 最早可观测日线日期；它不是首笔成交时刻，且不能证明该证据在历史研究日已公开。"
         ),
     )
     profile = resolve_market_first_trade_profile(
@@ -518,6 +526,7 @@ def _outcome_row(
     *,
     label: dict[str, Any],
     feature: dict[str, Any],
+    bars: pd.DataFrame,
     bar_manifest_sha256: str,
     factor_manifest_sha256: str,
 ) -> dict[str, Any]:
@@ -554,9 +563,28 @@ def _outcome_row(
             label.get("horizon_available", {}).get(f"{horizon}d", False)
         )
         outcome[f"horizon_requested_{horizon}d"] = True
+        outcome[f"label_end_date_{horizon}d"] = _label_end_date(
+            bars, label, horizon,
+        )
     if _json_scalar(day) != feature["research_date"]:
         raise ValueError("label as_of 与 research_date 不一致")
     return outcome
+
+
+def _label_end_date(
+    bars: pd.DataFrame,
+    label: dict[str, Any],
+    horizon: int,
+) -> date | None:
+    """Persist the exact T+h bar date used to prevent time-split leakage."""
+    if not label.get("horizon_available", {}).get(f"{horizon}d", False):
+        return None
+    trade_index = int(label["trade_index"])
+    end_index = trade_index + int(horizon)
+    if trade_index < 0 or end_index >= len(bars):
+        raise ValueError("label kernel 声明周期可用，但对应行情终点越界")
+    end_date = bars.iloc[end_index]["trade_date"]
+    return pd.Timestamp(end_date).date()
 
 
 def build_engineering_dataset(
@@ -564,11 +592,12 @@ def build_engineering_dataset(
     dataset_id: str,
     stock_code: str,
     start_date: date,
-    max_observations: int,
+    max_observations: int | None,
     w2_root: Path,
     market_root: Path,
     database_path: Path,
     dataset_root: Path,
+    scope_certificate_path: Path | None = None,
 ) -> dict[str, Any]:
     start = wall_time.perf_counter()
     from src.core.config import settings
@@ -588,12 +617,64 @@ def build_engineering_dataset(
     if dataset_root != expected_root:
         raise ValueError(f"dataset-root 必须严格为生成数据目录：{expected_root}")
     inputs = _load_w2_inputs(w2_root, market_root, stock_code)
-    dates = _select_sample_dates(inputs, start_date, max_observations)
+    scope_certificate = None
+    scope_material = None
+    if scope_certificate_path is not None:
+        from scripts.w2_limited_scope_evidence import verify_certificate_against_current_inputs
+        from src.research.scoped_data_certificate import (
+            BIRTH_EVIDENCE,
+            SECURITY_ID,
+            START_DATE,
+            verify_limited_scope_certificate,
+        )
+
+        scope_certificate_path = scope_certificate_path.resolve(strict=True)
+        scope_certificate = _read_json(scope_certificate_path)
+        verify_limited_scope_certificate(scope_certificate)
+        if stock_code != "002561" or inputs["scope"]["security_id"] != SECURITY_ID:
+            raise ValueError("有限范围证书只适用于 SZSE.STK.002561")
+        if start_date != START_DATE:
+            raise ValueError("有限范围证书要求使用冻结的研究起始日期")
+        if dataset_id == DEFAULT_DATASET_ID:
+            raise ValueError("有限范围证书必须写入新的独立 dataset_id")
+        if max_observations not in (None, scope_certificate["scope"]["observation_count"]):
+            raise ValueError("有限范围证书的样本数固定为证书登记的 1,513 日")
+        scope_material = verify_certificate_against_current_inputs(
+            scope_certificate,
+            w2_root=w2_root,
+            market_root=market_root,
+        )
+        if scope_certificate["birth_evidence"] != BIRTH_EVIDENCE:
+            raise ValueError("有限范围证书上市公告来源与代码内冻结来源不一致")
+        dates = [
+            date(int(value[:4]), int(value[4:6]), int(value[6:8]))
+            for value in scope_certificate["audit"]["research_dates"]
+        ]
+    else:
+        if max_observations is None:
+            max_observations = 20
+        if max_observations < 1 or max_observations > 1000:
+            raise ValueError("工程样本 max_observations 必须在 1..1000 之间")
+        dates = _select_sample_dates(inputs, start_date, max_observations)
     birth = _db_birth_inputs(database_path, stock_code, "v2-phase4b-listing_open")
     if birth["master"]["exchange"] != inputs["exchange"]:
         raise ValueError("本地 stock master 与 W2 identity exchange 不一致")
     if birth["listing_date"].isoformat() != inputs["scope"]["listing_date"]:
         raise ValueError("本地 stock master listing date 与 W2 SecurityMaster 不一致")
+    if scope_certificate is not None:
+        birth_profile_sha256 = hashlib.sha256(
+            _canonical_json(birth["profile"]).encode("utf-8")
+        ).hexdigest()
+        expected_birth_inputs = {
+            "birth_profile_version": birth["profile_version"],
+            "birth_profile_recorded_at": birth["profile_recorded_at"],
+            "birth_profile_row_sha256": birth_profile_sha256,
+        }
+        if any(
+            scope_certificate["input_versions"].get(key) != value
+            for key, value in expected_birth_inputs.items()
+        ):
+            raise ValueError("有限范围证书绑定的本机出生档案副本与当前数据库不一致")
     first_observed_bar_date = inputs["bars"].iloc[0]["trade_date"].date()
     if first_observed_bar_date != birth["listing_date"]:
         raise ValueError("raw overlay 最早 bar 与 listing date 不同；此差异需先解释")
@@ -603,11 +684,33 @@ def build_engineering_dataset(
     pit_calendar_digest = str(inputs["calendar"]["reference_calendar_digest"])
     raw_dataset_id = str(inputs["raw_manifest"]["dataset_id"])
     factor_dataset_id = str(inputs["factor_manifest"]["dataset_id"])
+    limited_scope = scope_certificate is not None
+    benchmark = None
+    if limited_scope:
+        from src.research.labels.horizon_returns import BenchmarkSeries
+
+        benchmark = BenchmarkSeries.from_frame(scope_material["benchmark_frame"])
+    research_eligible = limited_scope
+    research_use_status = (
+        "EXPLORATORY_LIMITED_SCOPE" if limited_scope else "ENGINEERING_ONLY"
+    )
+    limitations = (
+        list(scope_certificate["limitations"])
+        if limited_scope
+        else [
+            "W2 remains COVERAGE_INCOMPLETE; this sample does not certify a research range.",
+            "Birth-profile source publication time is not proven at historical T; all rows remain ineligible.",
+            "W2 reference dates are observed-index/reference dates, not official exchange calendars.",
+            "Suspension/ST explanations are not present for remaining market gaps.",
+            "Benchmark identity/data are not in the pinned W2 overlay; benchmark and excess returns stay null.",
+        ]
+    )
     metadata = {
         "schema_version": "w4-historical-panel-v1",
-        "status": "ENGINEERING_ONLY",
-        "research_eligible": False,
+        "status": "CERTIFIED_LIMITED_SCOPE_EXPLORATORY" if limited_scope else "ENGINEERING_ONLY",
+        "research_eligible": research_eligible,
         "confirmatory_research_eligible": False,
+        "full_pit_universe_status": inputs["w2_manifest"]["full_pit_universe_status"],
         "scope": {
             "security_id": inputs["scope"]["security_id"],
             "stock_code": stock_code,
@@ -615,7 +718,11 @@ def build_engineering_dataset(
             "research_dates": [day.isoformat() for day in dates],
             "research_time": RESEARCH_TIME.isoformat(),
             "research_timezone": RESEARCH_TIMEZONE,
-            "sample_kind": "single-security deterministic engineering replay",
+            "sample_kind": (
+                "single-security limited historical exploratory range"
+                if limited_scope
+                else "single-security deterministic engineering replay"
+            ),
         },
         "input_versions": {
             "w2_manifest_sha256": pit_manifest_sha256,
@@ -629,14 +736,35 @@ def build_engineering_dataset(
             "factor_blob_sha256": inputs["factor_blob_sha256"],
             "source_birth_profile_version": birth["profile_version"],
             "source_birth_profile_recorded_at": birth["profile_recorded_at"],
+            "label_end_date_method": "exact_stock_bar_at_trade_index_plus_horizon",
+            **({
+                "scope_certificate_id": scope_certificate["certificate_id"],
+                "scope_certificate_sha256": scope_certificate["certificate_sha256"],
+                "scope_certificate_input_versions": scope_certificate["input_versions"],
+                "benchmark_file_sha256": scope_certificate["input_versions"]["benchmark_file_sha256"],
+                "benchmark_provider": scope_certificate["input_versions"]["benchmark_provider"],
+                "benchmark_snapshot_at": scope_certificate["input_versions"]["benchmark_snapshot_at"],
+                "corporate_action_file_sha256": scope_certificate["input_versions"]["corporate_action_file_sha256"],
+                "full_pit_universe_status": "COVERAGE_INCOMPLETE",
+            } if limited_scope else {}),
         },
-        "known_limitations": [
-            "W2 remains COVERAGE_INCOMPLETE; this sample does not certify a research range.",
-            "Birth-profile source publication time is not proven at historical T; all rows remain ineligible.",
-            "W2 reference dates are observed-index/reference dates, not official exchange calendars.",
-            "Suspension/ST explanations are not present for remaining market gaps.",
-            "Benchmark identity/data are not in the pinned W2 overlay; benchmark and excess returns stay null.",
-        ],
+        "scope_certificate": ({
+            "certificate_id": scope_certificate["certificate_id"],
+            "certificate_sha256": scope_certificate["certificate_sha256"],
+            "status": scope_certificate["status"],
+            "birth_evidence": scope_certificate["birth_evidence"],
+            "audit": scope_certificate["audit"],
+            "limitations": scope_certificate["limitations"],
+        } if limited_scope else None),
+        "benchmark": ({
+            "code": "000300",
+            "storage_code": "IDX000300",
+            "provider": scope_material["benchmark_meta"]["provider"],
+            "snapshot_at": scope_material["benchmark_meta"]["fetched_at"],
+            "adjustment": "none",
+            "file_sha256": scope_certificate["input_versions"]["benchmark_file_sha256"],
+        } if limited_scope else None),
+        "known_limitations": limitations,
     }
     store = HistoricalResearchDatasetStore(
         dataset_root,
@@ -651,7 +779,7 @@ def build_engineering_dataset(
         stock_code=stock_code,
         horizons=HORIZONS,
         adj_factors=inputs["factors"],
-        benchmark=None,
+        benchmark=benchmark,
         is_degraded=False,
         bar_version=raw_dataset_id,
         factor_version=factor_dataset_id,
@@ -683,12 +811,19 @@ def build_engineering_dataset(
                 first_observed_bar_date=first_observed_bar_date,
                 source_birth_profile_version=birth["profile_version"],
                 as_of=as_of,
+                birth_evidence=(
+                    scope_certificate["birth_evidence"] if limited_scope else None
+                ),
             )
             profile_recorded_at = datetime.fromisoformat(str(source_profile["created_at"]))
             evidence_status = (
-                "RECORDED_BEFORE_T_BUT_SOURCE_PUBLICATION_UNPROVEN"
-                if profile_recorded_at.date() <= day
-                else "NOT_PROVEN"
+                "PUBLIC_LISTING_DATE_NOTICE_PRECEDES_T_LISTING_OPEN_TIME_ASSUMED"
+                if limited_scope
+                else (
+                    "RECORDED_BEFORE_T_BUT_SOURCE_PUBLICATION_UNPROVEN"
+                    if profile_recorded_at.date() <= day
+                    else "NOT_PROVEN"
+                )
             )
             feature = {
                 "dataset_id": dataset_id,
@@ -713,12 +848,13 @@ def build_engineering_dataset(
                 "chart_artifact_ids_json": _canonical_json(computed["artifact_ids"]),
                 "chart_artifact_digests_json": _canonical_json(computed["artifact_digests"]),
                 "features_json": _canonical_json(computed["feature_payload"]),
-                "research_use_status": "ENGINEERING_ONLY",
-                "research_eligible": False,
+                "research_use_status": research_use_status,
+                "research_eligible": research_eligible,
             }
             outcome = _outcome_row(
                 label=labels_by_date[day.isoformat()],
                 feature=feature,
+                bars=inputs["bars"],
                 bar_manifest_sha256=inputs["raw_manifest_sha256"],
                 factor_manifest_sha256=inputs["factor_manifest_sha256"],
             )
@@ -743,12 +879,18 @@ def build_engineering_dataset(
         "factor_manifest_sha256": inputs["factor_manifest_sha256"],
         "raw_blob_sha256": inputs["raw_blob_sha256"],
         "factor_blob_sha256": inputs["factor_blob_sha256"],
+        **({
+            "scope_certificate_sha256": scope_certificate["certificate_sha256"],
+            "benchmark_file_sha256": scope_certificate["input_versions"]["benchmark_file_sha256"],
+            "corporate_action_file_sha256": scope_certificate["input_versions"]["corporate_action_file_sha256"],
+        } if limited_scope else {}),
         "birth_profile_row": source_profile,
         "feature_version": FEATURE_VERSION,
         "label_versions": {
             "label_version": "w3-hfq-adjfactor-v2",
             "price_basis": "raw_times_factor",
             "horizons": list(HORIZONS),
+            "end_date_method": "exact_stock_bar_at_trade_index_plus_horizon",
         },
     }
     expected_shards: list[str] = []
@@ -779,6 +921,13 @@ def build_engineering_dataset(
         for horizon in HORIZONS
     }
     benchmark_unavailable = int(output["bench_ret_1d"].isna().sum())
+    if limited_scope:
+        horizon_unavailable_total = sum(unavailable.values())
+        if horizon_unavailable_total or benchmark_unavailable:
+            raise RuntimeError(
+                "有限范围证书要求所有 1/5/10/20/60 日及 benchmark 标签完整；"
+                f"horizon_unavailable={unavailable}, benchmark_unavailable={benchmark_unavailable}"
+            )
     return {
         "dataset_root": str(store.root),
         "dataset_status": manifest["status"],
@@ -796,11 +945,14 @@ def build_engineering_dataset(
         "observations_per_second": round(expected_rows / elapsed, 4) if elapsed else None,
         "horizon_unavailable_counts": unavailable,
         "benchmark_unavailable_count": benchmark_unavailable,
-        "research_eligible": False,
-        "research_use_status": "ENGINEERING_ONLY",
+        "research_eligible": research_eligible,
+        "research_use_status": research_use_status,
         "w2_status": inputs["w2_manifest"]["certification_status"],
         "w2_full_pit_status": inputs["w2_manifest"]["full_pit_universe_status"],
-        "birth_evidence_status": "NOT_PROVEN_AT_HISTORICAL_T",
+        "birth_evidence_status": (
+            "PUBLIC_LISTING_DATE_NOTICE_PRECEDES_T_LISTING_OPEN_TIME_ASSUMED"
+            if limited_scope else "NOT_PROVEN_AT_HISTORICAL_T"
+        ),
         "bar_factor_coverage": coverage_rows,
         "sample_date_range": [dates[0].isoformat(), dates[-1].isoformat()],
         "limitations": metadata["known_limitations"],
@@ -812,14 +964,13 @@ def main() -> int:
     parser.add_argument("--dataset-id", default=DEFAULT_DATASET_ID)
     parser.add_argument("--stock-code", default="002561")
     parser.add_argument("--start-date", type=date.fromisoformat, default=date(2012, 2, 23))
-    parser.add_argument("--max-observations", type=int, default=20)
+    parser.add_argument("--max-observations", type=int)
     parser.add_argument("--w2-root", type=Path, default=DEFAULT_W2_ROOT)
     parser.add_argument("--market-root", type=Path, default=DEFAULT_MARKET_ROOT)
     parser.add_argument("--database", type=Path, default=DEFAULT_DATABASE)
     parser.add_argument("--dataset-root", type=Path, default=DEFAULT_DATASET_ROOT)
+    parser.add_argument("--scope-certificate", type=Path)
     args = parser.parse_args()
-    if args.max_observations < 1 or args.max_observations > 1000:
-        parser.error("max-observations 必须在 1..1000 之间")
     try:
         result = build_engineering_dataset(
             dataset_id=args.dataset_id,
@@ -830,9 +981,10 @@ def main() -> int:
             market_root=args.market_root,
             database_path=args.database,
             dataset_root=args.dataset_root,
+            scope_certificate_path=args.scope_certificate,
         )
     except (KeyError, FileNotFoundError, RuntimeError, ValueError, OSError) as exc:
-        parser.exit(2, f"W4 engineering dataset 未完成：{type(exc).__name__}: {exc}\n")
+        parser.exit(2, f"W4 historical dataset 未完成：{type(exc).__name__}: {exc}\n")
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
