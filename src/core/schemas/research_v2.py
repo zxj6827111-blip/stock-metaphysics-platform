@@ -9,15 +9,20 @@ from pydantic import Field, FiniteFloat, model_validator
 
 from src.core.schemas.common import SMBaseModel
 from src.core.schemas.fortune import (
+    FirstDayPolarityEvidence,
+    FortuneRelationEvent,
     FortuneRelationFilter,
     FortuneScanAvailabilityPolicy,
     FortuneScanSort,
     FortuneTenGodFilter,
     FortuneTimelineAnchorMode,
     FortuneTimelineDateMode,
+    StockFortuneBirthProfile,
+    StockFortuneIdentity,
     StockFortuneScanResponse,
     StockFortuneTimeline,
 )
+from src.core.schemas.ten_god import TenGodStockCalendarResponse, TenGodTemporalSegment
 
 
 class FortuneTimelineV2Request(SMBaseModel):
@@ -53,6 +58,53 @@ class FortuneTimelineV2Response(SMBaseModel):
     contract_version: Literal["research-api-v2"] = "research-api-v2"
     resolved_versions: dict[str, str | None]
     timeline: StockFortuneTimeline
+
+
+class FortuneMonthCalendarV2Request(SMBaseModel):
+    """股票公历范围查询；月柱仍由服务端按精确节气边界切段。"""
+
+    stock_code: str = Field(min_length=1, max_length=16, pattern=r"^[A-Za-z0-9.]+$")
+    start_date: date
+    end_date: date
+    birth_basis: Literal["listing_open", "MARKET_FIRST_TRADE"] = "listing_open"
+    birth_profile_version: str = Field(default="v2-phase4b-listing_open", min_length=1, max_length=32)
+    evaluation_time: time = time(12, 0)
+    timezone: Literal["Asia/Shanghai"] = "Asia/Shanghai"
+    market_session_version: str = "a-share-session-v1"
+    config_version: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_month_range(self) -> FortuneMonthCalendarV2Request:
+        if self.end_date < self.start_date:
+            raise ValueError("end_date 不得早于 start_date")
+        if (self.end_date - self.start_date).days + 1 > 730:
+            raise ValueError("单次月份/日期十神查询最多支持 730 个自然日")
+        if not self.market_session_version.strip() or not self.config_version.strip():
+            raise ValueError("market_session_version 与 config_version 必须显式提供")
+        if self.birth_basis == "listing_open" and not self.birth_profile_version.strip():
+            raise ValueError("listing_open 必须选择出生档案版本")
+        return self
+
+
+class FortuneMonthSegmentInterpretation(SMBaseModel):
+    segment: TenGodTemporalSegment
+    wealth_star_locations: list[str] = Field(default_factory=list)
+    related_events: list[FortuneRelationEvent] = Field(default_factory=list)
+    explanation: str
+
+
+class FortuneMonthCalendarV2Response(SMBaseModel):
+    contract_version: Literal["research-api-v2"] = "research-api-v2"
+    request: FortuneMonthCalendarV2Request
+    stock_identity: StockFortuneIdentity
+    resolved_versions: dict[str, str | None]
+    birth_profile: StockFortuneBirthProfile
+    first_day_polarity: FirstDayPolarityEvidence
+    calendar: TenGodStockCalendarResponse | None = None
+    calendar_unavailability_reason: str = ""
+    timeline: StockFortuneTimeline | None = None
+    timeline_unavailability_reason: str = ""
+    month_interpretations: list[FortuneMonthSegmentInterpretation] = Field(default_factory=list)
 
 
 class FortuneScanV2Request(SMBaseModel):
@@ -311,6 +363,9 @@ __all__ = [
     "FortuneScanV2Response",
     "FortuneTimelineV2Request",
     "FortuneTimelineV2Response",
+    "FortuneMonthCalendarV2Request",
+    "FortuneMonthCalendarV2Response",
+    "FortuneMonthSegmentInterpretation",
     "HistoricalDatasetVersions",
     "HistoricalDatasetV2Response",
     "HistoricalEventStudyV2Request",

@@ -13,6 +13,7 @@ from src.core.orchestration.stock_fortune import (
     DatabaseFortuneChartArtifactWriter,
     StockFortuneEngine,
 )
+from src.core.orchestration.stock_fortune_month_calendar import StockFortuneMonthCalendarEngine
 from src.core.orchestration.stock_fortune_scan import StockFortuneCrossSectionScanner
 from src.core.orchestration.stock_fortune_timeline import StockFortuneTimelineEngine
 from src.core.schemas.common import SourceRef
@@ -27,6 +28,8 @@ from src.core.schemas.fortune import (
 )
 from src.core.schemas.research_v2 import (
     ExperimentReportV2Response,
+    FortuneMonthCalendarV2Request,
+    FortuneMonthCalendarV2Response,
     FortuneScanV2Request,
     FortuneScanV2Response,
     FortuneTimelineV2Request,
@@ -148,6 +151,30 @@ def stock_fortune_timeline_v2(
             },
             timeline=result,
         )
+    except ValueError as exc:
+        db.rollback()
+        raise InvalidRequestError(str(exc)) from exc
+    except Exception:
+        db.rollback()
+        raise
+
+
+@router.post(
+    "/fortune/month-calendar",
+    response_model=FortuneMonthCalendarV2Response,
+    summary="股票月份/自然日十神、来源证据与 Fortune 结构结果（v2）",
+)
+def stock_fortune_month_calendar_v2(
+    payload: FortuneMonthCalendarV2Request,
+    db: Session = Depends(db_session),
+    market=Depends(get_market),
+) -> FortuneMonthCalendarV2Response:
+    """一次请求复用一个出生档案；阴阳或运限缺失只影响对应区块。"""
+    try:
+        return StockFortuneMonthCalendarEngine().build(db, payload, market)
+    except LookupError as exc:
+        db.rollback()
+        raise NotFoundError(str(exc)) from exc
     except ValueError as exc:
         db.rollback()
         raise InvalidRequestError(str(exc)) from exc

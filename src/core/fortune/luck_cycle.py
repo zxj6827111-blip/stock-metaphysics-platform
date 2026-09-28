@@ -27,6 +27,7 @@ def resolve_first_day_yinyang_luck_cycle(
     source: SourceRef | None,
     source_version: str,
     market_session_version: str,
+    visible_at: datetime | None = None,
     exchange: Exchange,
     birth_year_stem: str | None,
     as_of: datetime,
@@ -49,6 +50,9 @@ def resolve_first_day_yinyang_luck_cycle(
         or source.source.strip().lower().startswith("synthetic")
         or source_version.strip().lower() in {"", "unknown"}
         or market_session_version.strip().lower() in {"", "unknown"}
+        or visible_at is None
+        or visible_at.tzinfo is None
+        or visible_at.utcoffset() is None
         or exchange not in {Exchange.SSE, Exchange.SZSE, Exchange.BSE}
         or birth_year_stem not in STEM_YANG
     ):
@@ -87,6 +91,15 @@ def resolve_first_day_yinyang_luck_cycle(
     observed_at = datetime.combine(
         polarity_observation_date, session.close_time, tzinfo=session_tz
     )
+    if visible_at.astimezone(session_tz) != observed_at:
+        return _unavailable(
+            "首日阴阳声明的可见时点与版本化市场收盘时段不一致",
+            source=source,
+            source_version=source_version,
+            polarity_observation_date=polarity_observation_date,
+            market_session_version=market_session_version,
+            observed_at=observed_at,
+        )
     if as_of.astimezone(session_tz) < observed_at:
         return _unavailable(
             "首日阴阳只能在其观测交易日收盘后使用；当前 as_of 早于可观测时点",
@@ -134,6 +147,7 @@ def resolve_first_day_yinyang_luck_cycle(
                 **source.extra,
                 "polarity_observation_date": polarity_observation_date.isoformat(),
                 "observed_at": observed_at.isoformat(),
+                "evidence_visible_at": visible_at.isoformat(),
                 "session_source": session.source,
                 "session_lookup_key": matched_key,
                 "market_session_version": resolved_market_session_version,

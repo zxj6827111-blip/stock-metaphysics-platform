@@ -28,6 +28,7 @@
 | [0023](ADR-0023-f5-preregistered-experiments.md) | F5 首批预注册实验与可重放统计 | 已接受(Accepted) |
 | [0024](ADR-0024-certified-scope-and-path-risk-v2.md) | 限域认证准入与可追溯路径风险指标 | 已接受(Accepted) |
 | [0025](ADR-0025-f5-historical-research-asset-boundary.md) | F5 历史研究候选资产保留与集成门槛 | Draft |
+| [0026](ADR-0026-stock-monthly-calendar-and-polarity-evidence.md) | 股票月份日历与首日阴阳证据闭环 | 已接受(Accepted) |
 
 编号 0014 曾出现在未合入主干的候选分支。该候选的首日阴阳映射已复核，并完整写入 ADR-0017 的研究约定；该候选文档中的 API、UI 默认行为不随映射一起纳入。本表保留 0014 编号，不把候选文档伪装成已接受 ADR。ADR-0018 取代 ADR-0015 的出生数据来源选择，保留精度区分目标。财富分数语义沿用已接受的 ADR-0013，不重复建 ADR。
 

@@ -227,7 +227,43 @@ export interface ApiFortuneTimelinePointV2 {
   annual_pillar: { stem: string; branch: string } | null;
   monthly_pillar: { stem: string; branch: string } | null;
   daily_pillar: { stem: string; branch: string } | null;
+  monthly_ten_god?: { display_label: string } | null;
+  daily_ten_god?: { display_label: string } | null;
+  relation_events?: ApiFortuneRelationEvent[];
   availability: string;
+}
+
+export interface ApiFortuneRelationParticipant {
+  context: string;
+  pillar: string;
+  component: string;
+  value: string;
+}
+
+export interface ApiFortuneRelationEvent {
+  relation_type: string;
+  source: ApiFortuneRelationParticipant;
+  target: ApiFortuneRelationParticipant;
+  scope: string;
+  explanation: string;
+}
+
+export interface ApiFortuneLuckCycleContext {
+  polarity: string | null;
+  direction: string | null;
+  compatibility_gender: string | null;
+  availability: string;
+  direction_basis: string;
+  polarity_source: { source: string; extra: Record<string, unknown> };
+  polarity_source_version: string;
+  market_session_version: string;
+  polarity_observation_date: string | null;
+  polarity_observed_at: string | null;
+  assumptions: ApiFortuneAssumption[];
+  unavailability_reason: string;
+  rule_version: string;
+  cycle_availability: string;
+  cycle_periods: { cycle_index: number; ganzhi: { stem: string; branch: string }; start_year: number; end_year: number; start_age: number; end_age: number; start_at: string; end_at: string }[];
 }
 
 export interface ApiFortuneTenGodFilter {
@@ -250,6 +286,7 @@ export interface ApiFortuneRelationFilter {
 export interface ApiFortuneTimelineV2 {
   stock_identity: { symbol: string; exchange: string; name: string; source_version: string };
   birth_context: ApiFortuneBirthProfileV2;
+  stable_context?: { luck_cycle_context: ApiFortuneLuckCycleContext; natal_context: { day_master: string | null; availability: string } };
   start_date: string;
   end_date: string;
   date_mode: "ALL_CALENDAR_DAYS" | "TRADING_DAYS_ONLY";
@@ -273,6 +310,122 @@ export interface ApiFortuneTimelineV2Response {
   contract_version: "research-api-v2";
   resolved_versions: Record<string, string | null>;
   timeline: ApiFortuneTimelineV2;
+}
+
+export interface ApiFortuneMonthCalendarRequest {
+  stock_code: string;
+  start_date: string;
+  end_date: string;
+  birth_basis: "listing_open" | "MARKET_FIRST_TRADE";
+  birth_profile_version: string;
+  evaluation_time: string;
+  timezone: "Asia/Shanghai";
+  market_session_version: string;
+  config_version: string;
+}
+
+export interface ApiTenGodHiddenStem {
+  stem: string;
+  ten_god: string;
+  rank: string;
+}
+
+export interface ApiTenGodMonthSegment {
+  kind: string;
+  ganzhi: { stem: string; branch: string; text?: string };
+  boundary_jieqi: string;
+  next_boundary_jieqi: string;
+  stem: string;
+  stem_wuxing: string;
+  stem_ten_god: string;
+  branch: string;
+  branch_hidden_stems: ApiTenGodHiddenStem[];
+  start_at: string;
+  end_at: string;
+  verdict: string;
+  reason: string;
+}
+
+export interface ApiTenGodDay {
+  date: string;
+  ganzhi: { stem: string; branch: string; text?: string };
+  stem: string;
+  stem_ten_god: string;
+  branch_hidden_stems: ApiTenGodHiddenStem[];
+  verdict: string;
+  is_trading_day: boolean | null;
+  trading_calendar_source: string;
+  reason: string;
+}
+
+export interface ApiTenGodCalendar {
+  stock: {
+    stock_code: string;
+    name: string;
+    exchange: string;
+    birth_basis: string;
+    birth_profile_version: string;
+    birth_datetime: string | null;
+    timezone: string;
+    source: string;
+    assumptions: string[];
+  };
+  versions: Record<string, string>;
+  natal: {
+    day_master: string;
+    day_master_wuxing?: string;
+    pillars: {
+      position: string;
+      ganzhi: { text?: string; stem: string; branch: string };
+      stem: { ten_god: string; display_label?: string; is_day_master?: boolean };
+      branch: string;
+      hidden_stems: { stem: string; ten_god: string; rank: string }[];
+    }[];
+  };
+  yong_shen: { available: boolean; yong_shen: string[]; xi_shen: string[]; ji_shen: string[] };
+  months: ApiTenGodMonthSegment[];
+  days: ApiTenGodDay[];
+  natural_day_count: number;
+  displayed_day_count: number;
+  calendar_window_start: string | null;
+  calendar_window_end: string | null;
+  warnings: { code: string; message: string; severity: string }[];
+}
+
+export interface ApiFirstDayPolarityEvidence {
+  status: "available" | "unavailable" | "conflict";
+  first_day_yinyang: "阳" | "阴" | null;
+  first_day_pct_chg: number | null;
+  price_basis: string;
+  observation_date: string | null;
+  is_trading_day: boolean | null;
+  trading_day_source: string;
+  source: string;
+  source_version: string;
+  market_session_version: string;
+  visible_at: string | null;
+  reason: string;
+}
+
+export interface ApiFortuneMonthInterpretation {
+  segment: ApiTenGodMonthSegment;
+  wealth_star_locations: string[];
+  related_events: ApiFortuneRelationEvent[];
+  explanation: string;
+}
+
+export interface ApiFortuneMonthCalendarResponse {
+  contract_version: "research-api-v2";
+  request: ApiFortuneMonthCalendarRequest;
+  stock_identity: { symbol: string; exchange: string; name: string; source_version: string };
+  resolved_versions: Record<string, string | null>;
+  birth_profile: ApiFortuneBirthProfileV2;
+  first_day_polarity: ApiFirstDayPolarityEvidence;
+  calendar: ApiTenGodCalendar | null;
+  calendar_unavailability_reason: string;
+  timeline: ApiFortuneTimelineV2 | null;
+  timeline_unavailability_reason: string;
+  month_interpretations: ApiFortuneMonthInterpretation[];
 }
 
 export interface ApiExperimentReportV2Response {

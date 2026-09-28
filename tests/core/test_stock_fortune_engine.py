@@ -323,6 +323,7 @@ def _request(
                 source=SourceRef(source="stock_master.first_day_yinyang"),
                 source_version="stock-master-first-day-v1",
                 market_session_version="a-share-session-v1",
+                visible_at=datetime(2024, 11, 15, 15, 0, tzinfo=SHANGHAI),
             )
             if include_luck_evidence
             else None

@@ -17,7 +17,7 @@ from src.core.schemas.fortune import (
     StockFortuneIdentity,
 )
 from src.core.schemas.research_v2 import HistoricalDatasetVersions
-from src.db.models import UniverseMembershipRow
+from src.db.models import StockBirthProfileRow, StockMasterRow, UniverseMembershipRow
 from src.research.historical_dataset import HistoricalResearchDatasetStore
 
 pytestmark = pytest.mark.integration
@@ -317,6 +317,101 @@ def test_v2_timeline_resolves_stock_profile_on_server(client, monkeypatch) -> No
         "2025-01-10", "2025-01-11",
     ]
     assert body["resolved_versions"]["market_data_version"] == "integration-market-v1"
+
+
+def _seed_month_calendar_stock(
+    db_session, *, polarity_metadata: dict | None = None, code: str = "999519",
+) -> None:
+    db_session.add(StockMasterRow(
+        stock_code=code,
+        name="测试档案证券",
+        exchange="SSE",
+        listing_date=date(2001, 8, 27),
+        first_day_pct_chg=0.03013619240799766,
+        first_day_yinyang="阳",
+        first_day_evidence_json=polarity_metadata,
+        source="local-master-v1",
+    ))
+    db_session.add(StockBirthProfileRow(
+        stock_code=code,
+        exchange="SSE",
+        birth_basis="listing_open",
+        birth_datetime=datetime(2001, 8, 27, 9, 30),
+        timezone="Asia/Shanghai",
+        source="research:listing_open",
+        birth_profile_version="v2-phase4b-listing_open",
+        evidence_json={
+            "listing_date": "2001-08-27",
+            "first_trading_day": "2001-08-27",
+            "session_open_time": "09:30:00",
+            "timezone": "Asia/Shanghai",
+            "derivation": "上市日期 + 版本化 session 开盘时刻",
+        },
+        assumptions_json=[{
+            "key": "birth.listing_open",
+            "value": "2001-08-27T09:30:00+08:00",
+            "reason": "上市开盘是研究假设，不是首笔真实成交时刻",
+            "impact": "first_trade_datetime 保持 null",
+        }],
+        data_quality_json={"grade": "B", "score": 0.8, "notes": ["研究假设"]},
+        variant_mode="not_applicable",
+        variant_note="股票无真实性别",
+    ))
+    db_session.commit()
+
+
+def test_v2_month_calendar_returns_full_month_and_keeps_missing_polarity_local(
+    client, db_session,
+) -> None:
+    _seed_month_calendar_stock(db_session)
+    response = client.post(
+        "/api/v2/research/fortune/month-calendar",
+        json={
+            "stock_code": "999519",
+            "start_date": "2026-09-01",
+            "end_date": "2026-09-30",
+            "birth_basis": "listing_open",
+            "birth_profile_version": "v2-phase4b-listing_open",
+            "config_version": settings.config_version,
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["request"]["evaluation_time"] == "12:00:00"
+    assert body["birth_profile"]["birth_basis"] == "LISTING_OPEN"
+    assert body["birth_profile"]["first_trade_datetime"] is None
+    assert body["calendar"] is not None, body["calendar_unavailability_reason"]
+    assert body["calendar"]["natural_day_count"] == 30
+    assert len(body["calendar"]["days"]) == 30
+    assert body["calendar"]["days"][0]["stem_ten_god"] == "七杀"
+    assert body["calendar"]["days"][1]["stem_ten_god"] == "正官"
+    assert body["calendar"]["days"][2]["stem_ten_god"] == "偏印"
+    assert len([item for item in body["calendar"]["months"] if item["kind"] == "month"]) >= 2
+    assert len(body["timeline"]["points"]) == 30
+    assert body["first_day_polarity"]["status"] == "unavailable"
+    assert body["timeline"]["stable_context"]["luck_cycle_context"]["availability"] == "unavailable"
+
+
+def test_v2_market_first_trade_does_not_fallback_to_listing_open(client, db_session) -> None:
+    _seed_month_calendar_stock(db_session, code="999520")
+    response = client.post(
+        "/api/v2/research/fortune/month-calendar",
+        json={
+            "stock_code": "999520",
+            "start_date": "2026-09-01",
+            "end_date": "2026-09-30",
+            "birth_basis": "MARKET_FIRST_TRADE",
+            "birth_profile_version": "stock-fortune-birth-v2",
+            "config_version": settings.config_version,
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["birth_profile"]["birth_basis"] == "MARKET_FIRST_TRADE"
+    assert body["birth_profile"]["birth_time_precision"] == "UNKNOWN"
+    assert body["birth_profile"]["birth_datetime"] is None
+    assert body["calendar"] is None
+    assert "首笔" in body["calendar_unavailability_reason"] or "观测" in body["calendar_unavailability_reason"]
 
 
 def test_v2_scan_resolves_versioned_pit_and_excludes_delist_date(client, db_session, monkeypatch) -> None:

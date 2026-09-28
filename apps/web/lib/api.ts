@@ -1163,6 +1163,7 @@ export const endpoints = {
   historicalEventStudyV2: () => "/api/v2/research/event-study",
   experimentReportV2: (id: string) => `/api/v2/research/experiments/${encodeURIComponent(id)}`,
   fortuneTimelineV2: () => "/api/v2/research/fortune/timeline",
+  fortuneMonthCalendarV2: () => "/api/v2/research/fortune/month-calendar",
   dateRelations: (date: string, hour?: number | null) => {
     const suffix = hour === undefined || hour === null ? "" : `?hour=${hour}`;
     return `/api/v1/research/date-relations/${encodeURIComponent(date)}${suffix}`;
