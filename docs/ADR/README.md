@@ -24,7 +24,13 @@
 | [0019](ADR-0019-stock-fortune-snapshot-contract.md) | Stock Fortune Snapshot 聚合契约与语义边界 | 已接受(Accepted) |
 | [0020](ADR-0020-stock-fortune-timeline-and-cross-section.md) | Stock Fortune Timeline 与横截面研究契约 | 已接受(Accepted) |
 | [0021](ADR-0021-runtime-readiness-and-fail-closed-calendar.md) | 核心历法失败关闭与实例就绪状态 | 已接受(Accepted) |
+| [0022](ADR-0022-versioned-research-v2-api.md) | 版本化研究 v2 API | 已接受(Accepted) |
+| [0023](ADR-0023-f5-preregistered-experiments.md) | F5 首批预注册实验与可重放统计 | 已接受(Accepted) |
+| [0024](ADR-0024-certified-scope-and-path-risk-v2.md) | 限域认证准入与可追溯路径风险指标 | 已接受(Accepted) |
+| [0025](ADR-0025-f5-historical-research-asset-boundary.md) | F5 历史研究候选资产保留与集成门槛 | Draft |
 
 编号 0014 曾出现在未合入主干的候选分支。该候选的首日阴阳映射已复核，并完整写入 ADR-0017 的研究约定；该候选文档中的 API、UI 默认行为不随映射一起纳入。本表保留 0014 编号，不把候选文档伪装成已接受 ADR。ADR-0018 取代 ADR-0015 的出生数据来源选择，保留精度区分目标。财富分数语义沿用已接受的 ADR-0013，不重复建 ADR。
+
+编号冲突说明：`stock-metaphysics-fortune-v1` 工作树中未提交的 F5 候选文档也使用 ADR-0021；它不是本仓库的 ADR-0021，也没有被 main 接受。该候选保留在原工作树，若将来择项迁入本仓库，相关决策引用为 ADR-0025（Draft），不得覆盖或替换已接受的 ADR-0021。
 
 新增 ADR 时：复制模板 → 选用未占用编号 → 在本表登记 → 在适用阶段交接文档中引用。只有代码、测试和证据证明实施后，状态才能改为「已接受」。
