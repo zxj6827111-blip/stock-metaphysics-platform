@@ -22,6 +22,7 @@ from typing import Any
 from src.core.config import settings
 from src.core.constants import (
     BRANCH_HIDDEN_STEMS,
+    STEM_YANG,
     STEM_WUXING,
     TEN_GOD_GROUP,
     hidden_stem_weight,
@@ -201,9 +202,45 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
                 reason="股票无真实性别，禁止默认按男命或女命起运",
                 impact="大运/小限不参与 Phase 1 因子与评分；Phase 2 可并行回测 forward/reverse 两种假设",
             ))
+        elif variant_mode in {VariantMode.FORWARD, VariantMode.REVERSE}:
+            year_stem = pillars["year"].ganzhi.stem
+            current_gender, _gender_flag = self._compatibility_gender_for_direction(
+                year_stem, variant_mode,
+            )
+            other_mode = (
+                VariantMode.REVERSE
+                if variant_mode == VariantMode.FORWARD
+                else VariantMode.FORWARD
+            )
+            other_gender, _other_flag = self._compatibility_gender_for_direction(
+                year_stem, other_mode,
+            )
+            da_yun = self._da_yun(birth_datetime, variant_mode, year_stem)
+            current_direction = "顺行" if variant_mode == VariantMode.FORWARD else "逆行"
+            other_direction = "逆行" if variant_mode == VariantMode.FORWARD else "顺行"
+            da_yun_note = (
+                f"本次大运采用{current_gender}兼容参数（研究假设），对应{current_direction}；"
+                f"对照假设为{other_gender}兼容参数，对应{other_direction}。"
+                "股票不存在真实性别；该映射只为复用传统性别与年干阴阳共同决定顺逆的规则，"
+                "不进入因子或收益判断。"
+            )
+            assumptions.append(Assumption(
+                key="bazi.variant_mode",
+                value=(
+                    f"{variant_mode.value}; compatibility_gender={current_gender}; "
+                    f"year_stem={year_stem}"
+                ),
+                reason="股票无真实性别；男命/女命仅为计算传统大运顺逆的兼容研究假设",
+                impact=(
+                    f"当前仅输出{current_gender}兼容输入对应的{current_direction}大运；"
+                    f"{other_gender}兼容输入对应{other_direction}，不进入因子或收益判断"
+                ),
+            ))
         else:
-            da_yun = self._da_yun(birth_datetime, variant_mode)
-            da_yun_note = f"运限按 {variant_mode} 假设计算，仅用于研究对比，暂不进入因子。"
+            da_yun_note = (
+                "variant_mode=both 需要把顺行与逆行作为两个独立假设分别计算；"
+                "本次单盘不合并两套大运。股票不存在真实性别。"
+            )
 
         chart = BaziChart(
             stock_code=stock_code,
@@ -415,14 +452,19 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
         tp.note = "；".join(bits) if bits else "与原局无显著互动"
 
     # ------------------------------------------------------------------
-    def _da_yun(self, birth_datetime: datetime, variant_mode: VariantMode) -> list[dict]:
+    def _da_yun(
+        self,
+        birth_datetime: datetime,
+        variant_mode: VariantMode,
+        year_stem: str,
+    ) -> list[dict]:
         """按 variant_mode 计算大运（仅研究用）。
 
         注意：Phase 1 默认不启用（股票无性别）。此处只在显式传入
         forward/reverse 时计算，用于 Phase 2 的历史对比实验。
         """
         try:
-            yun = self._build_yun_adapter(birth_datetime, variant_mode)
+            yun = self._build_yun_adapter(birth_datetime, variant_mode, year_stem)
             return [
                 {
                     "start_year": d.getStartYear(),
@@ -455,7 +497,10 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
         if count < 1:
             raise ValueError("大运周期数量必须大于零")
 
-        yun = self._build_yun_adapter(birth_datetime, variant_mode)
+        year_stem = self._calendar.snapshot(
+            birth_datetime.replace(tzinfo=None),
+        ).year_ganzhi.stem
+        yun = self._build_yun_adapter(birth_datetime, variant_mode, year_stem)
         first_start = yun.getStartSolar()
         tzinfo = birth_datetime.tzinfo
         periods: list[BaziLuckCyclePeriod] = []
@@ -480,10 +525,36 @@ class BaziEngine(MetaphysicsEngine[BaziChart]):
         return periods
 
     @staticmethod
-    def _build_yun_adapter(birth_datetime: datetime, variant_mode: VariantMode):
+    def _compatibility_gender_for_direction(
+        year_stem: str,
+        variant_mode: VariantMode,
+    ) -> tuple[str, int]:
+        """返回实现指定顺逆所需的传统兼容性别参数（男=1，女=0）。
+
+        传统规则：年干与性别同阴阳顺行，异阴阳逆行。股票没有真实性别，
+        因此这里仅把显式方向变体转换成引擎所需的兼容参数并展示该假设。
+        """
+        if variant_mode not in {VariantMode.FORWARD, VariantMode.REVERSE}:
+            raise ValueError("八字大运只接受显式 forward 或 reverse 方向")
+        if year_stem not in STEM_YANG:
+            raise ValueError(f"无法判定年干阴阳：{year_stem!r}")
+        year_is_yang = STEM_YANG[year_stem]
+        wants_forward = variant_mode == VariantMode.FORWARD
+        male_compatibility = year_is_yang == wants_forward
+        return ("男命", 1) if male_compatibility else ("女命", 0)
+
+    @classmethod
+    def _build_yun_adapter(
+        cls,
+        birth_datetime: datetime,
+        variant_mode: VariantMode,
+        year_stem: str,
+    ):
         """唯一的 lunar-python 大运 Adapter 入口。"""
 
-        gender_flag = 1 if variant_mode == VariantMode.FORWARD else 0
+        _gender_label, gender_flag = cls._compatibility_gender_for_direction(
+            year_stem, variant_mode,
+        )
         from lunar_python import Solar
 
         lunar = Solar.fromYmdHms(

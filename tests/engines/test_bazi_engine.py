@@ -16,7 +16,7 @@ from datetime import datetime
 
 import pytest
 
-from src.core.constants import ten_god, twelve_stage
+from src.core.constants import EARTHLY_BRANCHES, HEAVENLY_STEMS, ten_god, twelve_stage
 from src.core.schemas.common import Availability, VariantMode
 from src.engines.bazi import rules
 
@@ -238,6 +238,55 @@ class TestNoGenderContract:
         assert chart.variant_mode == VariantMode.FORWARD
         assert len(chart.da_yun) > 0
         assert "假设" in chart.da_yun_note
+
+    @pytest.mark.parametrize(
+        ("birth", "forward_gender", "reverse_gender"),
+        [
+            # 600519：辛巳阴年；阳年样例：2000-03-01 庚辰。
+            (datetime(2001, 8, 27, 9, 30), "女命", "男命"),
+            (datetime(2000, 3, 1, 9, 30), "男命", "女命"),
+        ],
+    )
+    def test_direction_selects_compatible_gender_and_actual_yun_order(
+        self, bazi_engine, birth, forward_gender, reverse_gender,
+    ):
+        """方向按年干阴阳映射到兼容性别，lunar-python 实际大运也须同向。"""
+        cycle = [
+            HEAVENLY_STEMS[i % 10] + EARTHLY_BRANCHES[i % 12]
+            for i in range(60)
+        ]
+        natal = bazi_engine._calendar.snapshot(birth)
+        month_pillar = natal.month_ganzhi.text
+
+        for mode, gender, step in (
+            (VariantMode.FORWARD, forward_gender, 1),
+            (VariantMode.REVERSE, reverse_gender, -1),
+        ):
+            chart = bazi_engine.build_chart(
+                birth_datetime=birth,
+                as_of=datetime(2026, 9, 29, 12),
+                variant_mode=mode,
+                stock_code="600519" if birth.year == 2001 else "TEST",
+            )
+            other_gender = reverse_gender if mode == VariantMode.FORWARD else forward_gender
+            direction = "顺行" if step == 1 else "逆行"
+            other_direction = "逆行" if step == 1 else "顺行"
+            assert gender in chart.da_yun_note
+            assert other_gender in chart.da_yun_note
+            assert f"对应{direction}" in chart.da_yun_note
+            assert f"对应{other_direction}" in chart.da_yun_note
+            assert "股票不存在真实性别" in chart.da_yun_note
+            assumption = next(a for a in chart.assumptions if a.key == "bazi.variant_mode")
+            assert f"compatibility_gender={gender}" in assumption.value
+
+            yun = bazi_engine._build_yun_adapter(
+                birth, mode, natal.year_ganzhi.stem,
+            )
+            first_period = next(
+                item for item in yun.getDaYun() if int(item.getIndex()) == 1
+            )
+            expected = cycle[(cycle.index(month_pillar) + step) % len(cycle)]
+            assert first_period.getGanZhi() == expected
 
 
 class TestRawChartTraceability:

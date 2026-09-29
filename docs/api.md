@@ -208,7 +208,7 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
     "current_month_pillar": { "kind":"month", "ganzhi":{"text":"乙亥"}, "clashes_with_natal":["year","hour"], ... },
     "current_day_pillar":   { "kind":"day",   "ganzhi":{"text":"癸未"}, ... },
     "variant_mode": "not_applicable", "da_yun": [], "da_yun_note": "大运顺逆由性别…",
-    "engine_version": "smx-bazi-native-1.0.1", "assumptions": [...], "warnings": [...]
+    "engine_version": "smx-bazi-native-1.0.2", "assumptions": [...], "warnings": [...]
   },
   "huangli": { "primary": {...}, "days": [31 天], "raw_huangli": {...} },
   "factors": { "observations": [ 65 条 ], "rule_version": "v1", "engine_version": "..." },
@@ -245,7 +245,7 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
 {
   "chart_id": "bazi-600519-20241115143200-a1b2c3",
   "engine": "bazi",
-  "engine_version": "smx-bazi-native-1.0.1",
+  "engine_version": "smx-bazi-native-1.0.2",
   "config_version": "cfg-2026.09.1",
   "birth_profile_version": "v1",
   "as_of": "2024-11-15T14:32:00",
@@ -383,7 +383,7 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
 {
   "analysis_id": "AN-…",
   "engines": [
-    { "engine": "bazi", "display_name": "八字引擎", "available": true, "engine_version": "smx-bazi-native-1.0.1" },
+    { "engine": "bazi", "display_name": "八字引擎", "available": true, "engine_version": "smx-bazi-native-1.0.2" },
     { "engine": "ziwei", "display_name": "紫微斗数引擎", "available": false, "engine_version": "",
       "reason": "Phase 2 实现。当前不提供任何紫微结果，也不以 0 分参与聚合。" }
   ],
@@ -541,7 +541,7 @@ curl "http://127.0.0.1:8000/api/v1/stocks/search?q=茅台"
       "engine_version": "smx-calendar-1.0.1+lunar-python-1.4.8", "third_party": "6tail/lunar-python",
       "third_party_commit": "v1.4.8 (PyPI release)" },
     { "engine_id": "bazi", "display_name": "八字引擎", "available": true,
-      "engine_version": "smx-bazi-native-1.0.1",
+      "engine_version": "smx-bazi-native-1.0.2",
       "third_party": "6tail/lunar-python（仅历法）+ 自研确定性规则内核",
       "third_party_commit": "v1.4.8 (PyPI release) / smx-bazi-native" },
     { "engine_id": "ziwei", "display_name": "紫微斗数引擎", "available": false,

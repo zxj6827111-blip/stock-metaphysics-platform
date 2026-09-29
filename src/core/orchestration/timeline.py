@@ -25,6 +25,7 @@ from typing import NamedTuple
 
 from src.core.config import settings
 from src.core.orchestration.analysis_service import AnalysisService, direction_from_score
+from src.core.orchestration.result_cache import ResultCache
 from src.core.schemas.analysis import MetaphysicsOpinion
 from src.core.schemas.common import Availability, EngineId, VariantMode, Warning_
 from src.core.schemas.timeline import (
@@ -47,6 +48,7 @@ TRADING_DAYS_PER_WEEK = 5
 #: 再长就该用月/周窗口而不是逐日列表。
 DEFAULT_DAILY_WINDOW = 20
 MAX_DAILY_WINDOW = 60
+DAY_EVALUATION_CACHE = ResultCache(max_entries=600)
 
 
 class DayEvaluation(NamedTuple):
@@ -143,10 +145,11 @@ class TimelineBuilder:
         （0.28s）并单独启动一次 Node 子进程排紫微（0.23s），
         20 个交易日就要 17 秒。这里把两处可批量的部分批起来：
 
-        * 黄历：一次构造覆盖整个区间的连续日历，再按天切片
-          （``HuangliEngine.snapshots_for_window``，结果与逐日调用逐字段相同）；
+        * 历法：连续构造一次覆盖范围，并同时复用给八字流日与黄历切片；
         * 紫微：一次 ``calculate_charts`` 批量请求（``services/ziwei-service`` 的
           批量入口本来就是为此设计的）。
+
+        八字与黄历共用同一批历法快照，避免为相同日期重复转换历法。
 
         **不改变任何分数**：每个交易日的观点仍由同一个 ``compute_factor_set`` +
         ``build_opinion`` 产出，只是把重复的构造摊掉了。
@@ -155,27 +158,67 @@ class TimelineBuilder:
         if not target_days:
             return {}, []
         warnings: list[Warning_] = []
-        ordered = sorted(set(target_days))
+        requested = sorted(set(target_days))
         if birth_datetime is None:
             raise ValueError("时间窗口需要 birth_datetime（请先构造出生档案）")
+
+        cache_keys = {
+            day: (
+                stock_code,
+                birth_datetime.isoformat(),
+                day.isoformat(),
+                hour,
+                str(variant_mode.value if hasattr(variant_mode, "value") else variant_mode),
+                self.service.calendar.engine_version,
+                self.service.bazi.engine_version,
+                self.service.huangli.engine_version,
+                self.service.ziwei.engine_version,
+                settings.config_version,
+                settings.factor_rule_version,
+                settings.ziwei_factor_rule_version,
+                settings.timezone,
+            )
+            for day in requested
+        }
+        out: dict[date, DayEvaluation] = {}
+        missing: list[date] = []
+        for day in requested:
+            cached, hit = DAY_EVALUATION_CACHE.get(cache_keys[day])
+            if hit:
+                out[day] = cached
+            else:
+                missing.append(day)
+        if not missing:
+            if variant_mode in (VariantMode.FORWARD, VariantMode.REVERSE) and any(
+                str(out[day].opinions.get("ziwei").availability) != Availability.OK.value
+                for day in requested
+                if out[day].opinions.get("ziwei") is not None
+            ):
+                warnings.append(Warning_(
+                    code="TIMELINE_ZIWEI_UNAVAILABLE",
+                    message="缓存的逐日结果包含紫微不可用状态；本次未重新请求紫微服务。",
+                    severity="warning",
+                ))
+            return out, warnings
+
+        ordered = missing
 
         start_dt = datetime(ordered[0].year, ordered[0].month, ordered[0].day, hour, 0, 0)
         offsets = [(d - ordered[0]).days for d in ordered]
         offset_by_day = dict(zip(ordered, offsets, strict=True))
-        huangli_map = self.service.huangli.snapshots_for_window(
-            start=start_dt, offsets=offsets, window_days=31,
-        )
+        normalized_birth = birth_datetime.replace(tzinfo=None)
+        calendar_span = max(offsets) + 31
 
-        charts = {
-            d: self.service.bazi.build_chart(
-                birth_datetime=birth_datetime.replace(tzinfo=None),
-                as_of=datetime(d.year, d.month, d.day, hour, 0, 0),
-                variant_mode=variant_mode,
-                stock_code=stock_code,
-            )
-            for d in ordered
-        }
+        def _build_calendar_inputs():
+            # 原局只随出生时刻变化；流日参考快照同时供八字与黄历使用。
+            natal_snapshot = self.service.calendar.snapshot(normalized_birth)
+            day_snapshots = [
+                self.service.calendar.snapshot(start_dt + timedelta(days=i))
+                for i in range(calendar_span)
+            ]
+            return natal_snapshot, day_snapshots
 
+        natal_snapshot, calendar_snapshots = _build_calendar_inputs()
         ziwei_charts: dict[date, object] = {}
         if variant_mode in (VariantMode.FORWARD, VariantMode.REVERSE):
             from src.engines.base import EngineContext  # 局部导入避免循环依赖
@@ -186,7 +229,7 @@ class TimelineBuilder:
                         stock_code=stock_code,
                         as_of=datetime(d.year, d.month, d.day, hour, 0, 0),
                     ),
-                    "birth_datetime": birth_datetime.replace(tzinfo=None),
+                    "birth_datetime": normalized_birth,
                     "as_of": datetime(d.year, d.month, d.day, hour, 0, 0),
                     "variant_mode": variant_mode,
                     "stock_code": stock_code,
@@ -204,7 +247,24 @@ class TimelineBuilder:
                     severity="warning",
                 ))
 
-        out: dict[date, DayEvaluation] = {}
+        huangli_map = self.service.huangli.snapshots_for_window(
+            start=start_dt,
+            offsets=offsets,
+            window_days=31,
+            calendar_snapshots=calendar_snapshots,
+        )
+        charts = {
+            d: self.service.bazi.build_chart(
+                birth_datetime=normalized_birth,
+                as_of=datetime(d.year, d.month, d.day, hour, 0, 0),
+                variant_mode=variant_mode,
+                stock_code=stock_code,
+                natal_snapshot=natal_snapshot,
+                reference_snapshot=calendar_snapshots[offset_by_day[d]],
+            )
+            for d in ordered
+        }
+
         for d in ordered:
             as_of_day = datetime(d.year, d.month, d.day, hour, 0, 0)
             fset = compute_factor_set(
@@ -226,7 +286,20 @@ class TimelineBuilder:
                     direction=0, score=None, confidence=0.0,
                     note="该时刻紫微不可用（服务不可用或未指定方向 variant），不以 0 分替代。",
                 )
-            out[d] = DayEvaluation(opinions=opinions, factor_set=fset, as_of=as_of_day)
+            evaluation = DayEvaluation(opinions=opinions, factor_set=fset, as_of=as_of_day)
+            out[d] = evaluation
+            DAY_EVALUATION_CACHE.put(cache_keys[d], evaluation)
+
+        if variant_mode in (VariantMode.FORWARD, VariantMode.REVERSE) and any(
+            str(out[day].opinions.get("ziwei").availability) != Availability.OK.value
+            for day in requested
+            if out[day].opinions.get("ziwei") is not None
+        ) and not any(w.code == "TIMELINE_ZIWEI_UNAVAILABLE" for w in warnings):
+            warnings.append(Warning_(
+                code="TIMELINE_ZIWEI_UNAVAILABLE",
+                message="缓存或本次计算结果中存在紫微不可用日期。",
+                severity="warning",
+            ))
         return out, warnings
 
     # ------------------------------------------------------------------

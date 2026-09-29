@@ -45,6 +45,24 @@ class ResultCache:
         """构造缓存键。``None`` 与空串在这里**不等价**（区间参数语义不同）。"""
         return tuple(parts)
 
+    def get(self, key: Hashable) -> tuple[Any | None, bool]:
+        """读取已有条目并刷新 LRU 顺序，返回 ``(值, 是否命中)``。"""
+        with self._lock:
+            if key not in self._data:
+                self.misses += 1
+                return None, False
+            self._data.move_to_end(key)
+            self.hits += 1
+            return self._data[key], True
+
+    def put(self, key: Hashable, value: Any) -> None:
+        """写入只读计算结果并执行容量淘汰。"""
+        with self._lock:
+            self._data[key] = value
+            self._data.move_to_end(key)
+            if len(self._data) > self._max:
+                self._data.popitem(last=False)
+
     def get_or_compute(self, key: Hashable, compute: Callable[[], Any]) -> tuple[Any, bool]:
         """返回 ``(值, 是否命中)``。"""
         with self._lock:

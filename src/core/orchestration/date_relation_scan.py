@@ -62,6 +62,13 @@ from src.research.universe.point_in_time import PointInTimeUniverse
 
 DATE_SCAN_CACHE = ResultCache(max_entries=16)
 
+# 仅在引擎版本 1.0.2 下兼容这批原局投影：1.0.0/1.0.1 的出生四柱及
+# 喜忌字段未变化，1.0.2 只修正大运方向映射；扫描不读取大运字段。
+# 这是显式的一对一兼容声明，不能推广为“任意旧引擎缓存均可用”。
+NATAL_CACHE_COMPATIBLE_ENGINE_VERSIONS: dict[str, frozenset[str]] = {
+    "smx-bazi-native-1.0.2": frozenset({"smx-bazi-native-1.0.0"}),
+}
+
 #: 原局快照完整性要求的柱位（喜用神来自完整四柱，故缓存仍按四柱校验）。
 SNAPSHOT_POSITIONS: tuple[str, ...] = ("year", "month", "day", "hour")
 
@@ -96,12 +103,21 @@ def _tuple_field(value: Any, name: str) -> tuple[str, ...]:
     return tuple(str(item) for item in (raw or []))
 
 
+def _natal_cache_engine_compatible(stored: str, active: str) -> bool:
+    """只接受同版快照，或当前版本显式登记过的原局投影兼容版本。"""
+    return bool(stored) and (
+        stored == active
+        or stored in NATAL_CACHE_COMPATIBLE_ENGINE_VERSIONS.get(active, frozenset())
+    )
+
+
 @lru_cache(maxsize=1)
 def _load_static_natal_cache() -> dict[str, NatalSnapshot]:
     """读取已经按出生模型构建的原局快照。
 
     该文件是 Phase 4 的离线产物，不承担未来数据；只在元数据明确为
-    ``v2-phase4b`` 且引擎版本一致时作为 canonical listing_open 快照使用。
+    ``v2-phase4b`` 且引擎版本相同或存在原局投影兼容声明时作为 canonical
+    listing_open 快照使用。缓存不包含本扫描使用不到的大运结果。
     旧条目缺少仇神/闲神字段时按空元组兼容读取，不因此重算整份缓存。
     """
     path = settings.data_dir / "phase4_cache" / "astrology_natal_cache.pkl"
@@ -123,7 +139,7 @@ def _load_static_natal_cache() -> dict[str, NatalSnapshot]:
         if not isinstance(raw, dict):
             continue
         engine_version = str(raw.get("engine_version", ""))
-        if engine_version and engine_version != settings.bazi_engine_version:
+        if not _natal_cache_engine_compatible(engine_version, settings.bazi_engine_version):
             continue
         stems = raw.get("stems")
         branches = raw.get("branches")
@@ -132,11 +148,20 @@ def _load_static_natal_cache() -> dict[str, NatalSnapshot]:
         code = str(key[0])
         if any(not stems.get(pos) or not branches.get(pos) for pos in SNAPSHOT_POSITIONS):
             continue
+        try:
+            # 防止损坏/不完整的离线条目把整次市场扫描带入异常状态。
+            for pos in SNAPSHOT_POSITIONS:
+                GanZhi.from_text(str(stems[pos]) + str(branches[pos]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        day_master = str(raw.get("day_master", stems.get("day", "")))
+        if day_master != str(stems.get("day", "")):
+            continue
         yong = raw.get("yong_shen")
         result[code] = NatalSnapshot(
             stems={pos: str(stems[pos]) for pos in SNAPSHOT_POSITIONS},
             branches={pos: str(branches[pos]) for pos in SNAPSHOT_POSITIONS},
-            day_master=str(raw.get("day_master", stems.get("day", ""))),
+            day_master=day_master,
             yong_shen=_tuple_field(yong, "yong_shen"),
             xi_shen=_tuple_field(yong, "xi_shen"),
             ji_shen=_tuple_field(yong, "ji_shen"),
@@ -171,12 +196,21 @@ def _natal_ganzhi(natal: NatalSnapshot) -> dict[str, GanZhi]:
     }
 
 
-def _percentile(value: int, values: list[int]) -> float | None:
+def _percentile_map(values: list[int]) -> dict[int, float]:
+    """一次构造与旧逐值扫描完全相同的平均秩百分位（含并列值）。"""
     if not values:
-        return None
-    less = sum(1 for item in values if item < value)
-    equal = sum(1 for item in values if item == value)
-    return round((less + 0.5 * equal) / len(values) * 100, 2)
+        return {}
+    counts: dict[int, int] = {}
+    for value in values:
+        counts[value] = counts.get(value, 0) + 1
+    ranks: dict[int, float] = {}
+    less = 0
+    size = len(values)
+    for value in sorted(counts):
+        equal = counts[value]
+        ranks[value] = round((less + 0.5 * equal) / size * 100, 2)
+        less += equal
+    return ranks
 
 
 def _fingerprint_cache_key(request: DateScanRequest, universe_digest: str) -> tuple[Any, ...]:
@@ -245,8 +279,9 @@ def _resolve_natal(
     profile: Any,
     request: DateScanRequest,
     bazi: BaziEngine,
+    static_cache: dict[str, NatalSnapshot] | None = None,
 ) -> NatalSnapshot | None:
-    static = _load_static_natal_cache().get(code)
+    static = (static_cache if static_cache is not None else _load_static_natal_cache()).get(code)
     if static is not None:
         return static
     if profile is None:
@@ -393,7 +428,7 @@ def scan_market_by_date(db: Session, request: DateScanRequest) -> DateScanRespon
                 code,
                 names.get(code, ("", ""))[0],
                 names.get(code, ("", ""))[1],
-                _resolve_natal(code, profiles.get(code), request, bazi),
+                _resolve_natal(code, profiles.get(code), request, bazi, static),
                 snapshot,
                 include_matrix=False,
             )
@@ -403,10 +438,19 @@ def scan_market_by_date(db: Session, request: DateScanRequest) -> DateScanRespon
         s_values = [row.metrics.S_raw for row in valid if row.metrics.S_raw is not None]
         v_values = [row.metrics.V_raw for row in valid if row.metrics.V_raw is not None]
         u_values = [row.metrics.U_raw for row in valid if row.metrics.U_raw is not None]
+        s_percentiles = _percentile_map(s_values)
+        v_percentiles = _percentile_map(v_values)
+        u_percentiles = _percentile_map(u_values)
         for row in valid:
-            row.metrics.S_percentile = _percentile(row.metrics.S_raw or 0, s_values)
-            row.metrics.V_percentile = _percentile(row.metrics.V_raw or 0, v_values)
-            row.metrics.U_percentile = _percentile(row.metrics.U_raw or 0, u_values)
+            row.metrics.S_percentile = (
+                s_percentiles.get(row.metrics.S_raw) if row.metrics.S_raw is not None else None
+            )
+            row.metrics.V_percentile = (
+                v_percentiles.get(row.metrics.V_raw) if row.metrics.V_raw is not None else None
+            )
+            row.metrics.U_percentile = (
+                u_percentiles.get(row.metrics.U_raw) if row.metrics.U_raw is not None else None
+            )
         relation_type_counts = {
             relation: sum(1 for row in rows if relation in row.relation_types)
             for relation in RELATION_TYPES

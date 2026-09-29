@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     ten_god_rule_version: str = "ten-god-v1"
     calendar_engine_version: str = "smx-calendar-1.0.1+lunar-python-1.4.8"
     huangli_engine_version: str = "huangli-engine-1.0.0"
-    bazi_engine_version: str = "smx-bazi-native-1.0.1"
+    bazi_engine_version: str = "smx-bazi-native-1.0.2"
     # Phase 2：紫微斗数（iztro 2.6.1 经 services/ziwei-service adapter 接入）
     ziwei_engine_version: str = "iztro-2.6.1+smx-1.0.0"
     # v1.1: 修正 B_YEAR_005/007/008 的关系类型接线错误（原：005≡010 三合重复、刑冲错位、害未计算）

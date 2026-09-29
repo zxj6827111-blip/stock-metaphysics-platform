@@ -22,7 +22,9 @@ import { api, endpoints, type ApiMultiAnalysis } from "./api";
 import { isFixtureActive, multiAnalysisFixture } from "./fixture";
 import { recordAnalysis } from "./historyStore";
 
-const STORAGE_PREFIX = "smp-analysis:";
+// 运限方向与兼容性别映射在 Bazi 1.0.2 修正；旧 sessionStorage 盘面不含该解释，
+// 通过缓存 epoch 切换，避免已打开的浏览器继续复用旧版本结果。
+const STORAGE_PREFIX = "smp-analysis:bazi-yun-direction-v2:";
 const memory = new Map<string, ApiMultiAnalysis>();
 
 /**: 默认出生模型 —— 与后端 `BirthBasis.LISTING_OPEN` 一致（研究约定，非事实）。 */

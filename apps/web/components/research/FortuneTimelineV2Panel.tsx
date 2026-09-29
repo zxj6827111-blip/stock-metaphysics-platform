@@ -53,6 +53,7 @@ export function FortuneTimelineV2Panel({ stockCode, startDate }: { stockCode: st
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogNonce, setCatalogNonce] = useState(0);
   const requestSequence = useRef(0);
+  const initialQueryFingerprint = useRef<string | null>(null);
 
   const queryTimeline = useCallback(async (query: TimelineQuery) => {
     const invalidRange = validateDateRange(query.startDate, query.endDate);
@@ -138,6 +139,10 @@ export function FortuneTimelineV2Panel({ stockCode, startDate }: { stockCode: st
     setRelationTargetPillar(initialQuery.relationTargetPillar);
     setRelationSourceComponent(initialQuery.relationSourceComponent);
     setRelationTargetComponent(initialQuery.relationTargetComponent);
+    const fingerprint = JSON.stringify([stockCode, initialQuery]);
+    // Next dev Strict Mode 会重复执行 mount effect；相同面板实例只发一次有持久化副作用的请求。
+    if (initialQueryFingerprint.current === fingerprint) return;
+    initialQueryFingerprint.current = fingerprint;
     void queryTimeline(initialQuery);
   }, [fixture, queryTimeline, requestStartDate, stockCode]);
 
