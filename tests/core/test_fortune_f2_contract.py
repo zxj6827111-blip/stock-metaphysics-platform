@@ -239,6 +239,7 @@ def test_first_day_polarity_is_unavailable_until_first_session_close() -> None:
         source=source,
         source_version="stock-master-v1",
         market_session_version="a-share-session-v1:v1",
+        visible_at=datetime(2024, 11, 15, 15, 0, tzinfo=ZoneInfo("Asia/Shanghai")),
         exchange=Exchange.SSE,
         birth_year_stem="甲",
         as_of=datetime(2024, 11, 15, 14, 59, tzinfo=ZoneInfo("Asia/Shanghai")),
@@ -246,6 +247,24 @@ def test_first_day_polarity_is_unavailable_until_first_session_close() -> None:
     assert early.availability == FortuneAvailability.UNAVAILABLE
     assert early.direction is None
     assert "收盘后" in early.unavailability_reason
+
+
+def test_first_day_polarity_rejects_visible_time_that_disagrees_with_market_close() -> None:
+    result = resolve_first_day_yinyang_luck_cycle(
+        first_day_yinyang="阳",
+        polarity_observation_date=date(2024, 11, 15),
+        polarity_is_trading_day=True,
+        source=SourceRef(source="authoritative-first-day-table"),
+        source_version="sha256:test",
+        market_session_version="a-share-session-v1:v1",
+        visible_at=datetime(2024, 11, 15, 14, 59, tzinfo=ZoneInfo("Asia/Shanghai")),
+        exchange=Exchange.SSE,
+        birth_year_stem="甲",
+        as_of=datetime(2024, 11, 15, 16, 0, tzinfo=ZoneInfo("Asia/Shanghai")),
+    )
+    assert result.availability == FortuneAvailability.UNAVAILABLE
+    assert result.direction is None
+    assert "可见时点" in result.unavailability_reason
 
 
 def test_missing_polarity_evidence_fails_closed_without_compatibility_default() -> None:

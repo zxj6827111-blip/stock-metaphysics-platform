@@ -85,6 +85,38 @@ def test_inferred_listing_open_is_explicit_and_not_actual_first_trade() -> None:
     assert natal_pillar_availability(profile.birth_time_precision) == NatalPillarAvailability.FOUR_PILLARS
 
 
+def test_listing_open_is_a_distinct_inferred_basis_without_claiming_first_trade() -> None:
+    from src.core.schemas.fortune import FortuneBirthBasis, StockFortuneBirthProfile
+
+    profile = StockFortuneBirthProfile(
+        symbol="600519",
+        exchange=Exchange.SSE,
+        listing_date=date(2001, 8, 27),
+        birth_basis=FortuneBirthBasis.LISTING_OPEN,
+        birth_datetime=datetime.fromisoformat("2001-08-27T09:30:00+08:00"),
+        first_trade_datetime=None,
+        first_trade_date=None,
+        first_trade_resolution=FirstTradeObservationResolution.UNKNOWN,
+        birth_time_precision=BirthTimePrecision.INFERRED,
+        source=SourceRef(source="research:listing_open"),
+        source_version="v2-phase4b-listing_open",
+        birth_profile_version="v2-phase4b-listing_open",
+        rule_version="listing-open-profile:v2-phase4b-listing_open",
+        config_version="cfg-test",
+        market_session_version="a-share-session-v1",
+        assumptions=[Assumption(
+            key="fortune.birth.listing_open",
+            value="2001-08-27T09:30:00+08:00",
+            reason="上市开盘是显式研究假设",
+            impact="不表示首笔真实成交时刻",
+        )],
+    )
+    assert profile.birth_basis == FortuneBirthBasis.LISTING_OPEN
+    assert profile.birth_time_precision == BirthTimePrecision.INFERRED
+    assert profile.first_trade_datetime is None
+    assert profile.first_trade_date is None
+
+
 def test_precision_controls_pillar_availability_without_filling_time() -> None:
     assert natal_pillar_availability(BirthTimePrecision.DATE_ONLY) == NatalPillarAvailability.THREE_PILLARS
     assert natal_pillar_availability(BirthTimePrecision.UNKNOWN) == NatalPillarAvailability.UNAVAILABLE

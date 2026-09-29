@@ -39,12 +39,19 @@ def _bars(days: list[date], closes: list[float], amounts: list[float] | None = N
     })
 
 
+def _identity_adj_factors(days: list[date]) -> pd.DataFrame:
+    """无公司行动的数学样例显式提供因子，避免把缺失因子误当作 1.0。"""
+    return pd.DataFrame({"trade_date": days, "factor": [1.0] * len(days)})
+
+
 def test_momentum_matches_manual_window() -> None:
     """momentum_60d 必须严格等于 trailing 60 个交易日的累计收益。"""
     days = _business_days(date(2020, 1, 1), 200)
     closes = list(np.linspace(10.0, 30.0, 200))
     as_of = days[-1]
-    rows = compute_stock_exposures(_bars(days, closes), [as_of], stock_code="X")
+    rows = compute_stock_exposures(
+        _bars(days, closes), [as_of], adj_factors=_identity_adj_factors(days), stock_code="X",
+    )
     assert len(rows) == 1
     row = rows[0]
     expected = closes[-1] / closes[-61] - 1.0
@@ -56,7 +63,10 @@ def test_momentum_matches_manual_window() -> None:
 def test_momentum_unavailable_when_history_too_short() -> None:
     """历史不足时必须为 None（不得填 0 冒充）。"""
     days = _business_days(date(2020, 1, 1), 30)
-    rows = compute_stock_exposures(_bars(days, [10.0] * 30), [days[-1]], stock_code="X")
+    rows = compute_stock_exposures(
+        _bars(days, [10.0] * 30), [days[-1]],
+        adj_factors=_identity_adj_factors(days), stock_code="X",
+    )
     assert rows[0]["momentum_60d"] is None
     assert rows[0]["momentum_120d"] is None
 
@@ -65,7 +75,10 @@ def test_volatility_uses_log_returns_of_window() -> None:
     days = _business_days(date(2020, 1, 1), 80)
     rng = np.random.default_rng(7)
     closes = 10.0 * np.exp(np.cumsum(rng.normal(0, 0.02, 80)))
-    rows = compute_stock_exposures(_bars(days, list(closes)), [days[-1]], stock_code="X")
+    rows = compute_stock_exposures(
+        _bars(days, list(closes)), [days[-1]],
+        adj_factors=_identity_adj_factors(days), stock_code="X",
+    )
     log_ret = np.diff(np.log(closes[-21:]))
     assert rows[0]["volatility_20d"] == pytest.approx(float(log_ret.std(ddof=1)), abs=1e-8)
 
@@ -88,8 +101,13 @@ def test_exposures_are_frozen_against_future_bars() -> None:
     tampered.loc[future, "close"] = tampered.loc[future, "close"] * 1000.0
     tampered.loc[future, "amount"] = tampered.loc[future, "amount"] * 1000.0
 
-    base_rows = compute_stock_exposures(original, [as_of], stock_code="X")
-    tampered_rows = compute_stock_exposures(tampered, [as_of], stock_code="X")
+    adj_factors = _identity_adj_factors(days)
+    base_rows = compute_stock_exposures(
+        original, [as_of], adj_factors=adj_factors, stock_code="X",
+    )
+    tampered_rows = compute_stock_exposures(
+        tampered, [as_of], adj_factors=adj_factors, stock_code="X",
+    )
     assert base_rows == tampered_rows
     for column in STYLE_EXPOSURE_COLUMNS:
         assert base_rows[0][column] is not None
@@ -133,11 +151,21 @@ def test_availability_records_size_and_value_gaps() -> None:
     assert payload["exposure_version"] == EXPOSURE_VERSION
 
 
-def test_build_exposure_panel_reports_coverage() -> None:
+def test_build_exposure_panel_reports_coverage(tmp_path) -> None:
     days = _business_days(date(2020, 1, 1), 200)
     bars = {"A": _bars(days, list(np.linspace(10, 20, 200))),
             "B": _bars(days[:40], [10.0] * 40)}
-    frame, meta = build_exposure_panel(bars, [days[-1]])
+    from src.research.labels.panel import ADJ_SNAPSHOTS
+
+    factor_dir = tmp_path / ADJ_SNAPSHOTS[0]
+    factor_dir.mkdir(parents=True)
+    for code, stock_bars in bars.items():
+        factors = _identity_adj_factors(stock_bars["trade_date"].tolist())
+        factors["trade_date"] = pd.to_datetime(factors["trade_date"]).dt.strftime("%Y%m%d")
+        factors.rename(columns={"factor": "adj_factor"}).to_csv(
+            factor_dir / f"{code}.csv", index=False,
+        )
+    frame, meta = build_exposure_panel(bars, [days[-1]], adj_root=tmp_path)
     assert len(frame) == 2
     assert meta["stock_count"] == 2
     full = frame[frame["stock_code"] == "A"].iloc[0]

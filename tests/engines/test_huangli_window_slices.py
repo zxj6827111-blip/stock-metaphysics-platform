@@ -29,16 +29,29 @@ def test_slices_equal_per_day_snapshots(engine, hour):
     start = datetime(2024, 11, 15, hour, 0, 0)
     offsets = [0, 1, 4, 7, 11, 18]
     sliced = engine.snapshots_for_window(start=start, offsets=offsets, window_days=31)
+    span = max(offsets) + 31
+    calendar_snapshots = [
+        engine._calendar.snapshot(start + timedelta(days=i)) for i in range(span)
+    ]
+    shared = engine.snapshots_for_window(
+        start=start, offsets=offsets, window_days=31,
+        calendar_snapshots=calendar_snapshots,
+    )
 
     assert set(sliced) == set(offsets)
     for offset in offsets:
         expected = engine.snapshot(start + timedelta(days=offset), days=31)
         got = sliced[offset]
+        reused = shared[offset]
         # primary 逐字段相同（含 hour_ganzhi —— 时刻分量必须一致）
         assert got.primary.model_dump(mode="json") == expected.primary.model_dump(mode="json")
+        assert reused.primary.model_dump(mode="json") == expected.primary.model_dump(mode="json")
         # days 同时长、逐字段相同
         assert len(got.days) == len(expected.days) == 31
         assert [d.model_dump(mode="json") for d in got.days] == [
+            d.model_dump(mode="json") for d in expected.days
+        ]
+        assert [d.model_dump(mode="json") for d in reused.days] == [
             d.model_dump(mode="json") for d in expected.days
         ]
         assert got.engine_version == expected.engine_version
@@ -73,3 +86,13 @@ def test_duplicate_offsets_deduplicated(engine):
         start=datetime(2024, 11, 15, 15), offsets=[0, 0, 3, 3, 3], window_days=31,
     )
     assert sorted(out) == [0, 3]
+
+
+def test_precomputed_calendar_snapshot_count_must_match_span(engine):
+    with pytest.raises(ValueError, match="预计算历法快照数量不匹配"):
+        engine.snapshots_for_window(
+            start=datetime(2024, 11, 15, 15),
+            offsets=[0, 3],
+            window_days=31,
+            calendar_snapshots=[],
+        )

@@ -12,6 +12,7 @@
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { Worker } from 'node:worker_threads';
 
 import { buildZiweiChart, ENGINE_VERSION, IZTRO_VERSION } from './chart.js';
 import type { ZiweiRequest } from './types.js';
@@ -19,6 +20,89 @@ import type { ZiweiRequest } from './types.js';
 const PORT = Number(process.env.ZIWEI_PORT ?? 8100);
 const HOST = process.env.ZIWEI_HOST ?? '127.0.0.1';
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
+const PARALLEL_BATCH_THRESHOLD = 16;
+const MAX_BATCH_WORKERS = 4;
+
+interface WorkerResult {
+  index: number;
+  result?: unknown;
+  error?: string;
+}
+
+interface BatchOutput {
+  results: unknown[];
+  errors: { index: number; message: string }[];
+}
+
+function calculateBatchSequential(requests: ZiweiRequest[]): BatchOutput {
+  const results: unknown[] = [];
+  const errors: { index: number; message: string }[] = [];
+  requests.forEach((request, index) => {
+    try {
+      results.push(buildZiweiChart(request));
+    } catch (error) {
+      errors.push({
+        index,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+  return { results, errors };
+}
+
+async function calculateBatch(requests: ZiweiRequest[]): Promise<BatchOutput> {
+  if (requests.length < PARALLEL_BATCH_THRESHOLD) {
+    return calculateBatchSequential(requests);
+  }
+
+  const workers: Worker[] = [];
+  try {
+    const workerCount = Math.min(MAX_BATCH_WORKERS, requests.length);
+    for (let i = 0; i < workerCount; i += 1) {
+      workers.push(new Worker(new URL('./worker.js', import.meta.url)));
+    }
+
+    const outputByIndex: unknown[] = new Array(requests.length);
+    const errors: { index: number; message: string }[] = [];
+    let nextIndex = 0;
+    let completed = 0;
+
+    await new Promise<void>((resolve, reject) => {
+      const dispatch = (worker: Worker): void => {
+        if (nextIndex >= requests.length) return;
+        const index = nextIndex;
+        nextIndex += 1;
+        worker.postMessage({ index, request: requests[index] });
+      };
+
+      for (const worker of workers) {
+        worker.on('error', reject);
+        worker.on('message', (message: WorkerResult) => {
+          if (message.error !== undefined) {
+            errors.push({ index: message.index, message: message.error });
+          } else {
+            outputByIndex[message.index] = message.result;
+          }
+          completed += 1;
+          if (completed === requests.length) {
+            resolve();
+          } else {
+            dispatch(worker);
+          }
+        });
+        dispatch(worker);
+      }
+    });
+
+    // 与原先串行服务保持相同契约：成功结果按原始顺序排列，错误独立带原输入索引。
+    return {
+      results: outputByIndex.filter((result) => result !== undefined),
+      errors: errors.sort((a, b) => a.index - b.index),
+    };
+  } finally {
+    await Promise.all(workers.map((worker) => worker.terminate()));
+  }
+}
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -78,16 +162,17 @@ const server = createServer(async (req, res) => {
         ? ((parsed as { requests: ZiweiRequest[] }).requests)
         : [parsed as ZiweiRequest];
 
-    const results: unknown[] = [];
-    const errors: { index: number; message: string }[] = [];
-    requests.forEach((r, index) => {
-      try {
-        results.push(buildZiweiChart(r));
-      } catch (err) {
-        errors.push({ index, message: (err as Error).message });
-      }
-    });
-    send(res, 200, { results, errors, iztroVersion: IZTRO_VERSION });
+    try {
+      const { results, errors } = await calculateBatch(requests);
+      send(res, 200, { results, errors, iztroVersion: IZTRO_VERSION });
+    } catch (error) {
+      send(res, 500, {
+        error: {
+          code: 'WORKER_POOL_FAILED',
+          message: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
     return;
   }
 

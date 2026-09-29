@@ -15,6 +15,7 @@ from datetime import datetime
 import pytest
 
 from scripts.astrology_calendar import (
+    CACHE_PATH,
     REL_LABEL,
     REL_WEIGHT,
     YINYANG_TO_GENDER,
@@ -26,8 +27,13 @@ from scripts.astrology_calendar import (
     natal_summary,
     session_overlap_minutes,
 )
+from src.core.config import settings
 
 BIRTH = datetime(2001, 8, 27, 9, 30)
+
+
+def test_natal_cache_path_uses_configured_data_directory() -> None:
+    assert CACHE_PATH == settings.data_dir / "phase4_cache" / "astrology_natal_cache.pkl"
 
 
 class TestGanzhiIndex:

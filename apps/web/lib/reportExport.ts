@@ -20,6 +20,11 @@
 
 import { api, endpoints, type ApiMultiAnalysis } from "./api";
 import { isFixtureActive } from "./fixture";
+import type {
+  ApiHistoricalDatasetV2,
+  ApiHistoricalEventStudyRequest,
+  ApiHistoricalEventStudyV2,
+} from "./researchV2";
 
 export type ExportFormat = "markdown" | "html" | "json";
 
@@ -117,6 +122,107 @@ export async function exportReport(target: ExportTarget, format: ExportFormat): 
       "text/markdown;charset=utf-8",
     );
   }
+}
+
+export interface HistoricalResearchV2ExportInput {
+  dataset: ApiHistoricalDatasetV2;
+  requests: ApiHistoricalEventStudyRequest[];
+  results: ApiHistoricalEventStudyV2[];
+}
+
+/** 导出当前页面消费的同一组 v2 数据集、请求口径和 API 响应。 */
+export function exportHistoricalResearchV2(
+  input: HistoricalResearchV2ExportInput,
+  format: "markdown" | "json",
+): void {
+  const exportedAt = new Date().toISOString();
+  const base = `historical-research-${input.dataset.dataset_id}-${stamp()}`;
+  if (format === "json") {
+    download(
+      `${base}.json`,
+      JSON.stringify({ schema_version: "historical-research-v2-export-v1", exported_at: exportedAt, ...input }, null, 2),
+      "application/json;charset=utf-8",
+    );
+    return;
+  }
+
+  const scope = input.dataset.metadata.scope;
+  const rangeDates = scope?.research_dates ?? [];
+  const knownLimitations = input.dataset.metadata.known_limitations ?? [];
+  const lines: string[] = [
+    `# 历史事件研究 v2 · ${input.dataset.dataset_id}`,
+    "",
+    `- 导出时间：${exportedAt}`,
+    `- 数据集摘要：\`${input.dataset.dataset_digest}\``,
+    `- Schema：\`${input.dataset.schema_version}\` · Manifest：${input.dataset.status}`,
+    `- 数据行：${input.dataset.row_count} · 分片：${input.dataset.complete_shard_count}/${input.dataset.expected_shard_count}`,
+    `- 认证状态：${input.dataset.certification_status} · ${input.dataset.certification_reason}`,
+    `- 研究资格：${input.dataset.research_eligible ? "eligible" : "不具备"} · 确认性资格：${input.dataset.confirmatory_research_eligible ? "eligible" : "不具备"}`,
+    `- 证书：${input.dataset.scope_certificate_id ?? "未绑定"} · SHA-256：\`${input.dataset.scope_certificate_sha256 ?? "不可用"}\``,
+    `- 认证证券/范围：${input.dataset.certified_stock_code ?? "未限定"} · ${input.dataset.certified_date_from ?? "不可用"} ～ ${input.dataset.certified_date_to ?? "不可用"}`,
+    `- 样本范围：${rangeDates[0] ?? "不可用"} ～ ${rangeDates[rangeDates.length - 1] ?? "不可用"} · ${scope?.stock_code ?? "全范围"} · ${scope?.sample_kind ?? "未说明"}`,
+    "",
+    "## 请求口径",
+    "",
+  ];
+  for (const request of input.requests) {
+    lines.push(
+      `- ${request.scope_mode} · 历史范围 ${request.date_from} ～ ${request.date_to}${request.target_date ? ` · 扫描目标日 ${request.target_date}` : ""} · ${request.factor_ids.join(", ")} · activation=${request.activation}${request.relation_type ? ` · relation=${request.relation_type} ${request.relation_source_context}/${request.relation_source_pillar}/${request.relation_source_component}→${request.relation_target_context}/${request.relation_target_pillar}/${request.relation_target_component}` : ""}${request.ten_god_category ? ` · ten_god=${request.ten_god_category} ${request.ten_god_layer}/${request.ten_god_position}` : ""} · 条件逻辑 AND · ${request.horizon}D · price_basis=${request.versions.price_basis} · factor_version=${request.versions.factor_version}`,
+    );
+  }
+  lines.push("", "## API 结果", "");
+  for (const result of input.results) {
+    lines.push(
+      `### ${result.horizon}D · ${result.research_status}`,
+      "",
+      `- Dataset：\`${result.dataset_id}\` / \`${result.dataset_digest}\``,
+      `- 实际条件：${result.scope_mode} · 历史范围 ${result.date_from} ～ ${result.date_to}${result.target_date ? ` · 扫描目标日 ${result.target_date}` : ""} · ${result.factor_ids.join(", ")} · activation=${result.activation}${result.relation_type ? ` · relation=${result.relation_type} ${result.relation_source_context}/${result.relation_source_pillar}/${result.relation_source_component}→${result.relation_target_context}/${result.relation_target_pillar}/${result.relation_target_component}` : ""}${result.ten_god_category ? ` · ten_god=${result.ten_god_category} ${result.ten_god_layer}/${result.ten_god_position}` : ""} · ${result.condition_logic} · 统计单位=${result.observation_unit}`,
+      `- 认证范围：${result.certified_stock_code ?? "不可用"} · ${result.certified_date_from ?? "不可用"} ～ ${result.certified_date_to ?? "不可用"}`,
+      `- 候选观察：${result.candidate_observation_count} · 命中观察：${result.matched_observation_count} · 候选证券日期：${result.candidate_security_date_count} · 命中证券日期：${result.matched_security_date_count} · 命中日期：${result.matched_date_count} · 缺失：${result.missing_observation_count}`,
+      `- 命中组：n=${result.matched.sample_count}，均值=${formatExportPct(result.matched.mean_return)}，中位数=${formatExportPct(result.matched.median_return)}，胜率=${formatExportPct(result.matched.win_rate)}`,
+      `- 命中组风险：平均盈利=${formatExportPct(result.matched.mean_positive_return)}，平均亏损=${formatExportPct(result.matched.mean_negative_return)}，盈亏比=${formatExportRatio(result.matched.payoff_ratio)}，样本最大收益=${formatExportPct(result.matched.max_return)}，样本最大亏损=${formatExportPct(result.matched.max_loss)}`,
+      `- 补集：n=${result.complement.sample_count}，均值=${formatExportPct(result.complement.mean_return)}，中位数=${formatExportPct(result.complement.median_return)}，胜率=${formatExportPct(result.complement.win_rate)}`,
+      `- 整体：n=${result.overall.sample_count}，均值=${formatExportPct(result.overall.mean_return)}，中位数=${formatExportPct(result.overall.median_return)}，胜率=${formatExportPct(result.overall.win_rate)}`,
+      `- 整体风险：平均盈利=${formatExportPct(result.overall.mean_positive_return)}，平均亏损=${formatExportPct(result.overall.mean_negative_return)}，盈亏比=${formatExportRatio(result.overall.payoff_ratio)}，样本最大收益=${formatExportPct(result.overall.max_return)}，样本最大亏损=${formatExportPct(result.overall.max_loss)}`,
+      "",
+    );
+    for (const [groupName, stats] of [["命中组", result.matched], ["未命中补集", result.complement], ["整体", result.overall]] as const) {
+      lines.push(`### ${groupName}的基准、超额与路径指标`, "", "| 指标 | 样本数 | 缺失数 | 均值 | 最小 | 最大 | 定义 |", "|---|---:|---:|---:|---:|---:|---|");
+      for (const [metricName, metric] of Object.entries(stats.metric_summaries)) {
+        lines.push(`| ${metricName} | ${metric.sample_count} | ${metric.missing_count} | ${formatExportPct(metric.mean)} | ${formatExportPct(metric.minimum)} | ${formatExportPct(metric.maximum)} | ${escapeMarkdownCell(metric.definition)} |`);
+      }
+      lines.push("");
+    }
+    if (result.research_status_reasons.length) {
+      lines.push("研究状态原因：", ...result.research_status_reasons.map((reason) => `- ${reason}`), "");
+    }
+    lines.push("事件（当前响应页）：", "", "| 日期 | 股票 | 因子 | 收益 | 基准 | 超额 | 标签 | 缺失原因 |", "|---|---|---|---:|---:|---:|---|---|");
+    for (const event of result.events) {
+      lines.push(
+        `| ${event.research_date} | ${event.stock_code} | ${event.factor_id} | ${formatExportPct(event.return_value)} | ${formatExportPct(event.benchmark_return)} | ${formatExportPct(event.excess_return)} | ${event.label_available ? "可用" : "不可用"} | ${escapeMarkdownCell(event.missing_reason ?? "—")} |`,
+      );
+    }
+    if (!result.events.length) lines.push("| — | — | — | — | — | — | — | 当前响应页无事件 | ");
+    lines.push("");
+    if (result.warnings.length) lines.push("警告：", ...result.warnings.map((warning) => `- ${warning}`), "");
+  }
+  if (knownLimitations.length) {
+    lines.push("## 数据集已登记限制", "", ...knownLimitations.map((limitation) => `- ${limitation}`), "");
+  }
+  lines.push("---", "本报告保留后端返回的 unavailable/null；描述统计不等于预测能力或交易建议。");
+  download(`${base}.md`, lines.join("\n"), "text/markdown;charset=utf-8");
+}
+
+function formatExportPct(value: number | null): string {
+  return value === null || value === undefined ? "不可用" : `${(value * 100).toFixed(4)}%`;
+}
+
+function formatExportRatio(value: number | null): string {
+  return value === null || value === undefined ? "不可用" : value.toFixed(4);
+}
+
+function escapeMarkdownCell(value: string): string {
+  return value.replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ");
 }
 
 /* -------------------------------------------------------------------------- */

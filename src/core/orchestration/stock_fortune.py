@@ -451,6 +451,7 @@ class StockFortuneEngine:
             source=evidence.source,
             source_version=evidence.source_version,
             market_session_version=evidence.market_session_version,
+            visible_at=evidence.visible_at,
             exchange=exchange,
             birth_year_stem=birth_year_stem,
             as_of=evaluation_time,

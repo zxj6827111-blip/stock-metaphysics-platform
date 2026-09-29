@@ -97,6 +97,8 @@ test.describe("V3-A.1 历史验证首屏层级", () => {
   test("六张空占位卡不得回来；没有真实数据的槽位如实标不可用", async ({ page }) => {
     await page.goto(`/stock/600519/backtest${FIX}`, { waitUntil: "load" });
     await expect(page.locator('[data-app-ready="true"]')).toHaveCount(1);
+    // UI reference fixtures must retain their frozen geometry and never load the live certified v2 panel.
+    await expect(page.getByTestId("stock-historical-v2")).toHaveCount(0);
 
     // 占位卡的指纹：卡头右侧的「研究卡位」标记 + 固定空高度
     await expect(page.getByText("研究卡位")).toHaveCount(0);

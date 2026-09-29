@@ -30,9 +30,11 @@ from sqlalchemy import select
 from src.db.base import get_session_factory
 from src.db.models import MarketBarDailyRow
 from src.research.labels.horizon_returns import (
+    BENCHMARK_STORAGE_CODE,
     DEFAULT_BENCHMARK_CODE,
     HORIZONS,
     BenchmarkSeries,
+    benchmark_storage_code,
     compute_forward_returns,
     label_frame,
 )
@@ -92,18 +94,21 @@ def load_bars_by_code(codes: list[str]) -> dict[str, pd.DataFrame]:
             rows = db.execute(
                 select(
                     MarketBarDailyRow.stock_code, MarketBarDailyRow.trade_date,
-                    MarketBarDailyRow.close, MarketBarDailyRow.volume,
+                    MarketBarDailyRow.high, MarketBarDailyRow.low, MarketBarDailyRow.close,
+                    MarketBarDailyRow.volume,
                     MarketBarDailyRow.amount,
                     MarketBarDailyRow.is_degraded,
                 ).where(
                     MarketBarDailyRow.stock_code.in_(chunk),
                     MarketBarDailyRow.source == BAR_SOURCE,
+                    MarketBarDailyRow.adjust == "none",
                 ).order_by(MarketBarDailyRow.stock_code, MarketBarDailyRow.trade_date)
             ).all()
             frame = pd.DataFrame(
                 rows,
                 columns=[
-                    "stock_code", "trade_date", "close", "volume", "amount", "is_degraded",
+                    "stock_code", "trade_date", "high", "low", "close", "volume", "amount",
+                    "is_degraded",
                 ],
             )
             for code, group in frame.groupby("stock_code", sort=False):
@@ -112,12 +117,17 @@ def load_bars_by_code(codes: list[str]) -> dict[str, pd.DataFrame]:
 
 
 def load_benchmark(code: str = BENCHMARK_CODE) -> BenchmarkSeries:
-    """读取基准指数序列（价格指数，不做复权）。"""
+    """读取基准指数序列（价格指数，不做复权）。
+
+    API/配置标识 ``000300`` 与 DB 身份 ``IDX000300`` 的映射只在此处显式执行。
+    """
+    storage_code = benchmark_storage_code(code)
     factory = get_session_factory()
     with factory() as db:
         rows = db.execute(
             select(MarketBarDailyRow.trade_date, MarketBarDailyRow.close).where(
-                MarketBarDailyRow.stock_code == code
+                MarketBarDailyRow.stock_code == storage_code,
+                MarketBarDailyRow.adjust == "none",
             ).order_by(MarketBarDailyRow.trade_date)
         ).all()
     frame = pd.DataFrame(rows, columns=["trade_date", "close"])
@@ -149,6 +159,8 @@ def build_label_panel(
             adj_factors=load_adj_factors(code, index, factor_cache),
             benchmark=benchmark,
             is_degraded=bool(frame["is_degraded"].any()),
+            bar_version=BAR_SOURCE,
+            factor_version="+".join(ADJ_SNAPSHOTS),
             coverage_out=coverage,
         )
         rows.extend(produced)
@@ -171,6 +183,7 @@ def build_label_panel(
     meta = {
         "label_version": str(labels["label_version"].iloc[0]) if not labels.empty else "",
         "benchmark_code": BENCHMARK_CODE,
+        "benchmark_storage_code": BENCHMARK_STORAGE_CODE,
         "bar_source": BAR_SOURCE,
         "adj_snapshots": list(ADJ_SNAPSHOTS),
         "adj_factor_files": len(index),

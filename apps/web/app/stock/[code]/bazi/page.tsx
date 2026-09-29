@@ -288,7 +288,10 @@ function BaziInner() {
               dense
               right={
                 <div className="flex flex-wrap items-center gap-2 text-[10.5px]">
-                  <span style={{ color: "var(--color-warn)" }}>
+                  <span
+                    style={{ color: "var(--color-warn)" }}
+                    data-testid="bazi-dayun-compatibility"
+                  >
                     {data.variantNote || "股票无天然性别，运限推演基于假设规则"}
                   </span>
                   <span className="flex items-center gap-1.5">

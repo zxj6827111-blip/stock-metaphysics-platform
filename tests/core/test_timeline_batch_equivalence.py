@@ -15,7 +15,7 @@ from datetime import date, datetime
 
 import pytest
 
-from src.core.orchestration.timeline import TimelineBuilder
+from src.core.orchestration.timeline import DAY_EVALUATION_CACHE, TimelineBuilder
 from src.core.schemas.common import VariantMode
 
 BIRTH = datetime(2001, 8, 27, 9, 30)
@@ -158,3 +158,61 @@ def test_build_days_uses_published_calendar_beyond_observed_end(builder):
     # 节后首个交易日必须在
     assert date(2026, 10, 8) in dates
     assert "TIMELINE_DAILY_PARTIAL" not in {w.code for w in warnings}
+
+
+def test_evaluate_days_reuses_calendar_snapshots_for_bazi_and_huangli(builder, monkeypatch):
+    calls: list[datetime] = []
+    original_snapshot = builder.service.calendar.snapshot
+
+    def track_snapshot(when: datetime):
+        calls.append(when)
+        return original_snapshot(when)
+
+    monkeypatch.setattr(builder.service.calendar, "snapshot", track_snapshot)
+    evaluated, _warnings = builder.evaluate_days(
+        stock_code="600519",
+        target_days=TARGETS,
+        variant_mode=VariantMode.NOT_APPLICABLE,
+        birth_datetime=BIRTH,
+    )
+
+    span = max((day - min(TARGETS)).days for day in TARGETS) + 31
+    assert set(evaluated) == set(TARGETS)
+    # 出生快照一次 + 连续流日/黄历范围一次；不再为每个目标日重复解析同一原局，
+    # 也不再让黄历和八字各自重建相同的逐日历法快照。
+    assert len(calls) == span + 1
+    assert calls.count(BIRTH) == 1
+
+
+def test_evaluate_days_reuses_overlapping_dates_between_windows(builder, monkeypatch):
+    DAY_EVALUATION_CACHE.clear()
+    calls: list[datetime] = []
+    original_snapshot = builder.service.calendar.snapshot
+
+    def track_snapshot(when: datetime):
+        calls.append(when)
+        return original_snapshot(when)
+
+    monkeypatch.setattr(builder.service.calendar, "snapshot", track_snapshot)
+    first_dates = [date(2024, 11, 18), date(2024, 11, 19)]
+    first, _warnings = builder.evaluate_days(
+        stock_code="600519",
+        target_days=first_dates,
+        variant_mode=VariantMode.NOT_APPLICABLE,
+        birth_datetime=BIRTH,
+    )
+    first_call_count = len(calls)
+
+    extended_dates = [*first_dates, date(2024, 11, 20)]
+    second, _warnings = builder.evaluate_days(
+        stock_code="600519",
+        target_days=extended_dates,
+        variant_mode=VariantMode.NOT_APPLICABLE,
+        birth_datetime=BIRTH,
+    )
+
+    assert first_call_count == 1 + 1 + 31  # 出生快照 + 两个目标日之间 31 天窗口
+    assert len(calls) - first_call_count == 1 + 31  # 只为新增日期计算其窗口
+    assert second[first_dates[0]] is first[first_dates[0]]
+    assert second[first_dates[1]] is first[first_dates[1]]
+    DAY_EVALUATION_CACHE.clear()

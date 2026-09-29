@@ -41,6 +41,7 @@ class FortuneBirthBasis(str, Enum):
     """Fortune V1 采用的股票出生基准。"""
 
     MARKET_FIRST_TRADE = "MARKET_FIRST_TRADE"
+    LISTING_OPEN = "LISTING_OPEN"
     COMPANY_FOUNDING = "COMPANY_FOUNDING"
     CUSTOM = "CUSTOM"
     UNKNOWN = "UNKNOWN"
@@ -219,6 +220,45 @@ class FortuneLuckCycleEvidence(SMBaseModel):
     source: SourceRef | None = None
     source_version: str = Field(default="unknown", min_length=1)
     market_session_version: str = ""
+    visible_at: datetime | None = Field(
+        default=None,
+        description="证据允许使用的本地收盘时点；必须与版本化 session 配置一致",
+    )
+
+
+class FirstDayPolarityEvidence(SMBaseModel):
+    """首日阴阳原始字段及来源可用状态；与运限计算结果分开报告。"""
+
+    status: Literal["available", "unavailable", "conflict"]
+    first_day_yinyang: Literal["阳", "阴"] | None = None
+    first_day_pct_chg: FiniteFloat | None = None
+    price_basis: str = ""
+    observation_date: date | None = None
+    is_trading_day: bool | None = None
+    trading_day_source: str = ""
+    source: str = ""
+    source_version: str = ""
+    market_session_version: str = ""
+    visible_at: datetime | None = None
+    reason: str = ""
+
+    @model_validator(mode="after")
+    def validate_polarity_evidence(self) -> FirstDayPolarityEvidence:
+        if self.visible_at is not None and (
+            self.visible_at.tzinfo is None or self.visible_at.utcoffset() is None
+        ):
+            raise ValueError("first-day evidence visible_at 必须带时区")
+        if self.status == "available" and (
+            self.first_day_yinyang is None
+            or self.observation_date is None
+            or self.is_trading_day is not True
+            or not self.source
+            or not self.source_version
+            or not self.market_session_version
+            or self.visible_at is None
+        ):
+            raise ValueError("available 首日阴阳证据必须具备完整来源、日期、交易日与可见时点")
+        return self
 
 
 class StockFortuneBirthProfile(SMBaseModel):
@@ -311,16 +351,26 @@ class StockFortuneBirthProfile(SMBaseModel):
         if self.birth_time_precision == BirthTimePrecision.INFERRED and not self.assumptions:
             raise ValueError("INFERRED 必须公开记录 assumptions")
         if self.birth_time_precision == BirthTimePrecision.INFERRED:
-            if self.first_trade_date is None:
-                raise ValueError("INFERRED 必须基于 first_trade_date")
             if not self.market_session_version.strip():
                 raise ValueError("INFERRED 必须记录 market_session_version")
             if self.source_version.strip().lower() in {"", "unknown"}:
                 raise ValueError("INFERRED 必须记录 source_version")
-            if self.first_trade_resolution != FirstTradeObservationResolution.DAILY_BAR:
-                raise ValueError("INFERRED 的首日证据必须是 DAILY_BAR")
             if not self.config_version.strip():
                 raise ValueError("INFERRED 必须记录 config_version")
+            if self.birth_basis == FortuneBirthBasis.MARKET_FIRST_TRADE:
+                if self.first_trade_date is None:
+                    raise ValueError("MARKET_FIRST_TRADE 的 INFERRED 必须基于首个观测交易日期")
+                if self.first_trade_resolution != FirstTradeObservationResolution.DAILY_BAR:
+                    raise ValueError("MARKET_FIRST_TRADE 的 INFERRED 首日证据必须是 DAILY_BAR")
+            elif self.birth_basis == FortuneBirthBasis.LISTING_OPEN:
+                if self.listing_date is None:
+                    raise ValueError("LISTING_OPEN 的 INFERRED 必须保留档案上市日期")
+                if self.first_trade_date is not None or self.first_trade_datetime is not None:
+                    raise ValueError("LISTING_OPEN 不得伪装成首笔成交观测")
+                if self.birth_datetime.astimezone(ZoneInfo(self.timezone)).date() != self.listing_date:
+                    raise ValueError("LISTING_OPEN 推定时刻必须落在档案上市日期")
+            else:
+                raise ValueError("当前仅支持 MARKET_FIRST_TRADE 或 LISTING_OPEN 的 INFERRED 档案")
         if (
             self.birth_basis == FortuneBirthBasis.MARKET_FIRST_TRADE
             and self.birth_time_precision == BirthTimePrecision.EXACT
@@ -1462,6 +1512,7 @@ class StockFortuneStableContext(SMBaseModel):
     natal_context: FortuneNatalContext
     natal_ten_gods: list[FortuneTenGodObservation] = Field(default_factory=list)
     hidden_stem_ten_gods: list[FortuneHiddenStemTenGodObservation] = Field(default_factory=list)
+    luck_cycle_context: FortuneLuckCycleContext = Field(default_factory=FortuneLuckCycleContext)
     luck_cycle_direction: LuckCycleDirection | None = None
     luck_cycle_availability: FortuneAvailability = FortuneAvailability.UNAVAILABLE
     polarity_observed_at: datetime | None = None

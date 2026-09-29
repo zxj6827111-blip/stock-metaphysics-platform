@@ -89,12 +89,14 @@ class StockMasterRow(TimestampMixin, Base):
     listing_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     total_market_cap: Mapped[float | None] = mapped_column(Float, nullable=True)
     circulating_market_cap: Mapped[float | None] = mapped_column(Float, nullable=True)
-    #: 上市首日涨跌幅与「阴阳」标识（阳=首日收涨 / 阴=首日收跌）。
-    #: 来源：用户提供的权威表（其上市日已与 TuShare 交叉验证一致）。
+    #: 工作簿提供的上市首日涨跌幅（按其字段口径为收盘价/开盘价-1）与阴阳标签原值。
+    #: 标签直接保留来源值，不在入库时重新推算；涨跌幅为 0 的蜡烛也可能在来源中标记阳/阴。
     #: 用途：仅作**运限顺逆的显式假设输入**（本项目按「阳→男命 / 阴→女命」起运），
     #: 不是股票的真实性别 —— 见 AGENTS.md §5 与 bazi 引擎的 variant_mode 说明。
     first_day_pct_chg: Mapped[float | None] = mapped_column(Float, nullable=True)
     first_day_yinyang: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    #: 首日阴阳字段级来源、观测交易日与收盘可见时点；缺失/冲突时运限 fail closed。
+    first_day_evidence_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     source: Mapped[str] = mapped_column(String(32), default="akshare")
     data_quality_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)

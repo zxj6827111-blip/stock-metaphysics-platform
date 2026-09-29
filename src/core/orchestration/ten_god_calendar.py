@@ -485,13 +485,23 @@ def build_stock_ten_god_calendar(
     verdict: str | None = None,
     birth_basis: str = settings.canonical_birth_basis,
     birth_profile_version: str = settings.canonical_birth_profile_version,
+    resolved_profile: StockBirthProfile | None = None,
 ) -> TenGodStockCalendarResponse:
     """构造「股票 → 未来十神时历」。
 
     底层**始终**生成全部自然日；``view="trading"`` 只是显示过滤，
     ``natural_day_count`` 仍报告完整底表行数（合同 §1.1）。
     """
-    profile, stock_name = load_birth_profile(db, code, birth_basis, birth_profile_version)
+    if resolved_profile is None:
+        profile, stock_name = load_birth_profile(db, code, birth_basis, birth_profile_version)
+    else:
+        normalized = normalize_code(code)
+        if resolved_profile.stock_code != normalized:
+            raise TenGodCalendarError("resolved_profile.stock_code 与请求股票代码不一致")
+        profile = resolved_profile
+        stock_name = db.execute(
+            select(StockMasterRow.name).where(StockMasterRow.stock_code == normalized)
+        ).scalars().first() or ""
     filters = {
         "ten_god": ten_god or "",
         "ten_god_group": ten_god_group or "",

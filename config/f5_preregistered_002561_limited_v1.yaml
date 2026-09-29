@@ -1,0 +1,115 @@
+protocol_version: f5-preregistered-limited-v1
+registered_at: '2026-09-28'
+pilot_labels_previously_seen: true
+pilot_scope: W4 20-row engineering pilot labels were previously viewed; this independent
+  protocol is frozen before inspecting category-level results from the certified limited
+  range.
+category_level_results_seen_at_registration: false
+confirmatory_eligible: false
+dataset:
+  dataset_id: w4-certified-002561-20120223-20180514-v2-label-ends
+  dataset_digest: d024ef9e2084563ce1dd3d1ce61f9dcf48daf15d49f93f2c96eb95d58156ac99
+  use: limited_scope_exploratory_only
+  require_manifest_sha256: true
+  scope_certificate_id: w2-szse-002561-20120223-20180514-v1
+  scope_certificate_sha256: f8eabbf0223d6dbd28ea3343438c68944731ffc46a7d33eff359a91a6b19cb75
+  confirmatory_research_eligible: false
+  full_pit_universe_status: COVERAGE_INCOMPLETE
+  research_start_date: '2012-02-23'
+  research_end_date: '2018-05-14'
+  observation_count: 1513
+split:
+  version: phase3-oos-v1
+  partitions:
+  - id: TRAIN
+    start: '2010-01-01'
+    end: '2018-12-31'
+  - id: VALIDATION
+    start: '2019-01-01'
+    end: '2022-12-31'
+  - id: OOS
+    start: '2023-01-01'
+    end: '2026-08-14'
+  boundary_policy: 需要每个目标周期的 label_end_date；缺失时只给描述结果，不做分区隔离推断。跨入下一分区的结果窗口从该分区统计中排除。
+analysis:
+  horizons:
+  - 5
+  - 20
+  primary_metric: excess_return
+  secondary_metric: adjusted_absolute_return
+  alpha: 0.05
+  min_hit_and_complement_samples: 20
+  multiple_testing:
+    method:
+    - benjamini-hochberg
+    - bonferroni
+    missing_hypothesis_p_value: pad_with_1_for_registered_family_size
+    f5-exp-001_family_size: 60
+    f5-exp-002_family_size: 18
+  permutation:
+    method: date_stratified_permutation
+    tail: two_sided
+    count: 2000
+    seed: 20260928
+  bootstrap:
+    method: moving_consecutive_date_blocks
+    count: 2000
+    confidence: 0.95
+    block_length_trading_dates: 20
+    seed: 20260928
+  negative_control:
+    method: existing_random_factor_control
+    seed: 20260928
+    scope_note: 沿用既有随机因子负对照；其原接口比较绝对收益，只作诊断，不替代主分析的基准超额收益。
+experiments:
+- experiment_id: F5-EXP-001
+  title: 十种流日十神
+  family_id: f5_exp_001_ten_gods
+  factor_id: B_DAY_005
+  raw_value_categories:
+  - 比肩
+  - 劫财
+  - 食神
+  - 伤官
+  - 正财
+  - 偏财
+  - 正官
+  - 七杀
+  - 正印
+  - 偏印
+  condition: raw_value 等于对应十神；每个类别独立与同一因子其余类别比较。
+  expected_direction: none
+  tails: two_sided
+  registered_tests_per_partition: 20
+  registered_family_size: 60
+  report_id: F5-EXP-001-002561-LIMITED-V1
+- experiment_id: F5-EXP-002
+  title: 六合、六冲、相害
+  family_id: f5_exp_002_relations
+  conditions:
+  - factor_id: B_DAY_003
+    condition_id: liuhe
+    title: 流日六合
+    activation: raw_value > 0
+  - factor_id: B_DAY_002
+    condition_id: liuchong
+    title: 流日六冲
+    activation: raw_value > 0
+  - factor_id: B_DAY_008
+    condition_id: xianghai
+    title: 流日相害
+    activation: raw_value > 0
+  expected_direction: none
+  tails: two_sided
+  registered_tests_per_partition: 6
+  registered_family_size: 18
+  report_id: F5-EXP-002-002561-LIMITED-V1
+not_configured:
+- experiment_id: F5-EXP-003
+  reason: 尚未预先指定唯一组合；不搜索、排序或挑选最佳组合。
+  report_id: F5-EXP-003-002561-LIMITED-V1
+research_status_reasons:
+- 结果仅描述 SZSE.STK.002561 在 2012-02-23 至 2018-05-14 的单股历史范围，属于回溯探索。
+- 日期来自 Tencent observed-index 集合而非交易所官方日历；历史 ST 状态未筛选，完整 W2 PIT 仍为 COVERAGE_INCOMPLETE。
+- 出生日期有上市公告支持，09:30 仍是 listing_open 假设；公司行动核对不是独立发行人审计。
+- 结果不升级为显著、有效、可预测或交易建议，confirmatory_research_eligible=false。

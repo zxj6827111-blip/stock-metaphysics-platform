@@ -32,11 +32,14 @@ from src.core.schemas.market import (
 )
 from src.core.schemas.stock import StockBirthProfile
 from src.research.backtest.provider import BacktestProvider, LocalBacktestProvider
+from src.research.labels.research_date import ResearchDateResolution
 
 BirthTransform = Callable[[datetime, np.random.Generator], datetime]
 
 
 def _label_row(labels) -> dict:  # type: ignore[no-untyped-def]
+    if isinstance(labels, dict):
+        return dict(labels)
     return {
         "stock_code": labels.stock_code,
         "trade_date": labels.trade_date,
@@ -71,6 +74,9 @@ def _observation_rows(observations: list[FactorObservation]) -> list[dict]:
             "rule_score": o.rule_score,
             "normalized_value": o.normalized_value,
             "availability": o.availability,
+            "engine_version": o.engine_version,
+            "rule_version": o.rule_version,
+            "config_version": o.config_version,
         }
         for o in observations
     ]
@@ -126,6 +132,7 @@ class ResearchPipeline:
         label_builder: Callable[[str, date], object],
         birth_profile_provider: Callable[[str, str | None], StockBirthProfile],
         birth_transform: BirthTransform | None = None,
+        research_date_resolver: Callable[[str, date], ResearchDateResolution] | None = None,
         variant: str = "real",
         seed: int | None = None,
     ) -> tuple[pd.DataFrame, pd.DataFrame, list[Warning_]]:
@@ -136,6 +143,7 @@ class ResearchPipeline:
             label_builder: ``(code, as_of_date) -> LabelSet``
             birth_profile_provider: ``(code, variant) -> StockBirthProfile``
             birth_transform: 负对照使用的出生时间变换；None 表示真实基准
+            research_date_resolver: 新研究路径的严格日期解析器；缺少已验证日历时跳过该样本。
         """
         warnings: list[Warning_] = []
         rng = np.random.default_rng(settings.negative_control_seed if seed is None else seed)
@@ -161,29 +169,100 @@ class ResearchPipeline:
                 })
 
             for as_of_date in sample_dates:
+                research_date = as_of_date
+                date_resolution: ResearchDateResolution | None = None
+                if research_date_resolver is not None:
+                    try:
+                        date_resolution = research_date_resolver(code, as_of_date)
+                    except Exception as exc:  # noqa: BLE001 - 日期证据失败时 fail closed
+                        warnings.append(Warning_(
+                            code="RESEARCH_DATE_RESOLUTION_FAILED",
+                            message=f"{code}@{as_of_date} 研究日期解析失败：{type(exc).__name__}: {exc}",
+                            severity="warning",
+                        ))
+                        continue
+                    if not date_resolution.available:
+                        warnings.append(Warning_(
+                            code="RESEARCH_DATE_UNAVAILABLE",
+                            message=(
+                                f"{code}@{as_of_date} 缺少已验证交易日期："
+                                f"{date_resolution.exchange}/{date_resolution.source}；"
+                                f"{date_resolution.reason}"
+                            ),
+                            severity="info",
+                        ))
+                        continue
+                    research_date = date_resolution.research_date  # type: ignore[assignment]
+                    if date_resolution.status == "SHIFTED":
+                        warnings.append(Warning_(
+                            code="RESEARCH_DATE_SHIFTED",
+                            message=(
+                                f"{code} 研究锚点 {as_of_date} 按 {date_resolution.source} "
+                                f"映射到 {research_date}；calendar_version="
+                                f"{date_resolution.calendar_version}"
+                            ),
+                            severity="info",
+                        ))
                 try:
-                    observations = factor_builder(code, as_of_date, profile)
-                    obs_rows.extend(_observation_rows(observations))
+                    observations = factor_builder(code, research_date, profile)
+                    sample_obs_rows = _observation_rows(observations)
                 except Exception as exc:  # noqa: BLE001
                     warnings.append(Warning_(
                         code="RESEARCH_FACTOR_FAILED",
-                        message=f"{code}@{as_of_date} 因子计算失败：{type(exc).__name__}: {exc}",
+                        message=f"{code}@{research_date} 因子计算失败：{type(exc).__name__}: {exc}",
                         severity="warning",
                     ))
                     continue
 
                 try:
-                    labels = label_builder(code, as_of_date)
+                    labels = label_builder(code, research_date)
                 except Exception as exc:  # noqa: BLE001 - 数据不足属预期情况
+                    if research_date_resolver is None:
+                        obs_rows.extend(sample_obs_rows)
                     warnings.append(Warning_(
                         code="RESEARCH_LABEL_UNAVAILABLE",
-                        message=f"{code}@{as_of_date} 标签不可用：{type(exc).__name__}: {exc}",
+                        message=f"{code}@{research_date} 标签不可用：{type(exc).__name__}: {exc}",
                         severity="info",
                     ))
                     continue
 
                 if labels is not None:
-                    label_rows.append(_label_row(labels))
+                    label_trade_date = (
+                        labels.get("trade_date") if isinstance(labels, dict)
+                        else getattr(labels, "trade_date", None)
+                    )
+                    if label_trade_date is not None:
+                        label_trade_date = pd.to_datetime(label_trade_date).date()
+                    if (research_date_resolver is not None and label_trade_date != research_date):
+                        warnings.append(Warning_(
+                            code="RESEARCH_LABEL_DATE_MISMATCH",
+                            message=(
+                                f"{code}@{research_date} 的标签基准日为 "
+                                f"{label_trade_date}；样本已拒绝，禁止静默平移。"
+                            ),
+                            severity="warning",
+                        ))
+                        continue
+                    label_row = _label_row(labels)
+                    if date_resolution is not None:
+                        label_row.update({
+                            "requested_anchor_date": date_resolution.requested_date,
+                            "research_date_source": date_resolution.source,
+                            "research_calendar_version": date_resolution.calendar_version,
+                            "research_date_status": date_resolution.status,
+                        })
+                    label_rows.append(label_row)
+                    for item in sample_obs_rows:
+                        if date_resolution is not None:
+                            item.update({
+                                "requested_anchor_date": date_resolution.requested_date,
+                                "research_date_source": date_resolution.source,
+                                "research_calendar_version": date_resolution.calendar_version,
+                                "research_date_status": date_resolution.status,
+                            })
+                    obs_rows.extend(sample_obs_rows)
+                elif research_date_resolver is None:
+                    obs_rows.extend(sample_obs_rows)
 
         obs_df = pd.DataFrame(obs_rows)
         label_df = pd.DataFrame(label_rows)

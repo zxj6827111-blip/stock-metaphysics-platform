@@ -42,6 +42,8 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 import { Card, CardHeader } from "@/components/cards/Card";
 import { TimelineStepChart } from "@/components/charts/Charts";
+import { FortuneTimelineV2Panel } from "@/components/research/FortuneTimelineV2Panel";
+import { StockFortuneMonthCalendarPanel } from "@/components/research/StockFortuneMonthCalendarPanel";
 import { ResearchPage, SectionNote } from "@/components/shell/ResearchPage";
 import { PageLoading, ResearchStatusBadge, researchStatusLabel } from "@/components/shell/PageState";
 import { SectionEmpty, SectionError, SectionLoading } from "@/components/shell/SectionState";
@@ -98,10 +100,14 @@ function TimelineInner() {
   // 每个数据源各自的三态：一块慢/失败不吞掉其它块
   const [winLoading, setWinLoading] = useState(false);
   const [winError, setWinError] = useState<string | null>(null);
+  const [weekLoading, setWeekLoading] = useState(false);
+  const [weekError, setWeekError] = useState<string | null>(null);
   const [dayLoading, setDayLoading] = useState(false);
   const [dayError, setDayError] = useState<string | null>(null);
   const [winNonce, setWinNonce] = useState(0);
+  const [weekNonce, setWeekNonce] = useState(0);
   const [dayNonce, setDayNonce] = useState(0);
+  const [weekRequested, setWeekRequested] = useState(false);
 
   const [granularity, setGranularity] = useState<"days" | "months">("days");
   const [selected, setSelected] = useState<
@@ -121,16 +127,31 @@ function TimelineInner() {
       setWinLoading(true);
       setWinError(null);
       try {
-        const [m, w] = await Promise.all([
-          api.get<ApiTimelineMonths>(endpoints.timelineMonths(analysisId, 12)),
-          api.get<ApiTimelineWeeks>(endpoints.timelineWeeks(analysisId, 12)),
-        ]);
-        setMonths(m);
-        setWeeks(w);
+        setMonths(await api.get<ApiTimelineMonths>(endpoints.timelineMonths(analysisId, 12)));
       } catch (e) {
         setWinError(e instanceof Error ? e.message : String(e));
       } finally {
         setWinLoading(false);
+      }
+    },
+    [fixture],
+  );
+
+  const loadWeeks = useCallback(
+    async (analysisId: string) => {
+      if (fixture) {
+        setWeeks(timelineWeeksFixture);
+        setWeekLoading(false);
+        return;
+      }
+      setWeekLoading(true);
+      setWeekError(null);
+      try {
+        setWeeks(await api.get<ApiTimelineWeeks>(endpoints.timelineWeeks(analysisId, 12)));
+      } catch (e) {
+        setWeekError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setWeekLoading(false);
       }
     },
     [fixture],
@@ -157,8 +178,14 @@ function TimelineInner() {
   );
 
   useEffect(() => {
-    if (analysis?.analysis_id) void loadWindows(analysis.analysis_id);
-  }, [analysis?.analysis_id, loadWindows, winNonce]);
+    if (analysis?.analysis_id && (fixture || granularity === "months")) {
+      void loadWindows(analysis.analysis_id);
+    }
+  }, [analysis?.analysis_id, fixture, granularity, loadWindows, winNonce]);
+
+  useEffect(() => {
+    if (analysis?.analysis_id && weekRequested) void loadWeeks(analysis.analysis_id);
+  }, [analysis?.analysis_id, loadWeeks, weekNonce, weekRequested]);
 
   useEffect(() => {
     if (analysis?.analysis_id) void loadDays(analysis.analysis_id);
@@ -244,7 +271,7 @@ function TimelineInner() {
       loading={loading}
       error={error}
       onReload={reload}
-      loadingLabel="正在按交易日构建月度 / 周度 / 逐日窗口…"
+      loadingLabel="正在构建当前所需的时间窗口…"
     >
       {/* ============ summaryTiles（参考图 y 228..378，h 150） ============ */}
       {/* 第一屏这一带只留：四张摘要卡 + 一行极短的状态（研究状态 / 三模型方向 / 运限假设）。
@@ -290,9 +317,9 @@ function TimelineInner() {
             hint={
               weekList.length
                 ? `共 ${weekList.length} 周（每 ${TRADING_DAYS_PER_WEEK} 个交易日）`
-                : winLoading
+                : weekLoading
                   ? "加载中…"
-                  : "后端未返回"
+                  : "周度区域可按需计算"
             }
           />
           <SummaryMetric
@@ -538,9 +565,11 @@ function TimelineInner() {
         />
         <WeekRankingCard
           weekList={weekList}
-          loading={winLoading}
-          error={winError}
-          onRetry={() => setWinNonce((n) => n + 1)}
+          loading={weekLoading}
+          error={weekError}
+          requested={weekRequested}
+          onLoad={() => setWeekRequested(true)}
+          onRetry={() => setWeekNonce((n) => n + 1)}
           onPick={(key) => setSelected({ kind: "week", key })}
           selectedKey={selected?.kind === "week" ? selected.key : null}
         />
@@ -771,6 +800,8 @@ function TimelineInner() {
           ) : null}
         </div>
       </Card>
+      <StockFortuneMonthCalendarPanel stockCode={code} />
+      <FortuneTimelineV2Panel stockCode={code} startDate={asOfDate || analysis?.as_of || ""} />
     </ResearchPage>
   );
 }
@@ -1174,6 +1205,8 @@ function WeekRankingCard({
   weekList,
   loading,
   error,
+  requested,
+  onLoad,
   onRetry,
   onPick,
   selectedKey,
@@ -1181,6 +1214,8 @@ function WeekRankingCard({
   weekList: ApiWeekWindow[];
   loading: boolean;
   error: string | null;
+  requested: boolean;
+  onLoad: () => void;
   onRetry: () => void;
   onPick: (key: string) => void;
   selectedKey: string | null;
@@ -1261,11 +1296,25 @@ function WeekRankingCard({
             ))}
           </tbody>
         </table>
-      ) : (
+      ) : requested ? (
         <SectionEmpty
           what="周度窗口"
           hint="后端未返回周度窗口（可能是 as_of 之后的交易日历覆盖不足）。"
         />
+      ) : (
+        <div className="space-y-2 px-3.5 py-4 text-center" data-testid="timeline-weeks-deferred">
+          <p className="text-[12px]" style={{ color: "var(--color-ink-muted)" }}>
+            周度结果由未来 12 周的实际交易日逐日聚合；需要时再计算，不拖慢逐日与月度页面。
+          </p>
+          <button
+            type="button"
+            className="smp-btn smp-btn--primary"
+            onClick={onLoad}
+            data-testid="timeline-load-weeks"
+          >
+            加载未来 12 周
+          </button>
+        </div>
       )}
       </div>
     </Card>

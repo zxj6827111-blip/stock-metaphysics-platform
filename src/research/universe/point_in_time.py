@@ -186,6 +186,26 @@ class PointInTimeUniverse:
             digest=self._digest(codes),
         )
 
+    def at_exclusive_delist(self, as_of: date) -> UniverseSnapshot:
+        """返回 v2 研究口径的 PIT 成员：``list_date <= T < delist_date``。
+
+        保留 ``at()`` 的旧含退市日语义；新研究查询必须显式调用此方法，避免静默改写
+        已生成的旧快照与历史研究结果。
+        """
+        members: list[MembershipRecord] = [
+            r for r in self._records
+            if r.list_date <= as_of and (r.delist_date is None or as_of < r.delist_date)
+        ]
+        codes = tuple(member.stock_code for member in members)
+        return UniverseSnapshot(
+            universe_version=self.universe_version,
+            as_of=as_of,
+            member_codes=codes,
+            members=tuple(members),
+            warnings=self._survivorship_warnings,
+            digest=self._digest(codes),
+        )
+
     def iter_daily_range(self, start: date, end: date):
         """按日步进生成 ``(date, UniverseSnapshot)``。"""
         cur = start

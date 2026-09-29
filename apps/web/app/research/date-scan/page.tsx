@@ -16,8 +16,14 @@ import { RelationMatrix } from "@/components/research/RelationMatrix";
 import { RelationScatter } from "@/components/research/RelationScatter";
 import { RelationStockTable } from "@/components/research/RelationStockTable";
 import { api, endpoints, type ApiDateScanDetail, type ApiDateScanResponse, type ApiRelationCatalog, type ApiRelationStockResult } from "@/lib/api";
+import { DEFAULT_RESEARCH_DATASET_ID } from "@/lib/researchV2";
 
 const DEFAULT_DATE = "2026-09-22";
+const V2_HISTORICAL_FACTOR: Record<string, string> = {
+  六合: "B_DAY_003",
+  六冲: "B_DAY_002",
+  相害: "B_DAY_008",
+};
 
 function DateScanInner() {
   const search = useSearchParams();
@@ -178,7 +184,37 @@ function DateScanInner() {
       {detailLoading ? <PageLoading label="正在读取股票关系矩阵…" /> : null}
       {detailError ? <Card><UnavailableBlock what="股票详情" reason={detailError} /></Card> : null}
       {selected ? <RelationMatrix row={selected} onClose={() => setSelected(null)} /> : null}
-      <div className="pt-2 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>需要逐日研究同一只股票？<Link href="/research/relation-study" className="underline" style={{ color: "var(--color-gold-strong)" }}>前往关系历史研究</Link></div>
+      <div className="pt-2 text-[11.5px]" style={{ color: "var(--color-ink-muted)" }}>
+        需要逐日研究同一只股票？<Link href="/research/relation-study" className="underline" style={{ color: "var(--color-gold-strong)" }}>前往关系历史研究</Link>
+        {appliedRelation ? (() => {
+          const factorId = V2_HISTORICAL_FACTOR[appliedRelation];
+          if (!factorId) return <span className="ml-2">当前关系尚无对应 W4 因子定义，不能构造历史请求。</span>;
+          const target = data?.target_date ?? date;
+          return <div className="mt-2 space-y-1" data-testid="date-scan-v2-study-links">
+            <div>按认证数据集的完整历史日期范围查询；目标日 {target} 单独保留。选择精确原局参与柱位：</div>
+            <div className="flex flex-wrap gap-3">
+              {(["year", "month", "day"] as const).map((pillar) => {
+                const params = new URLSearchParams({
+                  dataset_id: DEFAULT_RESEARCH_DATASET_ID,
+                  scope_mode: "dates",
+                  target_date: target,
+                  factor_id: factorId,
+                  activation: "nonzero",
+                  relation_type: appliedRelation,
+                  relation_source_context: "day",
+                  relation_source_pillar: "day",
+                  relation_target_context: "natal",
+                  relation_target_pillar: pillar,
+                  relation_source_component: "branch",
+                  relation_target_component: "branch",
+                });
+                const pillarLabel = pillar === "year" ? "年柱" : pillar === "month" ? "月柱" : "日柱";
+                return <Link key={pillar} href={`/research/history?${params.toString()}`} className="underline" style={{ color: "var(--color-gold-strong)" }} data-testid={`date-scan-v2-study-link-${pillar}`}>核验 {appliedRelation} · 流日地支 → 原局{pillarLabel}地支（{factorId}，非零）</Link>;
+              })}
+            </div>
+          </div>;
+        })() : null}
+      </div>
     </AppShell>
   );
 }

@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from src.core.config import settings
-from src.core.schemas.calendar import HuangliDay, HuangliSnapshot
+from src.core.schemas.calendar import CalendarSnapshot, HuangliDay, HuangliSnapshot
 from src.core.schemas.common import Assumption, Availability, SourceRef, Warning_
 from src.engines.base import EngineContext, EngineMetadata, MetaphysicsEngine
 from src.engines.calendar.calendar_engine import CalendarEngine
@@ -87,7 +87,12 @@ class HuangliEngine(MetaphysicsEngine[HuangliSnapshot]):
 
     # ------------------------------------------------------------------
     def snapshots_for_window(
-        self, *, start: datetime, offsets: list[int], window_days: int = 31
+        self,
+        *,
+        start: datetime,
+        offsets: list[int],
+        window_days: int = 31,
+        calendar_snapshots: list[CalendarSnapshot] | None = None,
     ) -> dict[int, HuangliSnapshot]:
         """批量取多天的快照（用于逐日视图）。
 
@@ -108,7 +113,14 @@ class HuangliEngine(MetaphysicsEngine[HuangliSnapshot]):
         if not offsets:
             return {}
         span = max(offsets) + window_days
-        calendar_days = [self._build_day(start + timedelta(days=i)) for i in range(span)]
+        if calendar_snapshots is None:
+            calendar_days = [self._build_day(start + timedelta(days=i)) for i in range(span)]
+        else:
+            if len(calendar_snapshots) != span:
+                raise ValueError(
+                    f"预计算历法快照数量不匹配：需要 {span}，收到 {len(calendar_snapshots)}"
+                )
+            calendar_days = [self._day_from_snapshot(snapshot) for snapshot in calendar_snapshots]
         out: dict[int, HuangliSnapshot] = {}
         for offset in set(offsets):
             slice_ = calendar_days[offset: offset + window_days]
@@ -139,7 +151,10 @@ class HuangliEngine(MetaphysicsEngine[HuangliSnapshot]):
 
     # ------------------------------------------------------------------
     def _build_day(self, when: datetime) -> HuangliDay:
-        snap = self._calendar.snapshot(when)
+        return self._day_from_snapshot(self._calendar.snapshot(when))
+
+    @staticmethod
+    def _day_from_snapshot(snap: CalendarSnapshot) -> HuangliDay:
         return HuangliDay(
             date=snap.solar.date,
             solar_text=f"{snap.solar.date.isoformat()} {snap.solar.weekday_cn}",

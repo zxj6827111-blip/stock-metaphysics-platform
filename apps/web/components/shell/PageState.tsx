@@ -153,6 +153,13 @@ export function UnavailableBlock({
  *    非法/未知状态显式标注为「未知状态」而不是把裸码当结论展示。
  */
 const RESEARCH_STATUS_TONE: Record<string, { bg: string; fg: string; label: string }> = {
+  CERTIFICATE_MISMATCH: { bg: "rgba(232,88,90,0.18)", fg: "#E8585A", label: "证书绑定不匹配" },
+  NOT_CERTIFIED: { bg: "rgba(212,160,74,0.18)", fg: "#D4A04A", label: "数据集未认证" },
+  SECURITY_NOT_CERTIFIED: { bg: "rgba(212,160,74,0.18)", fg: "#D4A04A", label: "证券未认证" },
+  OUTSIDE_CERTIFIED_SCOPE: { bg: "rgba(212,160,74,0.18)", fg: "#D4A04A", label: "超出认证范围" },
+  VERSION_MISMATCH: { bg: "rgba(232,88,90,0.18)", fg: "#E8585A", label: "版本不匹配" },
+  DATA_MISSING: { bg: "rgba(232,88,90,0.18)", fg: "#E8585A", label: "数据缺失" },
+  NO_MATCHING_EVENTS: { bg: "rgba(124,143,163,0.18)", fg: "#9FB0C0", label: "范围内无匹配事件" },
   NOT_RUN: { bg: "rgba(124,143,163,0.18)", fg: "#9FB0C0", label: "未运行" },
   NO_REAL_DATA: { bg: "rgba(232,88,90,0.18)", fg: "#E8585A", label: "无真实数据" },
   INSUFFICIENT_SAMPLE: { bg: "rgba(212,160,74,0.18)", fg: "#D4A04A", label: "样本不足" },

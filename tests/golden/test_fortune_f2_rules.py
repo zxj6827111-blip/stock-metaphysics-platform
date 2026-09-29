@@ -68,6 +68,7 @@ def test_stock_luck_cycle_research_convention_golden(
         source=source,
         source_version="stock-master-first-day-v1",
         market_session_version="a-share-session-v1:v1",
+        visible_at=datetime(2024, 11, 15, 15, 0, tzinfo=ZoneInfo("Asia/Shanghai")),
         exchange=Exchange.SSE,
         birth_year_stem=birth_year_stem,
         as_of=datetime(2024, 11, 15, 15, 0, tzinfo=ZoneInfo("Asia/Shanghai")),

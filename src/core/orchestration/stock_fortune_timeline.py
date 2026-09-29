@@ -368,6 +368,7 @@ class StockFortuneTimelineEngine:
             natal_context=snapshot.natal_context,
             natal_ten_gods=snapshot.ten_god_context.natal,
             hidden_stem_ten_gods=snapshot.ten_god_context.hidden_stems,
+            luck_cycle_context=luck,
             luck_cycle_direction=luck.direction,
             luck_cycle_availability=luck.availability,
             polarity_observed_at=luck.polarity_observed_at,

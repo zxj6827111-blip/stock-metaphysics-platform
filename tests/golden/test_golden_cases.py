@@ -311,8 +311,8 @@ class TestGoldenStability:
     def test_engine_versions_pinned(self):
         from src.core.config import settings
 
-        assert settings.calendar_engine_version == "lunar-python-1.4.8"
-        assert settings.bazi_engine_version == "smx-bazi-native-1.0.0"
+        assert settings.calendar_engine_version == "smx-calendar-1.0.1+lunar-python-1.4.8"
+        assert settings.bazi_engine_version == "smx-bazi-native-1.0.2"
         assert settings.birth_profile_version == "v1"
         # v1.1 是有意提升：修复 B_YEAR_005/007/008 的流年关系接线错误
         # （005≡010 三合重复、刑冲错位、害未计算）。全过程见 docs/calculation-differences-phase1.md

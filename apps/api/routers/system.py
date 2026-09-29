@@ -4,20 +4,32 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
+from fastapi import APIRouter, Depends, Response
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
-from apps.api.deps import db_session, get_knowledge, get_market
-from src.core.config import settings
-from src.core.schemas.common import Availability
+from apps.api.deps import db_session, get_market
+from src.core.config import PROJECT_ROOT, settings
 from src.engines.bazi.bazi_engine import BaziEngine
 from src.engines.calendar.calendar_engine import CalendarEngine
 from src.engines.huangli.huangli_engine import HuangliEngine
 from src.engines.ziwei.ziwei_engine import ZiweiEngine
 from src.factors.registry.definitions import ALL_DEFINITIONS
+from src.market.status import describe_market_data
 
 router = APIRouter(prefix="/api/v1/system", tags=["system"])
+readiness_router = APIRouter(prefix="/api/v2/system", tags=["system"])
+
+
+def _ziwei_runtime_health(engine: ZiweiEngine) -> tuple[bool, str]:
+    try:
+        available, reason = engine.runtime_health()
+    except Exception as exc:  # noqa: BLE001 - optional service failures remain isolated
+        return False, f"{type(exc).__name__}: {exc}"
+    return bool(available), "" if available else (reason or engine.unavailable_reason())
 
 
 @router.get("/health", summary="健康检查")
@@ -43,6 +55,7 @@ def engines(market=Depends(get_market)) -> dict:
     huangli = HuangliEngine()
     bazi = BaziEngine()
     ziwei = ZiweiEngine()
+    ziwei_available, ziwei_reason = _ziwei_runtime_health(ziwei)
 
     def _entry(engine, available: bool, reason: str = "") -> dict:
         meta = engine.metadata
@@ -66,9 +79,9 @@ def engines(market=Depends(get_market)) -> dict:
             _entry(bazi, True),
             _entry(
                 ziwei,
-                ziwei.availability == Availability.OK,
-                "" if ziwei.availability == Availability.OK else (
-                    f"{ziwei.unavailable_reason()}。紫微相关字段返回 unavailable，"
+                ziwei_available,
+                "" if ziwei_available else (
+                    f"{ziwei_reason}。紫微相关字段返回 unavailable，"
                     "其余引擎不受影响，也不会以 0 分参与任何聚合。"
                 ),
             ),
@@ -95,8 +108,7 @@ def engines(market=Depends(get_market)) -> dict:
 
 
 @router.get("/data-quality", summary="数据质量报告")
-def data_quality(db: Session = Depends(db_session), market=Depends(get_market),
-                 knowledge=Depends(get_knowledge)) -> dict:
+def data_quality(db: Session = Depends(db_session)) -> dict:
     from src.db.models import (
         ClassicalEntryRow,
         FactorObservationRow,
@@ -114,46 +126,111 @@ def data_quality(db: Session = Depends(db_session), market=Depends(get_market),
     factors = _count(FactorObservationRow)
     entries = _count(ClassicalEntryRow)
 
+    # 状态报告必须能描述 Provider 初始化失败；不要让依赖注入在进入端点前先变成 500。
+    market_status = describe_market_data()
+    stored_cutoff = db.execute(select(func.max(MarketBarDailyRow.trade_date))).scalar()
+
+    source_rows = db.execute(
+        select(StockMasterRow.source, func.count()).group_by(StockMasterRow.source)
+    ).all()
+    stock_sources = {str(source or "unknown"): int(count) for source, count in source_rows}
+    stock_grade = "D" if stocks == 0 or any(
+        source in {"synthetic", "synthetic_demo"} for source in stock_sources
+    ) else "C"
+
+    profile_rows = db.execute(select(StockBirthProfileRow)).scalars().all()
+    complete_profile_metadata = all(
+        row.source and row.birth_profile_version and row.data_quality_json
+        for row in profile_rows
+    )
+    profile_grade = "D" if profiles == 0 else "C" if not complete_profile_metadata else "B"
+
+    missing_factor_provenance = int(db.execute(
+        select(func.count()).select_from(FactorObservationRow).where(
+            or_(FactorObservationRow.engine_version == "", FactorObservationRow.rule_version == "")
+        )
+    ).scalar() or 0)
+    unavailable_factors = int(db.execute(
+        select(func.count()).select_from(FactorObservationRow).where(
+            FactorObservationRow.availability != "ok"
+        )
+    ).scalar() or 0)
+    factor_grade = (
+        "D" if factors == 0 else "C" if missing_factor_provenance or unavailable_factors else "B"
+    )
+
+    missing_entry_provenance = int(db.execute(
+        select(func.count()).select_from(ClassicalEntryRow).where(
+            or_(
+                ClassicalEntryRow.source == "",
+                ClassicalEntryRow.edition == "",
+                ClassicalEntryRow.provenance == "",
+                ClassicalEntryRow.license_status != "public_domain",
+                ClassicalEntryRow.original_text == "",
+            )
+        )
+    ).scalar() or 0)
+    entry_grade = "D" if entries == 0 else "C" if missing_entry_provenance else "B"
+
+    market_grade = market_status.get("data_quality_grade", "unavailable")
+    if market_grade not in {"A", "B", "C", "D"}:
+        market_grade = "D"
+    bar_grade = "D" if bars == 0 and market_status.get("status") == "unavailable" else market_grade
+
     items = [
         {
             "key": "stock_master", "label": "股票基础资料", "count": stocks,
-            "grade": "A" if stocks > 0 else "D",
-            "note": "来自 MarketDataProvider（AKShare）；离线模式使用内置清单",
+            "grade": stock_grade,
+            "source_distribution": stock_sources,
+            "note": "等级取决于来源可追溯状态；记录条数本身不构成质量证明。",
         },
         {
             "key": "birth_profile", "label": "出生档案", "count": profiles,
-            "grade": "A" if profiles > 0 else "C",
-            "note": "listing_open 基准；开盘时刻来自 exchange_session_calendar",
+            "grade": profile_grade,
+            "note": "检查来源、版本与质量元数据；未完成逐档案认证前最高为 B。",
         },
         {
             "key": "market_bar_daily", "label": "日行情", "count": bars,
-            "grade": "A" if bars > 1000 else ("B" if bars > 0 else "D"),
-            "note": f"行情提供者：{market.provider_id}",
+            "grade": bar_grade,
+            "source": market_status.get("provider_id"),
+            "version": market_status.get("data_version"),
+            "cutoff_date": market_status.get("cutoff_date"),
+            "stored_cutoff_date": stored_cutoff.isoformat() if stored_cutoff else None,
+            "is_degraded": market_status.get("is_degraded"),
+            "research_eligible": market_status.get("research_eligible", False),
+            "note": "数据等级来自 Provider 来源与认证状态；行数不用于推断质量。",
         },
         {
             "key": "factor_observation", "label": "因子观测", "count": factors,
-            "grade": "A" if factors > 0 else "C",
-            "note": f"因子定义 {len(ALL_DEFINITIONS)} 个，rule_version={settings.factor_rule_version}",
+            "grade": factor_grade,
+            "missing_provenance_count": missing_factor_provenance,
+            "unavailable_count": unavailable_factors,
+            "note": f"因子定义 {len(ALL_DEFINITIONS)} 个，rule_version={settings.factor_rule_version}；按版本与可用性评估。",
         },
         {
             "key": "classical_entry", "label": "古籍条目", "count": entries,
-            "grade": "B" if entries > 0 else "D",
-            "note": "公版原文种子语料；Phase 1 未逐字校勘",
+            "grade": entry_grade,
+            "missing_provenance_count": missing_entry_provenance,
+            "note": "按来源、版本、出处、许可状态检查；文本校勘状态另行披露。",
         },
     ]
 
     scores = {"A": 1.0, "B": 0.8, "C": 0.55, "D": 0.25}
-    overall = sum(scores[i["grade"]] for i in items) / len(items)
-    grade = "A" if overall >= 0.9 else "B" if overall >= 0.75 else "C" if overall >= 0.5 else "D"
+    overall = min(scores[i["grade"]] for i in items)
+    grade = min(items, key=lambda item: scores[item["grade"]])["grade"]
 
     return {
         "overall_grade": grade,
         "overall_score": round(overall, 3),
         "items": items,
+        "market_data": {
+            **market_status,
+            "stored_cutoff_date": stored_cutoff.isoformat() if stored_cutoff else None,
+        },
         "notes": [
-            "Phase 1 尚未接入独立交易日历表，交易日按周末规则 + 行情数据校验。",
+            "总等级采用最弱数据项，避免高数量或其他高等级项目掩盖未认证数据。",
             "古籍语料为公版种子数据，正式发布前需完成校勘。",
-            "行情数据在第三方不可用时会降级；降级状态会在响应中显式标注。",
+            "行情快照截止日与数据库已存行情截止日分开展示；未知值保持 null。",
         ],
     }
 
@@ -187,6 +264,7 @@ def trading_calendar(exchange: str = "SSE") -> dict:
 @router.get("/versions", summary="版本信息")
 def versions() -> dict:
     """结果可追溯性所需的全部版本号（architecture §72）。"""
+    market_status = describe_market_data()
     return {
         "app_version": settings.app_version,
         "phase": settings.phase,
@@ -197,9 +275,104 @@ def versions() -> dict:
         "factor_rule_version": settings.factor_rule_version,
         "config_version": settings.config_version,
         "knowledge_version": settings.knowledge_version,
-        "market_data_version": settings.market_data_version,
+        "market_data_version": market_status.get("data_version") or "",
+        "market_data_source": market_status.get("provider_id"),
+        "market_data_cutoff_date": market_status.get("cutoff_date"),
+        "market_data_snapshot_at": market_status.get("snapshot_at"),
         "narrator_prompt_version": "n/a (Phase 2)",
         "fusion_version": "n/a (Phase 2)",
+    }
+
+
+def _migration_status(db: Session) -> dict:
+    config = Config(str(PROJECT_ROOT / "alembic.ini"))
+    config.set_main_option("script_location", str(PROJECT_ROOT / "migrations"))
+    script = ScriptDirectory.from_config(config)
+    heads = script.get_heads()
+    current = MigrationContext.configure(db.connection()).get_current_revision()
+    one_current_head = len(heads) == 1 and current == heads[0]
+    return {
+        "status": "ready" if one_current_head else "not_ready",
+        "required": True,
+        "current_revision": current,
+        "heads": heads,
+        "reason": "" if one_current_head else "数据库迁移版本未到唯一 Alembic head。",
+    }
+
+
+@readiness_router.get("/readiness", summary="实例就绪状态（v2）")
+def readiness(response: Response, db: Session = Depends(db_session)) -> dict:
+    """分别检查核心数据库/迁移和可降级的紫微/研究数据组件。
+
+    `/api/v1/system/health` 保持为存活探针；本端点才判断当前实例能否接收依赖数据库的请求。
+    紫微与研究数据状态独立报告，不会把可降级能力混同为数据库故障。
+    """
+    try:
+        db.execute(text("SELECT 1"))
+        database = {"status": "ready", "required": True, "reason": ""}
+    except Exception as exc:  # noqa: BLE001 - 返回明确的非就绪组件状态
+        database = {
+            "status": "not_ready", "required": True,
+            "reason": f"{type(exc).__name__}: {exc}",
+        }
+
+    if database["status"] == "ready":
+        try:
+            migrations = _migration_status(db)
+        except Exception as exc:  # noqa: BLE001 - 缺表/多 head/配置错误都必须 fail closed
+            migrations = {
+                "status": "not_ready", "required": True,
+                "current_revision": None, "heads": [],
+                "reason": f"{type(exc).__name__}: {exc}",
+            }
+    else:
+        migrations = {
+            "status": "blocked", "required": True,
+            "current_revision": None, "heads": [],
+            "reason": "数据库连接失败，无法核验迁移版本。",
+        }
+
+    try:
+        ziwei = ZiweiEngine()
+        ziwei_available, ziwei_reason = _ziwei_runtime_health(ziwei)
+        ziwei_component = {
+            "status": "ready" if ziwei_available else "degraded",
+            "required": False,
+            "available": ziwei_available,
+            "transport": ziwei.transport_name,
+            "reason": ziwei_reason,
+        }
+    except Exception as exc:  # noqa: BLE001
+        ziwei_component = {
+            "status": "unavailable", "required": False, "available": False,
+            "transport": None, "reason": f"{type(exc).__name__}: {exc}",
+        }
+
+    market_status = describe_market_data()
+    research_ready = bool(market_status.get("research_eligible"))
+    research_component = {
+        **market_status,
+        "status": "ready" if research_ready else (
+            "unavailable" if market_status.get("status") == "unavailable" else "not_certified"
+        ),
+        "required": False,
+        "reason": "" if research_ready else "当前行情来源尚未具备已认证研究范围。",
+    }
+
+    core_ready = database["status"] == "ready" and migrations["status"] == "ready"
+    optional_ready = ziwei_component["status"] == "ready" and research_component["status"] == "ready"
+    overall_status = "not_ready" if not core_ready else "ready" if optional_ready else "degraded"
+    response.status_code = 200 if core_ready else 503
+    return {
+        "status": overall_status,
+        "ready": core_ready,
+        "checked_at": datetime.now().isoformat(),
+        "components": {
+            "database": database,
+            "migrations": migrations,
+            "ziwei_service": ziwei_component,
+            "research_data": research_component,
+        },
     }
 
 

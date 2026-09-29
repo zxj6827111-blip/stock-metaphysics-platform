@@ -113,6 +113,24 @@ class VendorParquetProvider(MarketDataProvider):
         )
         self._catalog: pd.DataFrame | None = None
 
+    def status_descriptor(self) -> dict:
+        start_date, cutoff_date = self.meta.date_range
+        generated_at = str(self.meta.payload.get("generated_at", "")) or None
+        limitations = self.meta.payload.get("known_limitations") or []
+        return {
+            "provider_id": self.provider_id,
+            "data_version": f"{VENDOR_DATA_VERSION}@{generated_at}" if generated_at else VENDOR_DATA_VERSION,
+            "snapshot_at": generated_at,
+            "cutoff_date": cutoff_date or None,
+            "cutoff_basis": "vendor_manifest.date_range.max",
+            "start_date": start_date or None,
+            "data_quality_grade": "C",
+            "is_degraded": False,
+            "research_eligible": False,
+            "status": "configured",
+            "notes": ["逐证券物理认证尚未完成（W2）。", *[str(item) for item in limitations]],
+        }
+
     # ------------------------------------------------------------------
     def _query(self, sql: str, params: list | None = None) -> pd.DataFrame:
         import duckdb
